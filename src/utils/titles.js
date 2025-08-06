@@ -13,7 +13,6 @@ function loadTitles() {
     }
 }
 
-// Neue resolveTitle-Signatur: lädt intern das Mapping
 function resolveTitle(alias) {
     const titles = loadTitles();
     if (!titles[alias]) {

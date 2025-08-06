@@ -13,7 +13,6 @@ const titlesRoutes   = require("./routes/titles");
 const creatorsRoutes = require("./routes/creators");
 const sessionRoutes  = require("./routes/session");    // <— neu
 
-// Marketplace: aufgeteilte Sub-Routen
 const mpAll             = require("./routes/marketplace/all");
 const mpLatest          = require("./routes/marketplace/latest");
 const mpSearch          = require("./routes/marketplace/search");
@@ -26,7 +25,6 @@ const mpSummary         = require("./routes/marketplace/summary");
 const mpCompare         = require("./routes/marketplace/compare");
 const mpFeaturedServers = require("./routes/marketplace/featured-servers");
 
-// Optional: Chalk für ASCII-Art
 const chalkImport = require("chalk");
 const chalk       = chalkImport.default || chalkImport;
 

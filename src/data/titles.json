@@ -1,0 +1,38 @@
+{
+  "demo": {
+    "id": "2C63B",
+    "notes": "Used in demo title login examples"
+  },
+  "bedrock": {
+    "id": "3BA5B",
+    "notes": "Seen in leaked Bedrock logs / Xbox Insider builds"
+  },
+  "edu": {
+    "id": "DD402",
+    "notes": "Minecraft EDU testing"
+  },
+  "prod": {
+    "id": "20ca2",
+    "notes": "Minecraft Production Title"
+  },
+  "staging": {
+    "id": "F8A3C",
+    "notes": "Known test/staging"
+  },
+  "stage": {
+    "id": "EE7B",
+    "notes": "Staging"
+  },
+  "dev": {
+    "id": "E9D1",
+    "notes": "Development env"
+  },
+  "experimental": {
+    "id": "69D2F",
+    "notes": "Spotted in store traffic"
+  },
+  "creator": {
+    "id": "C0164",
+    "notes": "Inferred from public xbl-title.json logs"
+  }
+}

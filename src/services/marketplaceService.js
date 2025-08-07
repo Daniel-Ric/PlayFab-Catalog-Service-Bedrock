@@ -4,7 +4,8 @@ const {
     sendPlayFabRequest,
     fetchAllMarketplaceItemsEfficiently,
     isValidItem,
-    transformItem
+    transformItem,
+    buildSearchPayload
 } = require("../utils/playfab");
 const { resolveTitle, loadTitles } = require("../utils/titles");
 const { loadCreators, resolveCreatorId } = require("../utils/creators");
@@ -31,13 +32,13 @@ module.exports = {
     async fetchLatest(alias, count, query) {
         const titleId = resolveTitle(alias);
         const filter = buildFilter({ query }, loadCreators());
-        const payload = {
-            ...(filter && { Filter: filter }),
-            Search: "",
-            Top: count,
-            Skip: 0,
-            OrderBy: "creationDate desc"
-        };
+        const payload = buildSearchPayload({
+            filter,
+            search: "",
+            top:    count,
+            skip:   0,
+            orderBy: "creationDate desc"
+        });
         const data = await sendPlayFabRequest(
             titleId,
             "Catalog/Search",
@@ -56,10 +57,16 @@ module.exports = {
         const titleId = resolveTitle(alias);
         const cid = resolveCreatorId(loadCreators(), creatorName);
         const filter = `creatorId eq '${cid.replace(/'/g, "''")}'`;
+        const payload = buildSearchPayload({
+            filter,
+            search: `"${keyword}"`,
+            top:    100,
+            skip:   0
+        });
         const data = await sendPlayFabRequest(
             titleId,
             "Catalog/Search",
-            { Filter: filter, Search: `"${keyword}"`, Top: 100, Skip: 0, OrderBy: "creationDate desc" },
+            payload,
             "X-EntityToken",
             3,
             OS
@@ -73,10 +80,17 @@ module.exports = {
     async fetchPopular(alias) {
         const titleId = resolveTitle(alias);
         const filter = buildFilter({ query: {} }, loadCreators());
+        const payload = buildSearchPayload({
+            filter,
+            search: "",
+            top:    300,
+            skip:   0,
+            orderBy: "rating/totalcount desc"
+        });
         const data = await sendPlayFabRequest(
             titleId,
             "Catalog/Search",
-            { ...(filter && { Filter: filter }), Search: "", Top: 300, Skip: 0, OrderBy: "rating/totalcount desc" },
+            payload,
             "X-EntityToken",
             3,
             OS
@@ -90,13 +104,21 @@ module.exports = {
      */
     async fetchByTag(alias, tag) {
         const titleId = resolveTitle(alias);
-        const filter = buildFilter({ query: {} }, loadCreators(),
+        const filter = buildFilter(
+            { query: {} },
+            loadCreators(),
             `Tags/any(t:t eq '${tag.replace(/'/g, "''")}')`
         );
+        const payload = buildSearchPayload({
+            filter,
+            search: "",
+            top:    300,
+            skip:   0
+        });
         const data = await sendPlayFabRequest(
             titleId,
             "Catalog/Search",
-            { Filter: filter, Search: "", Top: 300, Skip: 0, OrderBy: "creationDate desc" },
+            payload,
             "X-EntityToken",
             3,
             OS
@@ -109,10 +131,16 @@ module.exports = {
      */
     async fetchFree(alias) {
         const titleId = resolveTitle(alias);
+        const payload = buildSearchPayload({
+            filter:  "displayProperties/price eq 0",
+            search:  "",
+            top:     300,
+            skip:    0
+        });
         const data = await sendPlayFabRequest(
             titleId,
             "Catalog/Search",
-            { Filter: "displayProperties/price eq 0", Top: 300, Skip: 0 },
+            payload,
             "X-EntityToken",
             3,
             OS
@@ -125,10 +153,17 @@ module.exports = {
      */
     async fetchDetails(alias, itemId) {
         const titleId = resolveTitle(alias);
+        const payload = buildSearchPayload({
+            filter: `id eq '${itemId}'`,
+            search: "",
+            top:    1,
+            skip:   0,
+            orderBy: "creationDate desc"
+        });
         const data = await sendPlayFabRequest(
             titleId,
             "Catalog/Search",
-            { Filter: `id eq '${itemId}'`, Top: 1, Skip: 0, OrderBy: "creationDate desc" },
+            payload,
             "X-EntityToken",
             3,
             OS
@@ -139,25 +174,23 @@ module.exports = {
     },
 
     /**
-     * Holt eine Liste vorgeladener Featured-Server aus data/featuredServers.json.
+     * Holt eine Liste vorgeladener Featured-Server aus config/featuredServers.js.
      */
     async fetchFeaturedServers() {
         const featured = require("../config/featuredServers");
         const titleId = resolveTitle("prod");
         const results = [];
-
         for (const srv of featured) {
+            const payload = buildSearchPayload({
+                filter: `id eq '${srv.id}'`,
+                search: "",
+                top:    1,
+                skip:   0
+            });
             const data = await sendPlayFabRequest(
                 titleId,
                 "Catalog/Search",
-                {
-                    Filter: `id eq '${srv.id}'`,
-                    Top: 1,
-                    Skip: 0,
-                    OrderBy: "creationDate desc",
-                    Select: "images",
-                    Expand: "images"
-                },
+                payload,
                 "X-EntityToken",
                 3,
                 OS
@@ -165,14 +198,13 @@ module.exports = {
             const item = (data.Items || []).find(isValidItem) || null;
             const images = item ? item.Images : [];
             results.push({
-                name: srv.name,
-                id: srv.id,
-                data: item,
+                name:        srv.name,
+                id:          srv.id,
+                data:        item,
                 images,
                 screenshots: images.filter(i => i.Tag.toLowerCase() !== "thumbnail")
             });
         }
-
         return results;
     },
 
@@ -182,40 +214,41 @@ module.exports = {
     async fetchSummary(alias) {
         const all = await this.fetchAll(alias, {});
         return all.map(i => ({
-            id: i.Id,
-            title: i.Title?.NEUTRAL || i.Title?.neutral || "",
+            id:         i.Id,
+            title:      i.Title?.NEUTRAL || i.Title?.neutral || "",
             detailsUrl: `https://view-marketplace.net/details/${i.Id}`,
             clientUrl:  `https://open.view-marketplace.net/StoreOffer/${i.Id}`
         }));
     },
 
     /**
-     * Vergleicht **über alle Titel** nur die Items eines einzelnen Creators.
-     * Liefert zurück: { alias1: [items], alias2: [items], … }
+     * Vergleicht über alle Titel nur die Items eines einzelnen Creators.
      */
     async fetchCompare(creatorName) {
-        const titlesMap = loadTitles();               // { alias: { id, notes }, … }
-        const creators = loadCreators();
-        const cid      = resolveCreatorId(creators, creatorName);
+        const titlesMap = loadTitles();
+        const creators  = loadCreators();
+        const cid       = resolveCreatorId(creators, creatorName);
+        const result    = {};
 
-        const result = {};
-        // parallel alle Aliases abarbeiten
         await Promise.all(
             Object.entries(titlesMap).map(async ([alias, { id: titleId }]) => {
-                // Filter-String für diesen Creator
                 const filter = `creatorId eq '${cid.replace(/'/g, "''")}'`;
+                const payload = buildSearchPayload({
+                    filter,
+                    search: "",
+                    top:    10000,
+                    skip:   0,
+                    orderBy: "creationDate desc"
+                });
                 const data = await sendPlayFabRequest(
                     titleId,
                     "Catalog/Search",
-                    { Filter: filter, Top: 10000, Skip: 0, OrderBy: "creationDate desc" },
+                    payload,
                     "X-EntityToken",
                     3,
                     OS
                 );
-                const items = (data.Items || [])
-                    .filter(isValidItem)
-                    .map(transformItem);
-                result[alias] = items;
+                result[alias] = (data.Items || []).filter(isValidItem).map(transformItem);
             })
         );
 
@@ -227,11 +260,17 @@ module.exports = {
      */
     async fetchByFriendly(alias, friendlyId) {
         const titleId = resolveTitle(alias);
-        const filter = `AlternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${friendlyId.replace(/'/g, "''")}')`;
+        const filter  = `AlternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${friendlyId.replace(/'/g, "''")}')`;
+        const payload = buildSearchPayload({
+            filter,
+            search: "",
+            top:    1,
+            skip:   0
+        });
         const data = await sendPlayFabRequest(
             titleId,
             "Catalog/Search",
-            { Filter: filter, Count: 1 },
+            payload,
             "X-EntityToken",
             3,
             OS

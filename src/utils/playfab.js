@@ -8,6 +8,31 @@ const logger = require("../config/logger");
 const mutex = new Mutex();
 
 /**
+ * Baut das Standard-Payload für Catalog/Search
+ * mit Select/Expand für images und startDate.
+ */
+function buildSearchPayload({
+                                filter       = "",
+                                search       = "",
+                                top          = 100,
+                                skip         = 0,
+                                orderBy      = "creationDate desc",
+                                selectFields = "images,startDate",
+                                expandFields = "images"
+                            }) {
+    const p = {
+        Search:  search,
+        Top:     top,
+        Skip:    skip,
+        OrderBy: orderBy,
+        Select:  selectFields,
+        Expand:  expandFields
+    };
+    if (filter) p.Filter = filter;
+    return p;
+}
+
+/**
  * Loggt in mit einer iOS-Geräte-ID und gibt SessionTicket und PlayFabId zurück.
  */
 async function loginWithIOSDeviceID(titleId, os) {
@@ -18,7 +43,7 @@ async function loginWithIOSDeviceID(titleId, os) {
         { CreateAccount: true, TitleId: titleId, DeviceId: deviceId, OS: os },
         { headers: { "Content-Type": "application/json" } }
     );
-    return r.data.data; // { SessionTicket, PlayFabId, ... }
+    return r.data.data;
 }
 
 /**
@@ -43,12 +68,8 @@ async function getSession(titleId, os) {
     if (sessionCache.has(key)) {
         return sessionCache.get(key);
     }
-
     return mutex.runExclusive(async () => {
-        if (sessionCache.has(key)) {
-            return sessionCache.get(key);
-        }
-
+        if (sessionCache.has(key)) return sessionCache.get(key);
         const { SessionTicket, PlayFabId } = await loginWithIOSDeviceID(titleId, os);
         const EntityToken = await getEntityToken(titleId, SessionTicket, PlayFabId);
         const session = { SessionTicket, PlayFabId, EntityToken };
@@ -59,13 +80,6 @@ async function getSession(titleId, os) {
 
 /**
  * Send a PlayFab request with retry/backoff logic.
- *
- * @param {string} titleId - The PlayFab title ID.
- * @param {string} endpoint - The endpoint path (e.g., "Catalog/Search").
- * @param {object} payload - The request payload.
- * @param {string} auth - Either "X-EntityToken" or "X-Authorization".
- * @param {number} max - Maximum retry attempts.
- * @param {string} os - Operating system identifier.
  */
 async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-EntityToken", max = 3, os) {
     let attempt = 0;
@@ -75,7 +89,7 @@ async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-Ent
             logger.info(`→ PLAYFAB  ${endpoint}  (Try ${attempt + 1})`);
             const headers = {
                 "Content-Type": "application/json",
-                [auth]: auth === "X-EntityToken" ? ses.EntityToken : ses.SessionTicket
+                [auth]:         auth === "X-EntityToken" ? ses.EntityToken : ses.SessionTicket
             };
             const start = Date.now();
             const r = await axios.post(`https://${titleId}.playfabapi.com/${endpoint}`, payload, { headers });
@@ -104,56 +118,57 @@ function isValidItem(item) {
         item.Images.length > 0;
 }
 
+/**
+ * Transformiert das Item: nutzt echtes startDate und mapped img.Tag → Type,
+ * mit Safe-Check, falls img.Tag fehlt.
+ */
 function transformItem(item) {
+    const imagesMapped = (item.Images || []).map(img => {
+        const tag = (img.Tag || "").toLowerCase();
+        return {
+            Id:  img.Id,
+            Tag: img.Tag,
+            Type: tag === "thumbnail" ? "thumbnail" : "screenshot",
+            Url: img.Url
+        };
+    });
+
+    const thumbnails  = imagesMapped.filter(img => img.Type === "thumbnail");
+    const screenshots = imagesMapped.filter(img => img.Type !== "thumbnail");
+
     return {
         ...item,
-        StartDate: item.CreationDate,
-        Images: item.Images.map(img => ({
-            Id: img.Id,
-            Tag: img.Tag,
-            Type: img.Type,
-            Url: img.Url
-        }))
+        StartDate: item.startDate || item.StartDate || item.CreationDate,
+        Images: [...thumbnails, ...screenshots]
     };
 }
 
 /**
- * Efficiently fetch all marketplace items in parallel batches.
- *
- * @param {string} titleId - The PlayFab title ID.
- * @param {string} filter - OData filter string.
- * @param {string} os - Operating system identifier.
- * @param {number} [size=300] - Batch size.
- * @param {number} [conc=5] - Number of concurrent batches.
+ * Fetch ALL items in batches, nutzt buildSearchPayload.
  */
 async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, size = 300, conc = 5) {
     const MAX = 10000;
     const all = [];
     const skips = [];
-    for (let s = 0; s <= MAX; s += size) {
-        skips.push(s);
-    }
+    for (let s = 0; s <= MAX; s += size) skips.push(s);
 
     for (let i = 0; i < skips.length; i += conc) {
         const chunk = skips.slice(i, i + conc);
         const batches = await Promise.all(chunk.map(skip => {
-            const payload = {
-                Search: "",
-                Top: size,
-                Skip: skip,
-                OrderBy: "creationDate desc"
-            };
-            if (filter) payload.Filter = filter;
+            const payload = buildSearchPayload({
+                filter,
+                search: "",
+                top:    size,
+                skip,
+                orderBy: "creationDate desc"
+            });
             return sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, os)
                 .then(data => data.Items || []);
         }));
 
         let done = false;
         for (const arr of batches) {
-            if (!arr.length) {
-                done = true;
-                break;
-            }
+            if (!arr.length) { done = true; break; }
             all.push(...arr.filter(isValidItem).map(transformItem));
         }
         if (done) break;
@@ -169,5 +184,6 @@ module.exports = {
     sendPlayFabRequest,
     fetchAllMarketplaceItemsEfficiently,
     isValidItem,
-    transformItem
+    transformItem,
+    buildSearchPayload
 };

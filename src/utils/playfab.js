@@ -1,11 +1,51 @@
 // src/utils/playfab.js
 
-const axios = require("axios");
+const { fetch, Agent, setGlobalDispatcher } = require("undici");
+const Bottleneck = require("bottleneck");
 const { Mutex } = require("async-mutex");
 const { sessionCache } = require("../config/cache");
 const logger = require("../config/logger");
 
 const mutex = new Mutex();
+
+const dispatcher = new Agent({
+    keepAliveTimeout: 60_000,
+    keepAliveMaxTimeout: 60_000,
+    connections: 128,
+    pipelining: 1
+});
+setGlobalDispatcher(dispatcher);
+
+const limiter = new Bottleneck({
+    maxConcurrent: 24,
+    minTime: 0,
+    reservoir: 120,
+    reservoirRefreshInterval: 1_000,
+    reservoirRefreshAmount: 120,
+    highWater: 2000,
+    strategy: Bottleneck.strategy.BLOCK,
+    trackDoneStatus: true
+});
+
+function sleep(ms) {
+    return new Promise(res => setTimeout(res, ms));
+}
+
+function jitter(baseMs) {
+    return Math.floor(Math.random() * baseMs);
+}
+
+function parseRetryAfter(h) {
+    if (!h) return null;
+    const v = Array.isArray(h) ? h[0] : h;
+    const asNum = Number(v);
+    if (!Number.isNaN(asNum)) return Math.max(0, Math.floor(asNum * 1000));
+    return 3000;
+}
+
+function newRequestId() {
+    return Math.random().toString(36).slice(2, 10);
+}
 
 /**
  * Baut das Standard-Payload für Catalog/Search
@@ -21,27 +61,72 @@ function buildSearchPayload({
                                 expandFields = "images"
                             }) {
     const p = {
-        Search:  search,
+        Search:  search || "",
         Top:     top,
         Skip:    skip,
-        OrderBy: orderBy,
-        Select:  selectFields,
-        Expand:  expandFields
+        OrderBy: orderBy || "creationDate desc"
     };
-    if (filter) p.Filter = filter;
+    const f = (filter || "").trim();
+    if (f) p.Filter = f;
+
+    const sel = (selectFields || "").trim();
+    if (sel) p.Select = sel;
+
+    const exp = (expandFields || "").trim();
+    if (exp) p.Expand = exp;
+
     return p;
+}
+
+async function postJson(baseURL, path, body, headers, timeoutMs = 20_000) {
+    const url = `${baseURL.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+    const ac = new AbortController();
+    const to = setTimeout(() => ac.abort(new Error("request-timeout")), timeoutMs);
+
+    try {
+        const res = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate, br",
+                "Content-Type": "application/json",
+                "User-Agent": "ViewMarketplace/1.0 (+playfab-service)",
+                ...headers
+            },
+            body: JSON.stringify(body),
+            signal: ac.signal
+        });
+
+        const data = await res.json();
+        const hdr = Object.fromEntries(res.headers);
+        return { status: res.status, headers: hdr, data };
+    } catch (e) {
+        if (e.name === "AbortError" || e.message === "request-timeout") {
+            const err = new Error("Request timed out");
+            err.status = 408;
+            throw err;
+        }
+        throw e;
+    } finally {
+        clearTimeout(to);
+    }
 }
 
 /**
  * Loggt in mit einer iOS-Geräte-ID und gibt SessionTicket und PlayFabId zurück.
  */
 async function loginWithIOSDeviceID(titleId, os) {
-    const deviceId = `ios-${Date.now()}-${Math.random().toString(36).substr(2, 10)}`;
-    logger.info(`→ LOGIN    Title=${titleId}  DeviceID=${deviceId}`);
-    const r = await axios.post(
-        `https://${titleId}.playfabapi.com/Client/LoginWithIOSDeviceID`,
-        { CreateAccount: true, TitleId: titleId, DeviceId: deviceId, OS: os },
-        { headers: { "Content-Type": "application/json" } }
+    const deviceId = `ios-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+    const requestId = newRequestId();
+    const baseURL = `https://${titleId}.playfabapi.com`;
+    logger.info(`→ LOGIN    Title=${titleId}  DeviceID=${deviceId}  req=${requestId}`);
+    const r = await limiter.schedule(() =>
+        postJson(
+            baseURL,
+            "Client/LoginWithIOSDeviceID",
+            { CreateAccount: true, TitleId: titleId, DeviceId: deviceId, OS: os },
+            { "X-Request-Id": requestId }
+        )
     );
     return r.data.data;
 }
@@ -50,11 +135,16 @@ async function loginWithIOSDeviceID(titleId, os) {
  * Holt das EntityToken, benötigt die PlayFabId aus dem Login.
  */
 async function getEntityToken(titleId, ticket, pfId) {
-    logger.info(`→ TOKEN    Title=${titleId}`);
-    const r = await axios.post(
-        `https://${titleId}.playfabapi.com/Authentication/GetEntityToken`,
-        { Entity: { Id: pfId, Type: "master_player_account" } },
-        { headers: { "Content-Type": "application/json", "X-Authorization": ticket } }
+    const requestId = newRequestId();
+    const baseURL = `https://${titleId}.playfabapi.com`;
+    logger.info(`→ TOKEN    Title=${titleId}  req=${requestId}`);
+    const r = await limiter.schedule(() =>
+        postJson(
+            baseURL,
+            "Authentication/GetEntityToken",
+            { Entity: { Id: pfId, Type: "master_player_account" } },
+            { "X-Authorization": ticket, "X-Request-Id": requestId }
+        )
     );
     return r.data.data.EntityToken;
 }
@@ -63,52 +153,97 @@ async function getEntityToken(titleId, ticket, pfId) {
  * Gibt ein Objekt { SessionTicket, PlayFabId, EntityToken } zurück,
  * cached es und stellt sicher, dass nur eine parallele Initialisierung läuft.
  */
+const SESSION_SOFT_TTL_MS = 25 * 60 * 1000;
+
 async function getSession(titleId, os) {
     const key = `session_${titleId}`;
-    if (sessionCache.has(key)) {
-        return sessionCache.get(key);
+    const cached = sessionCache.get(key);
+    if (cached && (!cached.expiresAt || cached.expiresAt > Date.now())) {
+        return cached;
     }
     return mutex.runExclusive(async () => {
-        if (sessionCache.has(key)) return sessionCache.get(key);
+        const again = sessionCache.get(key);
+        if (again && (!again.expiresAt || again.expiresAt > Date.now())) return again;
+
         const { SessionTicket, PlayFabId } = await loginWithIOSDeviceID(titleId, os);
         const EntityToken = await getEntityToken(titleId, SessionTicket, PlayFabId);
-        const session = { SessionTicket, PlayFabId, EntityToken };
+        const session = {
+            SessionTicket,
+            PlayFabId,
+            EntityToken,
+            expiresAt: Date.now() + SESSION_SOFT_TTL_MS
+        };
         sessionCache.set(key, session);
         return session;
     });
 }
 
 /**
- * Send a PlayFab request with retry/backoff logic.
+ * Send a PlayFab request with smart retry/backoff.
  */
 async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-EntityToken", max = 3, os) {
+    const baseURL = `https://${titleId}.playfabapi.com`;
+    const requestId = newRequestId();
+
     let attempt = 0;
+    let lastErr;
+
     while (attempt <= max) {
         try {
             const ses = await getSession(titleId, os);
-            logger.info(`→ PLAYFAB  ${endpoint}  (Try ${attempt + 1})`);
             const headers = {
-                "Content-Type": "application/json",
-                [auth]:         auth === "X-EntityToken" ? ses.EntityToken : ses.SessionTicket
+                "X-Request-Id": requestId,
+                [auth]: auth === "X-EntityToken" ? ses.EntityToken : ses.SessionTicket
             };
+
+            logger.info(`→ PLAYFAB  ${endpoint}  (Try ${attempt + 1}) req=${requestId}`);
             const start = Date.now();
-            const r = await axios.post(`https://${titleId}.playfabapi.com/${endpoint}`, payload, { headers });
-            logger.info(`← PLAYFAB  ✅ ${endpoint} in ${Date.now() - start}ms`);
+
+            const r = await limiter.schedule(() => postJson(baseURL, endpoint, payload, headers));
+            logger.info(`← PLAYFAB  ✅ ${endpoint} in ${Date.now() - start}ms req=${requestId}`);
             return r.data.data;
+
         } catch (err) {
-            const status = err.response?.status;
-            logger.warn(`← PLAYFAB  ⚠️  ${endpoint} failed (${status}), try ${attempt + 1}`);
+            lastErr = err;
+            const status = err.response?.status ?? err.status;
+            const code = err.code;
+            const headers = err.response?.headers || err.headers || {};
+            const isNetwork =
+                code === "ECONNRESET" ||
+                code === "ETIMEDOUT" ||
+                code === "EAI_AGAIN" ||
+                code === "ENOTFOUND" ||
+                code === "ESOCKETTIMEDOUT";
+
+            logger.warn(`← PLAYFAB  ⚠️  ${endpoint} failed (status=${status || code || "unknown"}) try=${attempt + 1}`);
+
             if (status === 401 && attempt < max) {
                 sessionCache.del(`session_${titleId}`);
             }
-            if ([401, 429, 500].includes(status) && attempt < max) {
-                await new Promise(res => setTimeout(res, status === 429 ? 3000 : 1000 * (attempt + 1)));
-                attempt++;
-                continue;
+
+            const shouldRetry =
+                (status && [401, 408, 409, 425, 429, 500, 502, 503, 504].includes(status)) ||
+                isNetwork;
+
+            if (!shouldRetry || attempt >= max) {
+                throw err;
             }
-            throw err;
+
+            let waitMs;
+            if (status === 429) {
+                waitMs = parseRetryAfter(headers["retry-after"]) ?? 3000;
+            } else {
+                const base = 400 * Math.pow(2, attempt);
+                waitMs = Math.min(10_000, base + jitter(base));
+            }
+
+            await sleep(waitMs);
+            attempt++;
+            continue;
         }
     }
+
+    throw lastErr || new Error("Unbekannter Fehler in sendPlayFabRequest");
 }
 
 function isValidItem(item) {
@@ -147,23 +282,23 @@ function transformItem(item) {
  * Fetch ALL items in batches, nutzt buildSearchPayload.
  */
 async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, size = 300, conc = 5) {
-    const MAX = 10000;
+    const MAX = 10_000;
     const all = [];
     const skips = [];
     for (let s = 0; s <= MAX; s += size) skips.push(s);
 
     for (let i = 0; i < skips.length; i += conc) {
         const chunk = skips.slice(i, i + conc);
-        const batches = await Promise.all(chunk.map(skip => {
+        const batches = await Promise.all(chunk.map(async skip => {
             const payload = buildSearchPayload({
                 filter,
                 search: "",
-                top:    size,
+                top: size,
                 skip,
                 orderBy: "creationDate desc"
             });
-            return sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, os)
-                .then(data => data.Items || []);
+            const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, os);
+            return data.Items || [];
         }));
 
         let done = false;

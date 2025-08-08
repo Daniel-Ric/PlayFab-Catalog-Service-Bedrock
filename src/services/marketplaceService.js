@@ -2,214 +2,692 @@
 
 const {
     sendPlayFabRequest,
-    fetchAllMarketplaceItemsEfficiently,
     isValidItem,
     transformItem,
     buildSearchPayload
 } = require("../utils/playfab");
-const { resolveTitle, loadTitles } = require("../utils/titles");
+const { resolveTitle } = require("../utils/titles");
 const { loadCreators, resolveCreatorId } = require("../utils/creators");
 const { buildFilter } = require("../utils/filter");
+const logger = require("../config/logger");
 
 const OS = process.env.OS;
+const PAGE_SIZE = 100;
 
-module.exports = {
-    /**
-     * Holt alle Marketplace-Items für einen einzelnen Alias, mit optionalem Filter via query.tag.
-     */
-    async fetchAll(alias, query) {
-        const titleId = resolveTitle(alias);
-        const extra = query.tag
-            ? `Tags/any(t:t eq '${query.tag.replace(/'/g, "''")}')`
-            : "";
-        const filter = buildFilter({ query }, loadCreators(), extra);
-        return fetchAllMarketplaceItemsEfficiently(titleId, filter, OS);
-    },
+const IDS_CACHE_TTL_MS   = 60_000;
+const IDS_SWR_MS         = 180_000;
+const ITEM_CACHE_TTL_MS  = 300_000;
 
-    /**
-     * Holt die neuesten N Items für einen Alias, optional gefiltert via query.creatorName.
-     */
-    async fetchLatest(alias, count, query) {
-        const titleId = resolveTitle(alias);
-        const filter = buildFilter({ query }, loadCreators());
-        const payload = buildSearchPayload({
+const creators  = loadCreators();
+const titlesMap = require("../utils/titles").loadTitles();
+const capabilities = new Map();
+
+const searchIdsCache = new Map();
+const itemCache = new Map();
+
+/**
+ * Utils
+ */
+const now = () => Date.now();
+
+function safeFilter(input) {
+    if (input == null) return undefined;
+    const s = String(input).trim();
+    return s ? s : undefined;
+}
+
+function andFilter(a, b) {
+    const A = safeFilter(a);
+    const B = safeFilter(b);
+    if (A && B) return `(${A}) and (${B})`;
+    return A || B || undefined;
+}
+
+function makeSearchPayload(opts) {
+    const { filter, continuationToken, ...rest } = opts || {};
+    const f = safeFilter(filter);
+    const base = f ? { ...rest, filter: f } : { ...rest };
+    if (continuationToken) base.continuationToken = continuationToken;
+    return buildSearchPayload(base);
+}
+
+function cacheGet(map, key) {
+    const entry = map.get(key);
+    if (!entry) return null;
+    if (entry.expires > now()) return entry;
+    if (entry.swrUntil && entry.swrUntil > now()) return entry;
+    return null;
+}
+
+function cacheSet(map, key, value, ttl = IDS_CACHE_TTL_MS, swr = IDS_SWR_MS) {
+    map.set(key, {
+        value,
+        expires: now() + ttl,
+        swrUntil: now() + ttl + swr
+    });
+}
+
+function stableKey(obj) {
+    return JSON.stringify(obj, Object.keys(obj).sort());
+}
+
+/**
+ * Prüft einmalig, ob GetCatalogItems für titleId verfügbar ist.
+ * Bei 404 wird das Ergebnis gecached und nur informativ geloggt.
+ */
+async function tryGetCatalogItems(titleId) {
+    const cached = capabilities.get(titleId);
+    if (cached?.hasGetCatalogItems === false) return null;
+
+    try {
+        const resp = await sendPlayFabRequest(
+            titleId,
+            "Catalog/GetCatalogItems",
+            {},
+            "X-EntityToken",
+            3,
+            OS
+        );
+        capabilities.set(titleId, { hasGetCatalogItems: true });
+        return resp;
+    } catch (err) {
+        const status = err.status || err.response?.status;
+        if (status === 404) {
+            logger.info(`GetCatalogItems nicht verfügbar für Title=${titleId}. Nutze dauerhaft paginiertes Search.`);
+            capabilities.set(titleId, { hasGetCatalogItems: false });
+            return null;
+        }
+        throw err;
+    }
+}
+
+/**
+ * GetItems – mit Item-Cache:
+ * - cached Hits werden sofort geliefert
+ * - nur fehlende IDs werden nachgeladen
+ * - begrenzte Parallelität + Dedupe
+ */
+async function fetchFullItems(titleId, ids) {
+    const unique = Array.from(new Set(ids));
+
+    const hits = [];
+    const misses = [];
+    const nowMs = now();
+
+    for (const id of unique) {
+        const c = itemCache.get(id);
+        if (c && c.expires > nowMs && c.value) {
+            hits.push(c.value);
+        } else {
+            misses.push(id);
+        }
+    }
+
+    if (misses.length === 0) {
+        return hits;
+    }
+
+    const chunks = [];
+    for (let i = 0; i < misses.length; i += PAGE_SIZE) {
+        chunks.push(misses.slice(i, i + PAGE_SIZE));
+    }
+
+    const CONCURRENCY = 15;
+    const fetched = [];
+
+    for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+        const slice = chunks.slice(i, i + CONCURRENCY);
+        const responses = await Promise.all(
+            slice.map(chunk =>
+                sendPlayFabRequest(
+                    titleId,
+                    "Catalog/GetItems",
+                    { Ids: chunk },
+                    "X-EntityToken",
+                    3,
+                    OS
+                )
+            )
+        );
+        for (const r of responses) {
+            const items = r.Items || [];
+            for (const it of items) {
+                itemCache.set(it.Id, {
+                    value: it,
+                    expires: now() + ITEM_CACHE_TTL_MS
+                });
+            }
+            fetched.push(...items);
+        }
+    }
+
+    return [...hits, ...fetched];
+}
+
+/**
+ * Token-/Skip-basiertes Paging (Fallback).
+ * Versucht zuerst ContinuationToken, fällt sonst auf skip/top zurück.
+ * Bei 400 (Deckel) beendet sauber und loggt einmal INFO.
+ */
+async function searchPagedIdsSkipOrToken(titleId, {
+    filter,
+    search = "",
+    orderBy,
+    top = PAGE_SIZE,
+    initialSkip = 0,
+    maxPages = 2000,
+    endpoint = "Catalog/Search"
+}) {
+    const ids = [];
+    let skip = initialSkip;
+    let page = 0;
+    let continuationToken = undefined;
+    let totalCount = undefined;
+    let pagingNoted = false;
+
+    while (page < maxPages) {
+        const payload = makeSearchPayload({
             filter,
-            search: "",
-            top:    count,
-            skip:   0,
-            orderBy: "creationDate desc"
+            search,
+            top,
+            orderBy,
+            skip: continuationToken ? undefined : skip,
+            continuationToken
         });
-        const data = await sendPlayFabRequest(
-            titleId,
-            "Catalog/Search",
-            payload,
-            "X-EntityToken",
-            3,
-            OS
-        );
-        return (data.Items || []).filter(isValidItem).map(transformItem);
-    },
 
-    /**
-     * Sucht nach keyword vom creatorName unter einem Alias.
-     */
-    async search(alias, creatorName, keyword) {
-        const titleId = resolveTitle(alias);
-        const cid = resolveCreatorId(loadCreators(), creatorName);
-        const filter = `creatorId eq '${cid.replace(/'/g, "''")}'`;
-        const payload = buildSearchPayload({
-            filter,
-            search: `"${keyword}"`,
-            top:    100,
-            skip:   0
-        });
-        const data = await sendPlayFabRequest(
-            titleId,
-            "Catalog/Search",
-            payload,
-            "X-EntityToken",
-            3,
-            OS
-        );
-        return (data.Items || []).filter(isValidItem).map(transformItem);
-    },
-
-    /**
-     * Holt die populärsten Items (nach Bewertung) für einen Alias.
-     */
-    async fetchPopular(alias) {
-        const titleId = resolveTitle(alias);
-        const filter = buildFilter({ query: {} }, loadCreators());
-        const payload = buildSearchPayload({
-            filter,
-            search: "",
-            top:    300,
-            skip:   0,
-            orderBy: "rating/totalcount desc"
-        });
-        const data = await sendPlayFabRequest(
-            titleId,
-            "Catalog/Search",
-            payload,
-            "X-EntityToken",
-            3,
-            OS
-        );
-        const arr = (data.Items || []).filter(isValidItem).map(transformItem);
-        return arr.length ? arr : [];
-    },
-
-    /**
-     * Holt Items mit einem bestimmten Tag für einen Alias.
-     */
-    async fetchByTag(alias, tag) {
-        const titleId = resolveTitle(alias);
-        const filter = buildFilter(
-            { query: {} },
-            loadCreators(),
-            `Tags/any(t:t eq '${tag.replace(/'/g, "''")}')`
-        );
-        const payload = buildSearchPayload({
-            filter,
-            search: "",
-            top:    300,
-            skip:   0
-        });
-        const data = await sendPlayFabRequest(
-            titleId,
-            "Catalog/Search",
-            payload,
-            "X-EntityToken",
-            3,
-            OS
-        );
-        return (data.Items || []).filter(isValidItem).map(transformItem);
-    },
-
-    /**
-     * Holt alle kostenlosen Items für einen Alias.
-     */
-    async fetchFree(alias) {
-        const titleId = resolveTitle(alias);
-        const payload = buildSearchPayload({
-            filter:  "displayProperties/price eq 0",
-            search:  "",
-            top:     300,
-            skip:    0
-        });
-        const data = await sendPlayFabRequest(
-            titleId,
-            "Catalog/Search",
-            payload,
-            "X-EntityToken",
-            3,
-            OS
-        );
-        return (data.Items || []).filter(isValidItem).map(transformItem);
-    },
-
-    /**
-     * Holt die Details eines einzelnen Items via ID unter einem Alias.
-     */
-    async fetchDetails(alias, itemId) {
-        const titleId = resolveTitle(alias);
-        const payload = buildSearchPayload({
-            filter: `id eq '${itemId}'`,
-            search: "",
-            top:    1,
-            skip:   0,
-            orderBy: "creationDate desc"
-        });
-        const data = await sendPlayFabRequest(
-            titleId,
-            "Catalog/Search",
-            payload,
-            "X-EntityToken",
-            3,
-            OS
-        );
-        const it = (data.Items || []).find(isValidItem);
-        if (!it) throw Object.assign(new Error("Item nicht gefunden."), { status: 404 });
-        return transformItem(it);
-    },
-
-    /**
-     * Holt eine Liste vorgeladener Featured-Server aus config/featuredServers.js.
-     */
-    async fetchFeaturedServers() {
-        const featured = require("../config/featuredServers");
-        const titleId = resolveTitle("prod");
-        const results = [];
-        for (const srv of featured) {
-            const payload = buildSearchPayload({
-                filter: `id eq '${srv.id}'`,
-                search: "",
-                top:    1,
-                skip:   0
-            });
-            const data = await sendPlayFabRequest(
+        let resp;
+        try {
+            resp = await sendPlayFabRequest(
                 titleId,
-                "Catalog/Search",
+                endpoint,
                 payload,
                 "X-EntityToken",
                 3,
                 OS
             );
-            const item = (data.Items || []).find(isValidItem) || null;
-            const images = item ? item.Images : [];
-            results.push({
-                name:        srv.name,
-                id:          srv.id,
-                data:        item,
-                images,
-                screenshots: images.filter(i => i.Tag.toLowerCase() !== "thumbnail")
-            });
+        } catch (err) {
+            const status = err.status || err.response?.status;
+            if (status === 400) {
+                if (!pagingNoted) {
+                    logger.info(`Paging bei ${endpoint} beendet (400 bei skip=${skip}, page=${page}).`);
+                    pagingNoted = true;
+                }
+                break;
+            }
+            throw err;
         }
+
+        const items = resp.Items || [];
+        for (const it of items) ids.push(it.Id);
+
+        totalCount = typeof resp.TotalCount === "number" ? resp.TotalCount : totalCount;
+        continuationToken = resp.ContinuationToken || resp.continuationToken || undefined;
+
+        if (items.length === 0) break;
+        if (!continuationToken && items.length < top) break;
+        if (typeof totalCount === "number" && ids.length >= totalCount) break;
+
+        if (!continuationToken) skip += top;
+        page += 1;
+    }
+
+    return ids;
+}
+
+/**
+ * Keyset-Pagination über Id (string-lexikographisch).
+ * Holt ALLE IDs ohne große skip-Werte.
+ * orderBy = "id asc"; Basis-Filter wird pro Page um "Id gt 'lastId'" ergänzt.
+ */
+async function searchPagedIdsKeysetById(titleId, {
+    baseFilter,
+    search = "",
+    top = PAGE_SIZE,
+    endpoint = "Catalog/Search",
+    maxPages = 500000
+}) {
+    const ids = [];
+    let lastId = "";
+    let page = 0;
+
+    while (page < maxPages) {
+        const pageFilter = andFilter(baseFilter, lastId ? `Id gt '${lastId.replace(/'/g, "''")}'` : undefined);
+
+        const payload = makeSearchPayload({
+            filter: pageFilter,
+            search,
+            top,
+            skip: 0,
+            orderBy: "id asc"
+        });
+
+        const resp = await sendPlayFabRequest(
+            titleId,
+            endpoint,
+            payload,
+            "X-EntityToken",
+            3,
+            OS
+        );
+
+        const items = resp.Items || [];
+        if (items.length === 0) break;
+
+        for (const it of items) ids.push(it.Id);
+
+        lastId = items[items.length - 1].Id;
+        page += 1;
+
+        if (items.length < top) break;
+    }
+
+    return ids;
+}
+
+/**
+ * IDS-Abfrage mit Cache + SWR.
+ * fetcher: () => Promise<string[]>
+ */
+async function getIdsWithCache(cacheKey, fetcher) {
+    const entry = cacheGet(searchIdsCache, cacheKey);
+    if (entry) {
+        const result = entry.value;
+
+        if (entry.expires <= now() && (!entry.refresh || entry.refreshSettled)) {
+            const p = (async () => {
+                try {
+                    const fresh = await fetcher();
+                    cacheSet(searchIdsCache, cacheKey, fresh);
+                } catch (e) {
+                } finally {
+                    entry.refreshSettled = true;
+                }
+            })();
+            entry.refresh = p;
+        }
+
+        return result;
+    }
+
+    const fresh = await fetcher();
+    cacheSet(searchIdsCache, cacheKey, fresh);
+    return fresh;
+}
+
+module.exports = {
+    /**
+     * Holt alle Marketplace-Items für einen einzelnen Alias, mit optionalem Filter via query.tag.
+     * Nutzt Keyset-Pagination, wenn kein Creator-Filter vorhanden ist (um wirklich ALLE zu bekommen).
+     * ID-Listen & Items werden gecached (TTL).
+     */
+    async fetchAll(alias, query = {}) {
+        const titleId = resolveTitle(alias);
+
+        if (!query.tag && Object.keys(query).length === 0) {
+            const allResp = await tryGetCatalogItems(titleId);
+            if (allResp) {
+                return (allResp.Items || [])
+                    .filter(isValidItem)
+                    .map(transformItem);
+            }
+        }
+
+        const extra = query.tag
+            ? `Tags/any(t:t eq '${query.tag.replace(/'/g, "''")}')`
+            : "";
+
+        const baseFilter = buildFilter({ query }, creators, extra)
+            .replace(/\bcreatorId\b/g, "CreatorId");
+
+        const hasCreator = /\bCreatorId\s+eq\s+'/.test(baseFilter || "");
+
+        const cacheKey = stableKey({
+            titleId,
+            endpoint: "Catalog/Search",
+            mode: hasCreator ? "skipOrToken" : "keysetById",
+            baseFilter: baseFilter || "",
+            tag: query.tag || "",
+            pageSize: PAGE_SIZE
+        });
+
+        const allIds = await getIdsWithCache(cacheKey, async () => {
+            if (!hasCreator) {
+                return searchPagedIdsKeysetById(titleId, {
+                    baseFilter,
+                    search: "",
+                    top: PAGE_SIZE,
+                    endpoint: "Catalog/Search"
+                });
+            } else {
+                return searchPagedIdsSkipOrToken(titleId, {
+                    filter: baseFilter,
+                    search: "",
+                    orderBy: "creationDate desc",
+                    top: PAGE_SIZE,
+                    initialSkip: 0,
+                    endpoint: "Catalog/Search"
+                });
+            }
+        });
+
+        if (!allIds || allIds.length === 0) return [];
+
+        const rawItems = await fetchFullItems(titleId, allIds);
+        return rawItems.filter(isValidItem).map(transformItem);
+    },
+
+    /**
+     * Holt die neuesten N Items vollständig mehrsprachig.
+     * (IDs werden kurzzeitig gecached; Items ebenso.)
+     */
+    async fetchLatest(alias, count, query = {}) {
+        const titleId = resolveTitle(alias);
+
+        const filter = buildFilter({ query }, creators)
+            .replace(/\bcreatorId\b/g, "CreatorId");
+
+        const cacheKey = stableKey({
+            titleId,
+            endpoint: "Catalog/SearchItems",
+            mode: "latest",
+            filter: filter || "",
+            count
+        });
+
+        const ids = await getIdsWithCache(cacheKey, async () => {
+            const payload = makeSearchPayload({
+                filter,
+                search: "",
+                top: count,
+                skip: 0,
+                orderBy: "creationDate desc"
+            });
+
+            const data = await sendPlayFabRequest(
+                titleId,
+                "Catalog/SearchItems",
+                payload,
+                "X-EntityToken",
+                3,
+                OS
+            );
+
+            return (data.Items || []).map(i => i.Id);
+        });
+
+        if (ids.length === 0) return [];
+
+        const rawItems = await fetchFullItems(titleId, ids);
+        return rawItems.filter(isValidItem).map(transformItem);
+    },
+
+    /**
+     * Sucht nach keyword vom creatorName vollständig mehrsprachig.
+     */
+    async search(alias, creatorName, keyword) {
+        const titleId = resolveTitle(alias);
+        const cid     = resolveCreatorId(creators, creatorName);
+        const filter  = `CreatorId eq '${cid.replace(/'/g, "''")}'`;
+
+        const cacheKey = stableKey({
+            titleId,
+            endpoint: "Catalog/SearchItems",
+            mode: "creatorSearch",
+            filter,
+            keyword,
+            top: PAGE_SIZE
+        });
+
+        const ids = await getIdsWithCache(cacheKey, async () => {
+            const payload = makeSearchPayload({
+                filter,
+                search: `"${keyword}"`,
+                top: PAGE_SIZE,
+                skip: 0
+            });
+
+            const data = await sendPlayFabRequest(
+                titleId,
+                "Catalog/SearchItems",
+                payload,
+                "X-EntityToken",
+                3,
+                OS
+            );
+
+            return (data.Items || []).map(i => i.Id);
+        });
+
+        if (ids.length === 0) return [];
+
+        const rawItems = await fetchFullItems(titleId, ids);
+        return rawItems.filter(isValidItem).map(transformItem);
+    },
+
+    /**
+     * Holt die populärsten Items vollständig mehrsprachig.
+     */
+    async fetchPopular(alias) {
+        const titleId = resolveTitle(alias);
+
+        const filter = buildFilter({ query: {} }, creators)
+            .replace(/\bcreatorId\b/g, "CreatorId");
+
+        const cacheKey = stableKey({
+            titleId,
+            endpoint: "Catalog/SearchItems",
+            mode: "popular",
+            filter: filter || "",
+            top: 300
+        });
+
+        const ids = await getIdsWithCache(cacheKey, async () => {
+            const payload = makeSearchPayload({
+                filter,
+                search: "",
+                top: 300,
+                skip: 0,
+                orderBy: "rating/totalcount desc"
+            });
+
+            const data = await sendPlayFabRequest(
+                titleId,
+                "Catalog/SearchItems",
+                payload,
+                "X-EntityToken",
+                3,
+                OS
+            );
+
+            return (data.Items || []).map(i => i.Id);
+        });
+
+        if (ids.length === 0) return [];
+
+        const rawItems = await fetchFullItems(titleId, ids);
+        return rawItems.filter(isValidItem).map(transformItem);
+    },
+
+    /**
+     * Holt Items mit einem bestimmten Tag vollständig mehrsprachig.
+     */
+    async fetchByTag(alias, tag) {
+        const titleId = resolveTitle(alias);
+
+        const filter = buildFilter(
+            { query: {} },
+            creators,
+            `Tags/any(t:t eq '${tag.replace(/'/g, "''")}')`
+        ).replace(/\bcreatorId\b/g, "CreatorId");
+
+        const cacheKey = stableKey({
+            titleId,
+            endpoint: "Catalog/SearchItems",
+            mode: "byTag",
+            filter,
+            tag,
+            top: 300
+        });
+
+        const ids = await getIdsWithCache(cacheKey, async () => {
+            const payload = makeSearchPayload({
+                filter,
+                search: "",
+                top: 300,
+                skip: 0
+            });
+
+            const data = await sendPlayFabRequest(
+                titleId,
+                "Catalog/SearchItems",
+                payload,
+                "X-EntityToken",
+                3,
+                OS
+            );
+
+            return (data.Items || []).map(i => i.Id);
+        });
+
+        if (ids.length === 0) return [];
+
+        const rawItems = await fetchFullItems(titleId, ids);
+        return rawItems.filter(isValidItem).map(transformItem);
+    },
+
+    /**
+     * Holt alle kostenlosen Items vollständig mehrsprachig.
+     */
+    async fetchFree(alias) {
+        const titleId = resolveTitle(alias);
+
+        const cacheKey = stableKey({
+            titleId,
+            endpoint: "Catalog/SearchItems",
+            mode: "free",
+            filter: "displayProperties/price eq 0",
+            top: 300
+        });
+
+        const ids = await getIdsWithCache(cacheKey, async () => {
+            const payload = makeSearchPayload({
+                filter: "displayProperties/price eq 0",
+                search: "",
+                top: 300,
+                skip: 0
+            });
+
+            const data = await sendPlayFabRequest(
+                titleId,
+                "Catalog/SearchItems",
+                payload,
+                "X-EntityToken",
+                3,
+                OS
+            );
+
+            return (data.Items || []).map(i => i.Id);
+        });
+
+        if (ids.length === 0) return [];
+
+        const rawItems = await fetchFullItems(titleId, ids);
+        return rawItems.filter(isValidItem).map(transformItem);
+    },
+
+    /**
+     * Holt die Details eines einzigen Items vollständig mehrsprachig.
+     * (Das Item selbst wird im Item-Cache landen, Folgeaufrufe sind sofort.)
+     */
+    async fetchDetails(alias, itemId) {
+        const titleId = resolveTitle(alias);
+
+        const payload = makeSearchPayload({
+            filter:  `Id eq '${itemId.replace(/'/g, "''")}'`,
+            search:  "",
+            top:     1,
+            skip:    0,
+            orderBy: "creationDate desc"
+        });
+
+        const data = await sendPlayFabRequest(
+            titleId,
+            "Catalog/SearchItems",
+            payload,
+            "X-EntityToken",
+            3,
+            OS
+        );
+
+        const ids = (data.Items || []).filter(isValidItem).map(i => i.Id);
+        if (ids.length === 0) {
+            const e = new Error("Item nicht gefunden.");
+            e.status = 404;
+            throw e;
+        }
+
+        const rawItems = await fetchFullItems(titleId, ids);
+        const item     = rawItems.find(isValidItem);
+        return transformItem(item);
+    },
+
+    /**
+     * Holt eine Liste vorgeladener Featured-Server vollständig mehrsprachig.
+     */
+    async fetchFeaturedServers() {
+        const featured = require("../config/featuredServers");
+        const titleId  = resolveTitle("prod");
+
+        const results = await Promise.all(
+            featured.map(async srv => {
+                const cacheKey = stableKey({
+                    titleId,
+                    endpoint: "Catalog/SearchItems",
+                    mode: "featured",
+                    id: srv.id
+                });
+
+                const ids = await getIdsWithCache(cacheKey, async () => {
+                    const payload = makeSearchPayload({
+                        filter: `Id eq '${srv.id.replace(/'/g, "''")}'`,
+                        search: "",
+                        top: 1,
+                        skip: 0
+                    });
+
+                    const data = await sendPlayFabRequest(
+                        titleId,
+                        "Catalog/SearchItems",
+                        payload,
+                        "X-EntityToken",
+                        3,
+                        OS
+                    );
+
+                    return (data.Items || []).map(i => i.Id);
+                });
+
+                let item = null, images = [];
+                if (ids.length > 0) {
+                    const raw = await fetchFullItems(titleId, ids);
+                    item   = raw.find(isValidItem) || null;
+                    images = item ? item.Images : [];
+                }
+                return {
+                    name:        srv.name,
+                    id:          srv.id,
+                    data:        item,
+                    images,
+                    screenshots: images.filter(i => i.Tag.toLowerCase() !== "thumbnail")
+                };
+            })
+        );
+
         return results;
     },
 
     /**
-     * Gibt eine kurze Zusammenfassung aller Items für einen Alias zurück.
+     * Gibt eine kurze Zusammenfassung aller Items zurück.
      */
     async fetchSummary(alias) {
         const all = await this.fetchAll(alias, {});
@@ -222,61 +700,99 @@ module.exports = {
     },
 
     /**
-     * Vergleicht über alle Titel nur die Items eines einzelnen Creators.
+     * Vergleicht über alle Titel nur die Items eines einzelnen Creators vollständig mehrsprachig.
      */
     async fetchCompare(creatorName) {
-        const titlesMap = loadTitles();
-        const creators  = loadCreators();
-        const cid       = resolveCreatorId(creators, creatorName);
-        const result    = {};
+        const cid = resolveCreatorId(creators, creatorName);
 
-        await Promise.all(
-            Object.entries(titlesMap).map(async ([alias, { id: titleId }]) => {
-                const filter = `creatorId eq '${cid.replace(/'/g, "''")}'`;
-                const payload = buildSearchPayload({
+        const entries = Object.entries(titlesMap).map(async ([alias, { id: titleId }]) => {
+            const filter = `CreatorId eq '${cid.replace(/'/g, "''")}'`;
+
+            const cacheKey = stableKey({
+                titleId,
+                endpoint: "Catalog/SearchItems",
+                mode: "compareByCreator",
+                filter,
+                top: 10_000
+            });
+
+            const ids = await getIdsWithCache(cacheKey, async () => {
+                const payload = makeSearchPayload({
                     filter,
                     search: "",
-                    top:    10000,
-                    skip:   0,
+                    top: 10000,
+                    skip: 0,
                     orderBy: "creationDate desc"
                 });
                 const data = await sendPlayFabRequest(
                     titleId,
-                    "Catalog/Search",
+                    "Catalog/SearchItems",
                     payload,
                     "X-EntityToken",
                     3,
                     OS
                 );
-                result[alias] = (data.Items || []).filter(isValidItem).map(transformItem);
-            })
-        );
+                return (data.Items || []).map(i => i.Id);
+            });
 
-        return result;
+            const items = ids.length
+                ? (await fetchFullItems(titleId, ids)).filter(isValidItem).map(transformItem)
+                : [];
+
+            return [alias, items];
+        });
+
+        return Object.fromEntries(await Promise.all(entries));
     },
 
     /**
-     * Holt ein Item über seinen FriendlyId unter einem Alias.
+     * Holt ein Item über seinen FriendlyId vollständig mehrsprachig.
      */
     async fetchByFriendly(alias, friendlyId) {
         const titleId = resolveTitle(alias);
         const filter  = `AlternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${friendlyId.replace(/'/g, "''")}')`;
-        const payload = buildSearchPayload({
-            filter,
-            search: "",
-            top:    1,
-            skip:   0
-        });
-        const data = await sendPlayFabRequest(
+
+        const cacheKey = stableKey({
             titleId,
-            "Catalog/Search",
-            payload,
-            "X-EntityToken",
-            3,
-            OS
-        );
-        const item = (data.Items || []).find(isValidItem);
-        if (!item) throw Object.assign(new Error(`Keine Item mit FriendlyId ${friendlyId}`), { status: 404 });
+            endpoint: "Catalog/SearchItems",
+            mode: "byFriendly",
+            filter,
+            top: 1
+        });
+
+        const ids = await getIdsWithCache(cacheKey, async () => {
+            const payload = makeSearchPayload({
+                filter,
+                search: "",
+                top: 1,
+                skip: 0
+            });
+
+            const data = await sendPlayFabRequest(
+                titleId,
+                "Catalog/SearchItems",
+                payload,
+                "X-EntityToken",
+                3,
+                OS
+            );
+
+            return (data.Items || []).map(i => i.Id);
+        });
+
+        if (ids.length === 0) {
+            const e = new Error(`Keine Item mit FriendlyId ${friendlyId}`);
+            e.status = 404;
+            throw e;
+        }
+
+        const rawItems = await fetchFullItems(titleId, ids);
+        const item     = rawItems.find(isValidItem);
+        if (!item) {
+            const e = new Error(`Keine gültige Item mit FriendlyId ${friendlyId}`);
+            e.status = 404;
+            throw e;
+        }
         return transformItem(item);
     }
 };

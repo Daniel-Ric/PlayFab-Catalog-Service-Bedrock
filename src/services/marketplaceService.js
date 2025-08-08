@@ -467,39 +467,29 @@ module.exports = {
     /**
      * Holt die populärsten Items vollständig mehrsprachig.
      */
-    async fetchPopular(alias) {
+    async fetchPopular(alias, query = {}) {
         const titleId = resolveTitle(alias);
 
-        const filter = buildFilter({ query: {} }, creators)
+        const filter = buildFilter({ query }, creators)
             .replace(/\bcreatorId\b/g, "CreatorId");
 
         const cacheKey = stableKey({
             titleId,
             endpoint: "Catalog/SearchItems",
-            mode: "popular",
+            mode: "popular-paged",
             filter: filter || "",
-            top: 300
+            pageSize: PAGE_SIZE
         });
 
         const ids = await getIdsWithCache(cacheKey, async () => {
-            const payload = makeSearchPayload({
+            return searchPagedIdsSkipOrToken(titleId, {
                 filter,
                 search: "",
-                top: 300,
-                skip: 0,
-                orderBy: "rating/totalcount desc"
+                orderBy: "rating/totalcount desc",
+                top: PAGE_SIZE,
+                initialSkip: 0,
+                endpoint: "Catalog/SearchItems"
             });
-
-            const data = await sendPlayFabRequest(
-                titleId,
-                "Catalog/SearchItems",
-                payload,
-                "X-EntityToken",
-                3,
-                OS
-            );
-
-            return (data.Items || []).map(i => i.Id);
         });
 
         if (ids.length === 0) return [];
@@ -558,35 +548,39 @@ module.exports = {
     /**
      * Holt alle kostenlosen Items vollständig mehrsprachig.
      */
-    async fetchFree(alias) {
+    async fetchFree(alias, query = {}) {
         const titleId = resolveTitle(alias);
+        const baseFilterInput = buildFilter({ query }, creators);
+        const freeClause = "DisplayProperties/price eq 0";
+        const combined = andFilter(baseFilterInput, freeClause).replace(/\bcreatorId\b/g, "CreatorId");
+        const hasCreator = /\bCreatorId\s+eq\s+'/.test(combined || "");
 
         const cacheKey = stableKey({
             titleId,
-            endpoint: "Catalog/SearchItems",
-            mode: "free",
-            filter: "displayProperties/price eq 0",
-            top: 300
+            endpoint: hasCreator ? "Catalog/SearchItems" : "Catalog/Search",
+            mode: hasCreator ? "free-with-creator" : "free-all-keyset",
+            filter: combined || "",
+            pageSize: PAGE_SIZE
         });
 
         const ids = await getIdsWithCache(cacheKey, async () => {
-            const payload = makeSearchPayload({
-                filter: "displayProperties/price eq 0",
-                search: "",
-                top: 300,
-                skip: 0
-            });
-
-            const data = await sendPlayFabRequest(
-                titleId,
-                "Catalog/SearchItems",
-                payload,
-                "X-EntityToken",
-                3,
-                OS
-            );
-
-            return (data.Items || []).map(i => i.Id);
+            if (!hasCreator) {
+                return searchPagedIdsKeysetById(titleId, {
+                    baseFilter: combined,
+                    search: "",
+                    top: PAGE_SIZE,
+                    endpoint: "Catalog/Search"
+                });
+            } else {
+                return searchPagedIdsSkipOrToken(titleId, {
+                    filter: combined,
+                    search: "",
+                    orderBy: "creationDate desc",
+                    top: PAGE_SIZE,
+                    initialSkip: 0,
+                    endpoint: "Catalog/SearchItems"
+                });
+            }
         });
 
         if (ids.length === 0) return [];

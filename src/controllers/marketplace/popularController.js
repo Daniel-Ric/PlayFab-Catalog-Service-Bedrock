@@ -7,7 +7,7 @@ exports.getPopular = withETag(async (req, res) => {
     if (dataCache.has(key)) {
         return dataCache.get(key);
     }
-    const items = await service.fetchPopular(req.params.alias);
+    const items = await service.fetchPopular(req.params.alias, req.query);
     dataCache.set(key, items);
     return items;
 });

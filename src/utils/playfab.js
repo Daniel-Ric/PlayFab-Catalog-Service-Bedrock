@@ -97,9 +97,25 @@ async function postJson(baseURL, path, body, headers, timeoutMs = 20_000) {
             signal: ac.signal
         });
 
-        const data = await res.json();
         const hdr = Object.fromEntries(res.headers);
-        return { status: res.status, headers: hdr, data };
+
+        let parsed;
+        const text = await res.text();
+        if (text && text.trim().length > 0) {
+            try {
+                parsed = JSON.parse(text);
+            } catch (e) {
+                const err = new Error(`Upstream returned non-JSON response (status ${res.status})`);
+                err.status = res.status;
+                err.headers = hdr;
+                err.body = text.slice(0, 500);
+                throw err;
+            }
+        } else {
+            parsed = {};
+        }
+
+        return { status: res.status, headers: hdr, data: parsed };
     } catch (e) {
         if (e.name === "AbortError" || e.message === "request-timeout") {
             const err = new Error("Request timed out");
@@ -201,7 +217,14 @@ async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-Ent
 
             const r = await limiter.schedule(() => postJson(baseURL, endpoint, payload, headers));
             logger.info(`← PLAYFAB  ✅ ${endpoint} in ${Date.now() - start}ms req=${requestId}`);
-            return r.data.data;
+
+            if (r && r.data) {
+                if (typeof r.data.data !== "undefined") {
+                    return r.data.data;
+                }
+                return r.data;
+            }
+            return {};
 
         } catch (err) {
             lastErr = err;

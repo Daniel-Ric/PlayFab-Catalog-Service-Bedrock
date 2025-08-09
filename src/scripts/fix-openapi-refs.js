@@ -20,7 +20,7 @@ function findDocsRoot() {
         path.join(here, "docs"),
         path.join(hereDir, "..", "docs"),
         path.join(hereDir, "..", "..", "docs"),
-        path.join(hereDir, "..", "..", "src", "docs"),
+        path.join(hereDir, "..", "..", "src", "docs")
     ];
     for (const c of candidates) {
         if (fs.existsSync(path.join(c, "schemas"))) return c;
@@ -124,82 +124,6 @@ function processFile(file, map) {
     return changed;
 }
 
-function patchSecurity(openapiBaseFile) {
-    if (!fs.existsSync(openapiBaseFile)) return false;
-    let changed = false;
-    const doc = YAML.load(openapiBaseFile) || {};
-
-    doc.components = doc.components || {};
-    doc.components.securitySchemes = doc.components.securitySchemes || {};
-
-    const wantedScheme = {
-        type: "apiKey",
-        in: "header",
-        name: "X-API-Key"
-    };
-
-    const cur = doc.components.securitySchemes.ApiKeyAuth;
-    const asJson = JSON.stringify(cur || {});
-    const wantJson = JSON.stringify(wantedScheme);
-
-    if (!cur || asJson !== wantJson) {
-        doc.components.securitySchemes.ApiKeyAuth = wantedScheme;
-        changed = true;
-    }
-
-    const hasGlobalSecurity =
-        Array.isArray(doc.security) &&
-        doc.security.some(s => s && typeof s === "object" && Object.prototype.hasOwnProperty.call(s, "ApiKeyAuth"));
-
-    if (!hasGlobalSecurity) {
-        doc.security = doc.security || [];
-        doc.security.push({ ApiKeyAuth: [] });
-        changed = true;
-    }
-
-    if (changed) {
-        fs.writeFileSync(openapiBaseFile, YAML.stringify(doc, 4), "utf8");
-    }
-    return changed;
-}
-
-function patchPerOperationSecurity(pathsDir) {
-    if (!fs.existsSync(pathsDir)) return 0;
-    const files = listYamlFiles(pathsDir);
-    let edits = 0;
-
-    for (const f of files) {
-        let doc;
-        try { doc = YAML.load(f); } catch { continue; }
-        if (!doc || typeof doc !== "object") continue;
-
-        let fileChanged = false;
-        const pathKeys = Object.keys(doc);
-        for (const p of pathKeys) {
-            const pathItem = doc[p];
-            if (!pathItem || typeof pathItem !== "object") continue;
-
-            const ops = ["get","post","put","patch","delete","options","head","trace"];
-            for (const m of ops) {
-                const op = pathItem[m];
-                if (!op || typeof op !== "object") continue;
-
-                if (typeof op.security === "undefined") {
-                    op.security = [{ ApiKeyAuth: [] }];
-                    fileChanged = true;
-                }
-            }
-        }
-
-        if (fileChanged) {
-            fs.writeFileSync(f, YAML.stringify(doc, 4), "utf8");
-            console.log(`secured: ${path.relative(process.cwd(), f)}`);
-            edits++;
-        }
-    }
-    return edits;
-}
-
 function run() {
     const docsRoot = findDocsRoot();
     if (!docsRoot) { console.error("Could not locate 'docs' root containing a 'schemas' directory."); process.exit(1); }
@@ -211,11 +135,7 @@ function run() {
     let n = 0;
     for (const f of files) if (processFile(f, schemaMap)) { console.log(`fixed: ${path.relative(process.cwd(), f)}`); n++; }
 
-    const baseFile = path.join(docsRoot, "openapi-base.yaml");
-    const baseChanged = patchSecurity(baseFile);
-    const opsChanged = patchPerOperationSecurity(path.join(docsRoot, "paths"));
-
-    console.log(`Done. Updated ${n} file(s). Security base ${baseChanged ? "patched" : "ok"}, operations secured: ${opsChanged}.`);
+    console.log(`Done. Updated ${n} file(s).`);
 }
 
 run();

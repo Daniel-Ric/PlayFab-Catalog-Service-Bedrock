@@ -4,6 +4,7 @@ const express       = require("express");
 const bodyParser    = require("body-parser");
 const compression   = require("compression");
 const cors          = require("cors");
+const jwt           = require("jsonwebtoken");
 
 const logger        = require("./config/logger");
 const rateLimiter   = require("./config/rateLimiter");
@@ -11,7 +12,7 @@ const requestLogger = require("./middleware/requestLogger");
 
 const titlesRoutes   = require("./routes/titles");
 const creatorsRoutes = require("./routes/creators");
-const sessionRoutes  = require("./routes/session");    // <— neu
+const sessionRoutes  = require("./routes/session");
 
 const mpAll             = require("./routes/marketplace/all");
 const mpLatest          = require("./routes/marketplace/latest");
@@ -52,10 +53,60 @@ app.use(cors());
 app.use(rateLimiter);
 app.use(requestLogger);
 
-// --- Routen ---
+const swaggerUi = require("swagger-ui-express");
+const { getOpenApiSpec } = require("./config/swagger");
+const openapi = getOpenApiSpec();
+app.get("/openapi.json", (_, res) => res.json(openapi));
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, { explorer: true }));
+
+const OpenApiValidator = require("express-openapi-validator");
+
+const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
+
+app.post("/login", (req, res) => {
+    const { username, password } = req.body;
+    if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
+        const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "1h" });
+        res.json({ token });
+    } else {
+        res.status(401).json({ error: "Invalid username or password" });
+    }
+});
+
+function bearerAuthHandler(req) {
+    const authHeader = req.headers["authorization"];
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        const err = new Error("Unauthorized");
+        err.status = 401;
+        throw err;
+    }
+    const token = authHeader.split(" ")[1];
+    try {
+        req.user = jwt.verify(token, JWT_SECRET);
+    } catch (e) {
+        const err = new Error("Invalid token");
+        err.status = 403;
+        throw err;
+    }
+    return true;
+}
+
+app.use(
+    OpenApiValidator.middleware({
+        apiSpec: openapi,
+        validateRequests: true,
+        validateResponses: false,
+        validateSecurity: {
+            handlers: {
+                BearerAuth: bearerAuthHandler
+            }
+        }
+    })
+);
+
 app.use("/titles",   titlesRoutes);
 app.use("/creators", creatorsRoutes);
-app.use("/session",  sessionRoutes);    // <— neu
+app.use("/session",  sessionRoutes);
 
 app.use("/marketplace/all",         mpAll);
 app.use("/marketplace/latest",      mpLatest);
@@ -71,17 +122,29 @@ app.use("/marketplace/featured-servers", mpFeaturedServers);
 
 // --- 404 für unbekannte Routen ---
 app.use((req, res) => {
-    res.status(404).json({ error: "Route nicht gefunden." });
+    res.status(404).json({ error: "Route not found." });
 });
 
 // --- Globaler Fehler-Handler ---
 app.use((err, req, res, next) => {
+    if (err.status === 401) {
+        logger.warn(`401 ${req.method} ${req.originalUrl}`);
+        return res.status(401).json({ error: "Unauthorized - Bearer token required" });
+    }
+    if (err.status === 400 && Array.isArray(err.errors)) {
+        const details = err.errors.map(e => ({
+            path: e.path || e.instancePath || "",
+            message: e.message
+        }));
+        logger.warn(`400 ${req.method} ${req.originalUrl}`);
+        return res.status(400).json({ error: "Bad Request", details });
+    }
     logger.error(err.stack || err.message);
-    res.status(err.status || 500).json({ error: err.message || "Interner Serverfehler." });
+    res.status(err.status || 500).json({ error: err.message || "Internal server error." });
 });
 
 // --- Server Start ---
 app.listen(port, () => {
     console.log(chalk.cyan(art));
-    logger.info(`✨ API läuft auf http://localhost:${port} ✨`);
+    logger.info(`✨ API running at http://localhost:${port} ✨`);
 });

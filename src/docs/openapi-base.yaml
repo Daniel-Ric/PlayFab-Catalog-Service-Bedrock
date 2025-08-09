@@ -1,0 +1,24 @@
+openapi: 3.0.3
+info:
+  title: View Marketplace API
+  version: "1.0.0"
+  description: Public HTTP API for marketplace browsing.
+servers:
+  - url: http://localhost:3000
+    description: Local
+tags:
+  - name: Auth
+  - name: Titles
+  - name: Creators
+  - name: Session
+  - name: Marketplace
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas: {}
+security:
+  - BearerAuth: []
+paths: {}

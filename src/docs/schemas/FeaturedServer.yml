@@ -1,0 +1,26 @@
+FeaturedServer:
+  type: object
+  properties:
+    name:
+      type: string
+    id:
+      type: string
+    data:
+      anyOf:
+        - $ref: '#/components/schemas/Item'
+        - type: object
+          nullable: true
+          additionalProperties: true
+    images:
+      type: array
+      items:
+        $ref: '#/components/schemas/Image'
+    screenshots:
+      type: array
+      items:
+        $ref: '#/components/schemas/Image'
+  required:
+    - name
+    - id
+    - images
+    - screenshots

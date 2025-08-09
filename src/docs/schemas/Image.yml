@@ -1,0 +1,15 @@
+Image:
+  type: object
+  properties:
+    Id:
+      type: string
+    Tag:
+      type: string
+    Type:
+      type: string
+      enum: [thumbnail, screenshot]
+    Url:
+      type: string
+  required:
+    - Id
+    - Url

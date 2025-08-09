@@ -1,0 +1,22 @@
+/creators:
+  get:
+    tags:
+      - Creators
+    summary: 'Get all creators'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Creator'
+      '500':
+        description: 'Server error'
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+    security:
+      - BearerAuth: []

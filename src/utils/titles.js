@@ -8,7 +8,7 @@ function loadTitles() {
     try {
         return JSON.parse(fs.readFileSync(file, "utf8"));
     } catch {
-        logger.warn("titles.json nicht gefunden → starte mit leerem Mapping.");
+        logger.warn("titles.json not found → staring with an empty mapping table.");
         return {};
     }
 }
@@ -16,7 +16,7 @@ function loadTitles() {
 function resolveTitle(alias) {
     const titles = loadTitles();
     if (!titles[alias]) {
-        const e = new Error(`Alias '${alias}' nicht gefunden.`);
+        const e = new Error(`Alias '${alias}' not found.`);
         e.status = 404;
         throw e;
     }

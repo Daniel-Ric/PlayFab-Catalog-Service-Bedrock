@@ -7,7 +7,7 @@ router.get(
     "/:creatorName",
     [
         check("creatorName")
-            .notEmpty().withMessage("creatorName ist erforderlich.")
+            .notEmpty().withMessage("creatorName is required.")
     ],
     validate,
     ctrl.compare

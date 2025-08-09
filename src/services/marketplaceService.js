@@ -86,7 +86,7 @@ async function tryGetCatalogItems(titleId) {
     } catch (err) {
         const status = err.status || err.response?.status;
         if (status === 404) {
-            logger.info(`GetCatalogItems nicht verfügbar für Title=${titleId}. Nutze dauerhaft paginiertes Search.`);
+            logger.info(`GetCatalogItems not available for Title=${titleId}. Using paginated Search permanently.`);
             capabilities.set(titleId, { hasGetCatalogItems: false });
             return null;
         }
@@ -187,7 +187,7 @@ async function searchPagedIdsSkipOrToken(titleId, {
             const status = err.status || err.response?.status;
             if (status === 400) {
                 if (!pagingNoted) {
-                    logger.info(`Paging bei ${endpoint} beendet (400 bei skip=${skip}, page=${page}).`);
+                    logger.info(`Paging at ${endpoint} ended (400 at skip=${skip}, page=${page}).`);
                     pagingNoted = true;
                 }
                 break;
@@ -707,7 +707,7 @@ module.exports = {
         });
 
         if (ids.length === 0) {
-            const e = new Error(`Keine Item mit FriendlyId ${friendlyId}`);
+            const e = new Error(`No item with the FriendlyId ${friendlyId} has been found`);
             e.status = 404;
             throw e;
         }
@@ -715,7 +715,7 @@ module.exports = {
         const rawItems = await fetchFullItems(titleId, ids);
         const item = rawItems.find(isValidItem);
         if (!item) {
-            const e = new Error(`Keine gültige Item mit FriendlyId ${friendlyId}`);
+            const e = new Error(`No valid item with FriendlyId ${friendlyId}`);
             e.status = 404;
             throw e;
         }

@@ -1,5 +1,3 @@
-// src/services/marketplaceService.js
-
 const {
     sendPlayFabRequest,
     isValidItem,
@@ -10,24 +8,22 @@ const { resolveTitle } = require("../utils/titles");
 const { loadCreators, resolveCreatorId } = require("../utils/creators");
 const { buildFilter } = require("../utils/filter");
 const logger = require("../config/logger");
+const { LRUCache } = require("lru-cache");
 
 const OS = process.env.OS;
 const PAGE_SIZE = 100;
 
-const IDS_CACHE_TTL_MS   = 60_000;
-const IDS_SWR_MS         = 180_000;
-const ITEM_CACHE_TTL_MS  = 300_000;
+const IDS_CACHE_TTL_MS = 60_000;
+const IDS_SWR_MS = 180_000;
+const ITEM_CACHE_TTL_MS = 300_000;
 
-const creators  = loadCreators();
+const creators = loadCreators();
 const titlesMap = require("../utils/titles").loadTitles();
-const capabilities = new Map();
 
-const searchIdsCache = new Map();
-const itemCache = new Map();
+const capabilities = new LRUCache({ max: 200, ttl: 60 * 60 * 1000 });
+const searchIdsCache = new LRUCache({ max: 2000, ttl: IDS_CACHE_TTL_MS + IDS_SWR_MS, allowStale: true });
+const itemCache = new LRUCache({ max: 5000, ttl: ITEM_CACHE_TTL_MS });
 
-/**
- * Utils
- */
 const now = () => Date.now();
 
 function safeFilter(input) {
@@ -60,21 +56,18 @@ function cacheGet(map, key) {
 }
 
 function cacheSet(map, key, value, ttl = IDS_CACHE_TTL_MS, swr = IDS_SWR_MS) {
-    map.set(key, {
+    const obj = {
         value,
         expires: now() + ttl,
         swrUntil: now() + ttl + swr
-    });
+    };
+    map.set(key, obj, { ttl: ttl + swr });
 }
 
 function stableKey(obj) {
     return JSON.stringify(obj, Object.keys(obj).sort());
 }
 
-/**
- * Prüft einmalig, ob GetCatalogItems für titleId verfügbar ist.
- * Bei 404 wird das Ergebnis gecached und nur informativ geloggt.
- */
 async function tryGetCatalogItems(titleId) {
     const cached = capabilities.get(titleId);
     if (cached?.hasGetCatalogItems === false) return null;
@@ -101,23 +94,16 @@ async function tryGetCatalogItems(titleId) {
     }
 }
 
-/**
- * GetItems – mit Item-Cache:
- * - cached Hits werden sofort geliefert
- * - nur fehlende IDs werden nachgeladen
- * - begrenzte Parallelität + Dedupe
- */
 async function fetchFullItems(titleId, ids) {
     const unique = Array.from(new Set(ids));
 
     const hits = [];
     const misses = [];
-    const nowMs = now();
 
     for (const id of unique) {
         const c = itemCache.get(id);
-        if (c && c.expires > nowMs && c.value) {
-            hits.push(c.value);
+        if (c) {
+            hits.push(c);
         } else {
             misses.push(id);
         }
@@ -152,10 +138,7 @@ async function fetchFullItems(titleId, ids) {
         for (const r of responses) {
             const items = r.Items || [];
             for (const it of items) {
-                itemCache.set(it.Id, {
-                    value: it,
-                    expires: now() + ITEM_CACHE_TTL_MS
-                });
+                itemCache.set(it.Id, it, { ttl: ITEM_CACHE_TTL_MS });
             }
             fetched.push(...items);
         }
@@ -164,11 +147,6 @@ async function fetchFullItems(titleId, ids) {
     return [...hits, ...fetched];
 }
 
-/**
- * Token-/Skip-basiertes Paging (Fallback).
- * Versucht zuerst ContinuationToken, fällt sonst auf skip/top zurück.
- * Bei 400 (Deckel) beendet sauber und loggt einmal INFO.
- */
 async function searchPagedIdsSkipOrToken(titleId, {
     filter,
     search = "",
@@ -234,11 +212,6 @@ async function searchPagedIdsSkipOrToken(titleId, {
     return ids;
 }
 
-/**
- * Keyset-Pagination über Id (string-lexikographisch).
- * Holt ALLE IDs ohne große skip-Werte.
- * orderBy = "id asc"; Basis-Filter wird pro Page um "Id gt 'lastId'" ergänzt.
- */
 async function searchPagedIdsKeysetById(titleId, {
     baseFilter,
     search = "",
@@ -284,10 +257,6 @@ async function searchPagedIdsKeysetById(titleId, {
     return ids;
 }
 
-/**
- * IDS-Abfrage mit Cache + SWR.
- * fetcher: () => Promise<string[]>
- */
 async function getIdsWithCache(cacheKey, fetcher) {
     const entry = cacheGet(searchIdsCache, cacheKey);
     if (entry) {
@@ -315,11 +284,6 @@ async function getIdsWithCache(cacheKey, fetcher) {
 }
 
 module.exports = {
-    /**
-     * Holt alle Marketplace-Items für einen einzelnen Alias, mit optionalem Filter via query.tag.
-     * Nutzt Keyset-Pagination, wenn kein Creator-Filter vorhanden ist (um wirklich ALLE zu bekommen).
-     * ID-Listen & Items werden gecached (TTL).
-     */
     async fetchAll(alias, query = {}) {
         const titleId = resolveTitle(alias);
 
@@ -376,10 +340,6 @@ module.exports = {
         return rawItems.filter(isValidItem).map(transformItem);
     },
 
-    /**
-     * Holt die neuesten N Items vollständig mehrsprachig.
-     * (IDs werden kurzzeitig gecached; Items ebenso.)
-     */
     async fetchLatest(alias, count, query = {}) {
         const titleId = resolveTitle(alias);
 
@@ -421,13 +381,10 @@ module.exports = {
         return rawItems.filter(isValidItem).map(transformItem);
     },
 
-    /**
-     * Sucht nach keyword vom creatorName vollständig mehrsprachig.
-     */
     async search(alias, creatorName, keyword) {
         const titleId = resolveTitle(alias);
-        const cid     = resolveCreatorId(creators, creatorName);
-        const filter  = `CreatorId eq '${cid.replace(/'/g, "''")}'`;
+        const cid = resolveCreatorId(creators, creatorName);
+        const filter = `CreatorId eq '${cid.replace(/'/g, "''")}'`;
 
         const cacheKey = stableKey({
             titleId,
@@ -464,9 +421,6 @@ module.exports = {
         return rawItems.filter(isValidItem).map(transformItem);
     },
 
-    /**
-     * Holt die populärsten Items vollständig mehrsprachig.
-     */
     async fetchPopular(alias, query = {}) {
         const titleId = resolveTitle(alias);
 
@@ -498,9 +452,6 @@ module.exports = {
         return rawItems.filter(isValidItem).map(transformItem);
     },
 
-    /**
-     * Holt Items mit einem bestimmten Tag vollständig mehrsprachig.
-     */
     async fetchByTag(alias, tag) {
         const titleId = resolveTitle(alias);
 
@@ -545,9 +496,6 @@ module.exports = {
         return rawItems.filter(isValidItem).map(transformItem);
     },
 
-    /**
-     * Holt alle kostenlosen Items vollständig mehrsprachig.
-     */
     async fetchFree(alias, query = {}) {
         const titleId = resolveTitle(alias);
         const baseFilterInput = buildFilter({ query }, creators);
@@ -589,18 +537,14 @@ module.exports = {
         return rawItems.filter(isValidItem).map(transformItem);
     },
 
-    /**
-     * Holt die Details eines einzigen Items vollständig mehrsprachig.
-     * (Das Item selbst wird im Item-Cache landen, Folgeaufrufe sind sofort.)
-     */
     async fetchDetails(alias, itemId) {
         const titleId = resolveTitle(alias);
 
         const payload = makeSearchPayload({
-            filter:  `Id eq '${itemId.replace(/'/g, "''")}'`,
-            search:  "",
-            top:     1,
-            skip:    0,
+            filter: `Id eq '${itemId.replace(/'/g, "''")}'`,
+            search: "",
+            top: 1,
+            skip: 0,
             orderBy: "creationDate desc"
         });
 
@@ -621,16 +565,13 @@ module.exports = {
         }
 
         const rawItems = await fetchFullItems(titleId, ids);
-        const item     = rawItems.find(isValidItem);
+        const item = rawItems.find(isValidItem);
         return transformItem(item);
     },
 
-    /**
-     * Holt eine Liste vorgeladener Featured-Server vollständig mehrsprachig.
-     */
     async fetchFeaturedServers() {
         const featured = require("../config/featuredServers");
-        const titleId  = resolveTitle("prod");
+        const titleId = resolveTitle("prod");
 
         const results = await Promise.all(
             featured.map(async srv => {
@@ -664,13 +605,13 @@ module.exports = {
                 let item = null, images = [];
                 if (ids.length > 0) {
                     const raw = await fetchFullItems(titleId, ids);
-                    item   = raw.find(isValidItem) || null;
+                    item = raw.find(isValidItem) || null;
                     images = item ? item.Images : [];
                 }
                 return {
-                    name:        srv.name,
-                    id:          srv.id,
-                    data:        item,
+                    name: srv.name,
+                    id: srv.id,
+                    data: item,
                     images,
                     screenshots: images.filter(i => i.Tag.toLowerCase() !== "thumbnail")
                 };
@@ -680,22 +621,16 @@ module.exports = {
         return results;
     },
 
-    /**
-     * Gibt eine kurze Zusammenfassung aller Items zurück.
-     */
     async fetchSummary(alias) {
         const all = await this.fetchAll(alias, {});
         return all.map(i => ({
-            id:         i.Id,
-            title:      i.Title?.NEUTRAL || i.Title?.neutral || "",
+            id: i.Id,
+            title: i.Title?.NEUTRAL || i.Title?.neutral || "",
             detailsUrl: `https://view-marketplace.net/details/${i.Id}`,
-            clientUrl:  `https://open.view-marketplace.net/StoreOffer/${i.Id}`
+            clientUrl: `https://open.view-marketplace.net/StoreOffer/${i.Id}`
         }));
     },
 
-    /**
-     * Vergleicht über alle Titel nur die Items eines einzelnen Creators vollständig mehrsprachig.
-     */
     async fetchCompare(creatorName) {
         const cid = resolveCreatorId(creators, creatorName);
 
@@ -707,7 +642,7 @@ module.exports = {
                 endpoint: "Catalog/SearchItems",
                 mode: "compareByCreator",
                 filter,
-                top: 10_000
+                top: 10000
             });
 
             const ids = await getIdsWithCache(cacheKey, async () => {
@@ -739,12 +674,9 @@ module.exports = {
         return Object.fromEntries(await Promise.all(entries));
     },
 
-    /**
-     * Holt ein Item über seinen FriendlyId vollständig mehrsprachig.
-     */
     async fetchByFriendly(alias, friendlyId) {
         const titleId = resolveTitle(alias);
-        const filter  = `AlternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${friendlyId.replace(/'/g, "''")}')`;
+        const filter = `AlternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${friendlyId.replace(/'/g, "''")}')`;
 
         const cacheKey = stableKey({
             titleId,
@@ -781,7 +713,7 @@ module.exports = {
         }
 
         const rawItems = await fetchFullItems(titleId, ids);
-        const item     = rawItems.find(isValidItem);
+        const item = rawItems.find(isValidItem);
         if (!item) {
             const e = new Error(`Keine gültige Item mit FriendlyId ${friendlyId}`);
             e.status = 404;

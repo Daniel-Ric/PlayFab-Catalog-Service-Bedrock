@@ -10,6 +10,7 @@ Image:
       enum: [thumbnail, screenshot]
     Url:
       type: string
+      format: uri
   required:
     - Id
     - Url

@@ -1,33 +1,34 @@
 require("dotenv").config();
 
-const express       = require("express");
-const bodyParser    = require("body-parser");
-const compression   = require("compression");
-const cors          = require("cors");
-const jwt           = require("jsonwebtoken");
+const express = require("express");
+const bodyParser = require("body-parser");
+const compression = require("compression");
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 
-const logger        = require("./config/logger");
-const rateLimiter   = require("./config/rateLimiter");
+const logger = require("./config/logger");
 const requestLogger = require("./middleware/requestLogger");
 
-const titlesRoutes   = require("./routes/titles");
+const titlesRoutes = require("./routes/titles");
 const creatorsRoutes = require("./routes/creators");
-const sessionRoutes  = require("./routes/session");
+const sessionRoutes = require("./routes/session");
 
-const mpAll             = require("./routes/marketplace/all");
-const mpLatest          = require("./routes/marketplace/latest");
-const mpSearch          = require("./routes/marketplace/search");
-const mpPopular         = require("./routes/marketplace/popular");
-const mpTag             = require("./routes/marketplace/tag");
-const mpFree            = require("./routes/marketplace/free");
-const mpDetails         = require("./routes/marketplace/details");
-const mpFriendly        = require("./routes/marketplace/friendly");
-const mpSummary         = require("./routes/marketplace/summary");
-const mpCompare         = require("./routes/marketplace/compare");
+const mpAll = require("./routes/marketplace/all");
+const mpLatest = require("./routes/marketplace/latest");
+const mpSearch = require("./routes/marketplace/search");
+const mpPopular = require("./routes/marketplace/popular");
+const mpTag = require("./routes/marketplace/tag");
+const mpFree = require("./routes/marketplace/free");
+const mpDetails = require("./routes/marketplace/details");
+const mpFriendly = require("./routes/marketplace/friendly");
+const mpSummary = require("./routes/marketplace/summary");
+const mpCompare = require("./routes/marketplace/compare");
 const mpFeaturedServers = require("./routes/marketplace/featured-servers");
 
 const chalkImport = require("chalk");
-const chalk       = chalkImport.default || chalkImport;
+const chalk = chalkImport.default || chalkImport;
 
 const art = `
  /$$    /$$ /$$      /$$  /$$$$$$     /$$   /$$ /$$$$$$$$ /$$$$$$$$
@@ -43,14 +44,45 @@ const art = `
                       Developed with <3 by SpindexGFX
 `;
 
-const app  = express();
+const app = express();
 const port = process.env.PORT || 3000;
 
-// --- Middleware ---
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET || JWT_SECRET.length < 32) {
+    console.error("JWT_SECRET must be set and >=32 chars");
+    process.exit(1);
+}
+
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+const allowed = (process.env.CORS_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
+app.use(cors({
+    origin: allowed.length ? allowed : false,
+    credentials: false,
+    methods: ["GET", "POST", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Authorization", "Content-Type", "If-None-Match"]
+}));
+
+app.use((req, _res, next) => {
+    req.id = req.headers["x-request-id"] || Math.random().toString(36).slice(2, 10);
+    next();
+});
+
 app.use(compression());
-app.use(bodyParser.json());
-app.use(cors());
-app.use(rateLimiter);
+app.use(bodyParser.json({ limit: "200kb" }));
+
+const globalLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 2000,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Zu viele Anfragen – bitte später erneut versuchen."
+});
+app.use(globalLimiter);
+
 app.use(requestLogger);
 
 const swaggerUi = require("swagger-ui-express");
@@ -60,18 +92,6 @@ app.get("/openapi.json", (_, res) => res.json(openapi));
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, { explorer: true }));
 
 const OpenApiValidator = require("express-openapi-validator");
-
-const JWT_SECRET = process.env.JWT_SECRET || "supersecret";
-
-app.post("/login", (req, res) => {
-    const { username, password } = req.body;
-    if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
-        const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: "1h" });
-        res.json({ token });
-    } else {
-        res.status(401).json({ error: "Invalid username or password" });
-    }
-});
 
 function bearerAuthHandler(req) {
     const authHeader = req.headers["authorization"];
@@ -95,7 +115,7 @@ app.use(
     OpenApiValidator.middleware({
         apiSpec: openapi,
         validateRequests: true,
-        validateResponses: false,
+        validateResponses: process.env.VALIDATE_RESPONSES === "true",
         validateSecurity: {
             handlers: {
                 BearerAuth: bearerAuthHandler
@@ -104,46 +124,78 @@ app.use(
     })
 );
 
-app.use("/titles",   titlesRoutes);
-app.use("/creators", creatorsRoutes);
-app.use("/session",  sessionRoutes);
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false
+});
 
-app.use("/marketplace/all",         mpAll);
-app.use("/marketplace/latest",      mpLatest);
-app.use("/marketplace/search",      mpSearch);
-app.use("/marketplace/popular",     mpPopular);
-app.use("/marketplace/tag",         mpTag);
-app.use("/marketplace/free",        mpFree);
-app.use("/marketplace/details",     mpDetails);
-app.use("/marketplace/friendly",    mpFriendly);
-app.use("/marketplace/summary",     mpSummary);
-app.use("/marketplace/compare",     mpCompare);
+app.post("/login", loginLimiter, (req, res) => {
+    const { username, password } = req.body;
+    const isAdmin = username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS;
+    if (isAdmin) {
+        const token = jwt.sign({ sub: username, role: "admin" }, JWT_SECRET, { expiresIn: "1h" });
+        res.json({ token });
+    } else {
+        res.status(401).json({ error: "Invalid username or password" });
+    }
+});
+
+function requireRole(role) {
+    return (req, _res, next) => {
+        if (!req.user || req.user.role !== role) {
+            const err = new Error("Forbidden");
+            err.status = 403;
+            throw err;
+        }
+        next();
+    };
+}
+
+app.use("/titles", titlesRoutes);
+app.use("/creators", creatorsRoutes);
+app.use("/session", requireRole("admin"), sessionRoutes);
+
+app.use("/marketplace/all", mpAll);
+app.use("/marketplace/latest", mpLatest);
+app.use("/marketplace/search", mpSearch);
+app.use("/marketplace/popular", mpPopular);
+app.use("/marketplace/tag", mpTag);
+app.use("/marketplace/free", mpFree);
+app.use("/marketplace/details", mpDetails);
+app.use("/marketplace/friendly", mpFriendly);
+app.use("/marketplace/summary", mpSummary);
+app.use("/marketplace/compare", mpCompare);
 app.use("/marketplace/featured-servers", mpFeaturedServers);
 
-// --- 404 für unbekannte Routen ---
 app.use((req, res) => {
     res.status(404).json({ error: "Route not found." });
 });
 
-// --- Globaler Fehler-Handler ---
 app.use((err, req, res, next) => {
-    if (err.status === 401) {
-        logger.warn(`401 ${req.method} ${req.originalUrl}`);
-        return res.status(401).json({ error: "Unauthorized - Bearer token required" });
+    const status = err.status || 500;
+    const traceId = req.headers["x-request-id"] || req.id;
+    if (status >= 500) {
+        logger.error(err.stack || err.message);
     }
-    if (err.status === 400 && Array.isArray(err.errors)) {
-        const details = err.errors.map(e => ({
-            path: e.path || e.instancePath || "",
-            message: e.message
-        }));
-        logger.warn(`400 ${req.method} ${req.originalUrl}`);
-        return res.status(400).json({ error: "Bad Request", details });
-    }
-    logger.error(err.stack || err.message);
-    res.status(err.status || 500).json({ error: err.message || "Internal server error." });
+    const payload = {
+        error: {
+            type:
+                status === 400 ? "bad_request" :
+                    status === 401 ? "unauthorized" :
+                        status === 403 ? "forbidden" :
+                            status === 404 ? "not_found" : "internal_error",
+            message: status >= 500 && process.env.NODE_ENV === "production"
+                ? "Internal server error."
+                : (err.publicMessage || err.message || "Error"),
+            details: Array.isArray(err.errors) ? err.errors : undefined,
+            traceId
+        }
+    };
+    res.status(status).json(payload);
 });
 
-// --- Server Start ---
 app.listen(port, () => {
     console.log(chalk.cyan(art));
     logger.info(`✨ API running at http://localhost:${port} ✨`);

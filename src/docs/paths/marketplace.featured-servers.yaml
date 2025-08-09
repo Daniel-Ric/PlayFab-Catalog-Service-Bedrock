@@ -2,7 +2,7 @@
   get:
     tags:
       - Marketplace
-    summary: 'Get featured servers'
+    summary: Get featured servers
     responses:
       '200':
         description: OK
@@ -16,8 +16,20 @@
               type: array
               items:
                 $ref: '#/components/schemas/FeaturedServer'
+      '401':
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      '403':
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
       '500':
-        description: 'Server error'
+        description: Server error
         content:
           application/json:
             schema:

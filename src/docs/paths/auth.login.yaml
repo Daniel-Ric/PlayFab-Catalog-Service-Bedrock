@@ -3,6 +3,7 @@
     tags:
       - Auth
     summary: Login to receive a JWT
+    security: []
     requestBody:
       required: true
       content:
@@ -27,7 +28,6 @@
               properties:
                 token:
                   type: string
-                  description: JWT token to use in Authorization header
       '401':
         description: Invalid credentials
         content:

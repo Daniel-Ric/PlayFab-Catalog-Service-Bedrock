@@ -7,9 +7,9 @@ router.get(
     "/:alias/:itemId",
     [
         check("alias")
-            .notEmpty().withMessage("Alias ist erforderlich."),
+            .notEmpty().withMessage("Alias is required."),
         check("itemId")
-            .notEmpty().withMessage("ItemId ist erforderlich.")
+            .notEmpty().withMessage("ItemId is required.")
     ],
     validate,
     ctrl.getDetails

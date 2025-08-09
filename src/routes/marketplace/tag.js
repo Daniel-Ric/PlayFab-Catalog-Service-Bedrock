@@ -6,8 +6,8 @@ const ctrl     = require("../../controllers/marketplace/tagController");
 router.get(
     "/:alias/:tag",
     [
-        check("alias").notEmpty().withMessage("Alias ist erforderlich."),
-        check("tag").notEmpty().withMessage("Tag ist erforderlich.")
+        check("alias").notEmpty().withMessage("Alias not found."),
+        check("tag").notEmpty().withMessage("Tag is required.")
     ],
     validate,
     ctrl.getByTag

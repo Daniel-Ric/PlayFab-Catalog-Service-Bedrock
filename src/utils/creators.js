@@ -8,7 +8,7 @@ function loadCreators() {
     try {
         return JSON.parse(fs.readFileSync(file, "utf8"));
     } catch {
-        logger.warn("creators.json nicht gefunden oder fehlerhaft.");
+        logger.warn("creators.json not found or contains errors.");
         return [];
     }
 }
@@ -18,7 +18,7 @@ function resolveCreatorId(creators, name) {
         c.creatorName === name || c.displayName === name
     );
     if (!c) {
-        const e = new Error(`Creator '${name}' nicht gefunden.`);
+        const e = new Error(`Creator '${name}' not found.`);
         e.status = 404;
         throw e;
     }

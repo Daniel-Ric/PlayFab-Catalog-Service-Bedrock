@@ -7,7 +7,7 @@ router.get(
     "/:alias",
     [
         check("alias")
-            .notEmpty().withMessage("Alias ist erforderlich.")
+            .notEmpty().withMessage("Alias is required.")
     ],
     validate,
     ctrl.getSession

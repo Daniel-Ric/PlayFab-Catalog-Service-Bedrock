@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: View Marketplace API
+  title: PlayFab Service | VMC API
   version: "1.0.0"
   description: Public HTTP API for marketplace browsing.
 servers:

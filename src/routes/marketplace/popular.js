@@ -6,7 +6,7 @@ const ctrl     = require("../../controllers/marketplace/popularController");
 router.get(
     "/:alias",
     [
-        check("alias").notEmpty().withMessage("Alias ist erforderlich.")
+        check("alias").notEmpty().withMessage("Alias is required.")
     ],
     validate,
     ctrl.getPopular

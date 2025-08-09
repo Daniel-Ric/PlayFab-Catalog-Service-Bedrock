@@ -7,9 +7,9 @@ router.get(
     "/:alias/:friendlyId",
     [
         check("alias")
-            .notEmpty().withMessage("Alias ist erforderlich."),
+            .notEmpty().withMessage("Alias is required."),
         check("friendlyId")
-            .notEmpty().withMessage("FriendlyId ist erforderlich.")
+            .notEmpty().withMessage("FriendlyId is required.")
     ],
     validate,
     ctrl.getByFriendly

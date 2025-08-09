@@ -79,7 +79,7 @@ const globalLimiter = rateLimit({
     max: 2000,
     standardHeaders: true,
     legacyHeaders: false,
-    message: "Zu viele Anfragen – bitte später erneut versuchen."
+    message: "To many requests – please try again later."
 });
 app.use(globalLimiter);
 

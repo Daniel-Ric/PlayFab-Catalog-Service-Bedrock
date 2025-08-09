@@ -10,10 +10,10 @@ router.post(
     "/",
     [
         check("alias")
-            .notEmpty().withMessage("Alias ist erforderlich.")
-            .matches(/^[\w-]+$/).withMessage("Alias darf nur aus Buchstaben, Zahlen und '-' bestehen."),
+            .notEmpty().withMessage("Alias is required.")
+            .matches(/^[\w-]+$/).withMessage("Alias may only contain letters, numbers, and '-'"),
         check("id")
-            .notEmpty().withMessage("ID ist erforderlich.")
+            .notEmpty().withMessage("ID is required.")
     ],
     validate,
     ctrl.create
@@ -23,7 +23,7 @@ router.delete(
     "/:alias",
     [
         check("alias")
-            .notEmpty().withMessage("Alias ist erforderlich.")
+            .notEmpty().withMessage("Alias is required.")
     ],
     validate,
     ctrl.remove

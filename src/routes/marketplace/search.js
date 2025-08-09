@@ -7,11 +7,11 @@ router.get(
     "/:alias",
     [
         check("alias")
-            .notEmpty().withMessage("Alias ist erforderlich."),
+            .notEmpty().withMessage("Alias is required."),
         check("creatorName")
-            .notEmpty().withMessage("creatorName ist erforderlich."),
+            .notEmpty().withMessage("creatorName is required."),
         check("keyword")
-            .notEmpty().withMessage("keyword ist erforderlich.")
+            .notEmpty().withMessage("keyword is required.")
     ],
     validate,
     ctrl.search

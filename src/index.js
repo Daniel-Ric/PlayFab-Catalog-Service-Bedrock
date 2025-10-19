@@ -23,6 +23,7 @@ const mpTag = require("./routes/marketplace/tag");
 const mpFree = require("./routes/marketplace/free");
 const mpDetails = require("./routes/marketplace/details");
 const mpFriendly = require("./routes/marketplace/friendly");
+const mpResolve = require("./routes/marketplace/resolve");
 const mpSummary = require("./routes/marketplace/summary");
 const mpCompare = require("./routes/marketplace/compare");
 const mpFeaturedServers = require("./routes/marketplace/featured-servers");
@@ -39,9 +40,6 @@ const art = `
   \\  $$$/  | $$\\  $ | $$| $$    $$   | $$\\  $$$| $$         | $$   
    \\  $/   | $$ \\/  | $$|  $$$$$$//$$| $$ \\  $$| $$$$$$$$   | $$   
     \\_/    |__/     |__/ \\______/|__/|__/  \\__/|________/   |__/   
-
-                  View-MarketplaceNET powered by PlayFab-Service
-                      Developed with <3 by SpindexGFX
 `;
 
 const app = express();
@@ -79,7 +77,7 @@ const globalLimiter = rateLimit({
     max: 2000,
     standardHeaders: true,
     legacyHeaders: false,
-    message: "To many requests – please try again later."
+    message: "Too many requests – please try again later."
 });
 app.use(globalLimiter);
 
@@ -111,18 +109,18 @@ function bearerAuthHandler(req) {
     return true;
 }
 
-app.use(
-    OpenApiValidator.middleware({
-        apiSpec: openapi,
-        validateRequests: true,
-        validateResponses: process.env.VALIDATE_RESPONSES === "true",
-        validateSecurity: {
-            handlers: {
-                BearerAuth: bearerAuthHandler
+if (process.env.VALIDATE_REQUESTS === "true") {
+    app.use(
+        OpenApiValidator.middleware({
+            apiSpec: openapi,
+            validateRequests: true,
+            validateResponses: process.env.VALIDATE_RESPONSES === "true",
+            validateSecurity: {
+                handlers: { BearerAuth: bearerAuthHandler }
             }
-        }
-    })
-);
+        })
+    );
+}
 
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -153,21 +151,29 @@ function requireRole(role) {
     };
 }
 
+function cacheHeaders(seconds = 60) {
+    return (_req, res, next) => {
+        res.setHeader("Cache-Control", `public, max-age=${seconds}, stale-while-revalidate=300`);
+        next();
+    };
+}
+
 app.use("/titles", titlesRoutes);
 app.use("/creators", creatorsRoutes);
 app.use("/session", requireRole("admin"), sessionRoutes);
 
-app.use("/marketplace/all", mpAll);
-app.use("/marketplace/latest", mpLatest);
-app.use("/marketplace/search", mpSearch);
-app.use("/marketplace/popular", mpPopular);
-app.use("/marketplace/tag", mpTag);
-app.use("/marketplace/free", mpFree);
-app.use("/marketplace/details", mpDetails);
-app.use("/marketplace/friendly", mpFriendly);
-app.use("/marketplace/summary", mpSummary);
-app.use("/marketplace/compare", mpCompare);
-app.use("/marketplace/featured-servers", mpFeaturedServers);
+app.use("/marketplace/all", cacheHeaders(60), mpAll);
+app.use("/marketplace/latest", cacheHeaders(30), mpLatest);
+app.use("/marketplace/search", cacheHeaders(30), mpSearch);
+app.use("/marketplace/popular", cacheHeaders(45), mpPopular);
+app.use("/marketplace/tag", cacheHeaders(60), mpTag);
+app.use("/marketplace/free", cacheHeaders(60), mpFree);
+app.use("/marketplace/details", cacheHeaders(120), mpDetails);
+app.use("/marketplace/friendly", cacheHeaders(120), mpFriendly);
+app.use("/marketplace/summary", cacheHeaders(120), mpSummary);
+app.use("/marketplace/resolve", cacheHeaders(60), mpResolve);
+app.use("/marketplace/compare", cacheHeaders(60), mpCompare);
+app.use("/marketplace/featured-servers", cacheHeaders(300), mpFeaturedServers);
 
 app.use((req, res) => {
     res.status(404).json({ error: "Route not found." });
@@ -176,9 +182,7 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
     const status = err.status || 500;
     const traceId = req.headers["x-request-id"] || req.id;
-    if (status >= 500) {
-        logger.error(err.stack || err.message);
-    }
+    if (status >= 500) logger.error(err.stack || err.message);
     const payload = {
         error: {
             type:

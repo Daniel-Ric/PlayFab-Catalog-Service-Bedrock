@@ -1,0 +1,27 @@
+# src/docs/paths/marketplace-resolve.yaml
+'/marketplace/resolve/{alias}/{itemId}':
+  get:
+    tags: [Marketplace]
+    summary: Resolve wrapper to real item by itemId
+    security: [{ BearerAuth: [] }]
+    parameters:
+      - in: path
+        name: alias
+        required: true
+        schema: { type: string }
+      - in: path
+        name: itemId
+        required: true
+        schema: { type: string }
+      - in: query
+        name: depth
+        required: false
+        schema: { type: integer, minimum: 0, default: 1 }
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Item'
+      '404': { description: Not found }

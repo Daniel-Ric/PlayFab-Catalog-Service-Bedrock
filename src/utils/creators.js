@@ -4,6 +4,10 @@ const logger = require("../config/logger");
 
 const file = path.join(__dirname, "../data/creators.json");
 
+function normalizeName(v) {
+    return String(v || "").toLowerCase().replace(/\s+/g, "");
+}
+
 function loadCreators() {
     try {
         return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -14,8 +18,10 @@ function loadCreators() {
 }
 
 function resolveCreatorId(creators, name) {
+    const needle = normalizeName(name);
     const c = creators.find(c =>
-        c.creatorName === name || c.displayName === name
+        normalizeName(c.creatorName) === needle ||
+        normalizeName(c.displayName) === needle
     );
     if (!c) {
         const e = new Error(`Creator '${name}' not found.`);

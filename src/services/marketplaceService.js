@@ -9,7 +9,7 @@ const PAGE_SIZE = 100;
 const PROD_TITLE_ID = (process.env.TITLE_ID || "20CA2").toLowerCase();
 
 const creatorsArr = loadCreators();
-const creatorsByNormalized = new Map(creatorsArr.map(c => [String(c.creatorName).replace(/\s/g, ""), c]));
+const creatorsByNormalized = new Map(creatorsArr.map(c => [String(c.creatorName).replace(/\s/g, "").toLowerCase(), c]));
 const titlesMap = require("../utils/titles").loadTitles();
 
 function andFilter(a, b) {
@@ -332,7 +332,7 @@ module.exports = {
         const details = await fetchItemsByIds(titleId, allIds);
         let creatorDisplayNameFilter = null;
         if (query.creator) {
-            const normalized = String(query.creator).replace(/\s/g, "");
+            const normalized = String(query.creator).replace(/\s/g, "").toLowerCase();
             const entry = creatorsByNormalized.get(normalized);
             if (!entry) {
                 const e = new Error(`Ungültiger Creator: ${query.creator}`);

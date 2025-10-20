@@ -27,7 +27,7 @@ const mpResolve = require("./routes/marketplace/resolve");
 const mpSummary = require("./routes/marketplace/summary");
 const mpCompare = require("./routes/marketplace/compare");
 const mpFeaturedServers = require("./routes/marketplace/featured-servers");
-
+const mpSales = require("./routes/marketplace/sales");
 const chalkImport = require("chalk");
 const chalk = chalkImport.default || chalkImport;
 
@@ -174,6 +174,7 @@ app.use("/marketplace/summary", cacheHeaders(120), mpSummary);
 app.use("/marketplace/resolve", cacheHeaders(60), mpResolve);
 app.use("/marketplace/compare", cacheHeaders(60), mpCompare);
 app.use("/marketplace/featured-servers", cacheHeaders(300), mpFeaturedServers);
+app.use("/marketplace/sales", cacheHeaders(60), mpSales);
 
 app.use((req, res) => {
     res.status(404).json({ error: "Route not found." });

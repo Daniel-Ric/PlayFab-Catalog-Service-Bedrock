@@ -1,10 +1,4 @@
-const {
-    sendPlayFabRequest,
-    isValidItem,
-    transformItem,
-    buildSearchPayload,
-    fetchAllMarketplaceItemsEfficiently
-} = require("../utils/playfab");
+const { sendPlayFabRequest, isValidItem, transformItem, buildSearchPayload, fetchAllMarketplaceItemsEfficiently } = require("../utils/playfab");
 const { resolveTitle } = require("../utils/titles");
 const { loadCreators, resolveCreatorId } = require("../utils/creators");
 const { buildFilter } = require("../utils/filter");
@@ -15,9 +9,7 @@ const PAGE_SIZE = 100;
 const PROD_TITLE_ID = (process.env.TITLE_ID || "20CA2").toLowerCase();
 
 const creatorsArr = loadCreators();
-const creatorsByNormalized = new Map(
-    creatorsArr.map(c => [String(c.creatorName).replace(/\s/g, ""), c])
-);
+const creatorsByNormalized = new Map(creatorsArr.map(c => [String(c.creatorName).replace(/\s/g, ""), c]));
 const titlesMap = require("../utils/titles").loadTitles();
 
 function andFilter(a, b) {
@@ -40,7 +32,7 @@ async function searchLoop(titleId, { filter = "", orderBy = "creationDate desc",
     return out;
 }
 
-function getPrimaryTitleId() {
+function getPrimaryTitleIdUnified() {
     const v = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || "").trim();
     if (v) {
         try {
@@ -64,14 +56,7 @@ function normDate(v) {
 }
 
 async function fetchStores(titleId) {
-    const data = await sendPlayFabRequest(
-        titleId,
-        "Catalog/SearchStores",
-        {},
-        "X-EntityToken",
-        2,
-        OS
-    );
+    const data = await sendPlayFabRequest(titleId, "Catalog/SearchStores", {}, "X-EntityToken", 2, OS);
     const stores = data?.Stores || data?.data?.Stores || [];
     return stores;
 }
@@ -150,9 +135,7 @@ function buildSalesResponse(headers, itemDetails, creatorDisplayNameFilter) {
                 rawItem: d
             };
         });
-        const filteredItems = creatorDisplayNameFilter
-            ? items.filter(i => i.rawItem?.DisplayProperties?.creatorName === creatorDisplayNameFilter)
-            : items;
+        const filteredItems = creatorDisplayNameFilter ? items.filter(i => i.rawItem?.DisplayProperties?.creatorName === creatorDisplayNameFilter) : items;
         if (!filteredItems.length) continue;
         sales[h.id] = {
             id: h.id,
@@ -180,7 +163,7 @@ function buildSalesResponse(headers, itemDetails, creatorDisplayNameFilter) {
 module.exports = {
     async fetchAll(alias, query = {}) {
         const titleId = resolveTitle(alias);
-        const tagClause = query.tag ? `tags/any(t:t eq '${String(query.tag).replace(/'/g,"''")}')` : "";
+        const tagClause = query.tag ? `tags/any(t:t eq '${String(query.tag).replace(/'/g, "''")}')` : "";
         const base = buildFilter({ query }, creatorsArr);
         const filter = andFilter(base, tagClause);
         return fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5);
@@ -203,7 +186,7 @@ module.exports = {
     async search(alias, creatorName, keyword) {
         const titleId = resolveTitle(alias);
         const cid = resolveCreatorId(creatorsArr, creatorName);
-        const filter = `creatorId eq '${cid.replace(/'/g,"''")}'`;
+        const filter = `creatorId eq '${cid.replace(/'/g, "''")}'`;
         const payload = buildSearchPayload({
             filter,
             search: `"${keyword}"`,
@@ -223,7 +206,7 @@ module.exports = {
 
     async fetchByTag(alias, tag) {
         const titleId = resolveTitle(alias);
-        const tagClause = `tags/any(t:t eq '${String(tag).replace(/'/g,"''")}')`;
+        const tagClause = `tags/any(t:t eq '${String(tag).replace(/'/g, "''")}')`;
         return fetchAllMarketplaceItemsEfficiently(titleId, tagClause, OS, 300, 5);
     },
 
@@ -238,7 +221,7 @@ module.exports = {
     async fetchDetails(alias, itemId) {
         const titleId = resolveTitle(alias);
         const payload = buildSearchPayload({
-            filter: `id eq '${String(itemId).replace(/'/g,"''")}'`,
+            filter: `id eq '${String(itemId).replace(/'/g, "''")}'`,
             search: "",
             top: 1,
             skip: 0,
@@ -276,12 +259,7 @@ module.exports = {
 
     async resolveByItemId(alias, itemId) {
         const titleId = resolveTitle(alias);
-        const payload = buildSearchPayload({
-            filter: `id eq '${String(itemId).replace(/'/g,"''")}'`,
-            search: "",
-            top: 1,
-            skip: 0
-        });
+        const payload = buildSearchPayload({ filter: `id eq '${String(itemId).replace(/'/g, "''")}'`, search: "", top: 1, skip: 0 });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
         const items = (data.Items || []).filter(isValidItem).map(transformItem);
         if (!items.length) {
@@ -294,7 +272,7 @@ module.exports = {
 
     async resolveByFriendly(alias, friendlyId) {
         const titleId = resolveTitle(alias);
-        const filter = `alternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${String(friendlyId).replace(/'/g,"''")}')`;
+        const filter = `alternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${String(friendlyId).replace(/'/g, "''")}')`;
         const payload = buildSearchPayload({ filter, search: "", top: 1, skip: 0 });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
         const items = (data.Items || []).filter(isValidItem).map(transformItem);
@@ -308,7 +286,7 @@ module.exports = {
 
     async fetchByFriendly(alias, friendlyId) {
         const titleId = resolveTitle(alias);
-        const filter = `alternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${String(friendlyId).replace(/'/g,"''")}')`;
+        const filter = `alternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${String(friendlyId).replace(/'/g, "''")}')`;
         const payload = buildSearchPayload({ filter, search: "", top: 1, skip: 0 });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
         const items = (data.Items || []).filter(isValidItem).map(transformItem);
@@ -321,7 +299,7 @@ module.exports = {
     },
 
     async fetchFeaturedServers() {
-        const titleId = getPrimaryTitleId();
+        const titleId = getPrimaryTitleIdUnified();
         const ids = featuredServers.map(s => s.id);
         const filter = ids.map(id => `id eq '${esc(id)}'`).join(" or ");
         const payload = buildSearchPayload({

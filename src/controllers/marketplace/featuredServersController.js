@@ -5,19 +5,13 @@ const { resolveTitle } = require("../../utils/titles");
 const { sendPlayFabRequest, buildSearchPayload, isValidItem, transformItem } = require("../../utils/playfab");
 
 function getPrimaryTitleId() {
-    const v = (process.env.FEATURED_PRIMARY_ALIAS || "").trim();
-    if (!v) {
-        const e = new Error("FEATURED_PRIMARY_ALIAS not set or unknown.");
-        e.status = 400;
-        throw e;
-    }
+    const v = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || process.env.TITLE_ID || "").trim();
+    if (!v) return "20CA2";
     try {
         return resolveTitle(v);
     } catch {
-        if (/^[A-Za-z0-9]{4,10}$/.test(v)) return v;
-        const e = new Error("FEATURED_PRIMARY_ALIAS not set or unknown.");
-        e.status = 400;
-        throw e;
+        if (/^[A-Za-z0-9]{4,10}$/i.test(v)) return v;
+        return "20CA2";
     }
 }
 

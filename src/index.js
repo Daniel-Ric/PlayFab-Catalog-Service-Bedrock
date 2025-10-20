@@ -1,5 +1,4 @@
 require("dotenv").config();
-
 const express = require("express");
 const bodyParser = require("body-parser");
 const compression = require("compression");
@@ -7,14 +6,11 @@ const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-
 const logger = require("./config/logger");
 const requestLogger = require("./middleware/requestLogger");
-
 const titlesRoutes = require("./routes/titles");
 const creatorsRoutes = require("./routes/creators");
 const sessionRoutes = require("./routes/session");
-
 const mpAll = require("./routes/marketplace/all");
 const mpLatest = require("./routes/marketplace/latest");
 const mpSearch = require("./routes/marketplace/search");
@@ -30,6 +26,7 @@ const mpFeaturedServers = require("./routes/marketplace/featured-servers");
 const mpSales = require("./routes/marketplace/sales");
 const chalkImport = require("chalk");
 const chalk = chalkImport.default || chalkImport;
+const auth = require("./middleware/auth");
 
 const art = `
  /$$    /$$ /$$      /$$  /$$$$$$     /$$   /$$ /$$$$$$$$ /$$$$$$$$
@@ -44,25 +41,16 @@ const art = `
 
 const app = express();
 const port = process.env.PORT || 3000;
-
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
     console.error("JWT_SECRET must be set and >=32 chars");
     process.exit(1);
 }
 
-app.use(helmet({
-    contentSecurityPolicy: false,
-    crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
+app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
 const allowed = (process.env.CORS_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
-app.use(cors({
-    origin: allowed.length ? allowed : false,
-    credentials: false,
-    methods: ["GET", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Authorization", "Content-Type", "If-None-Match"]
-}));
+app.use(cors({ origin: allowed.length ? allowed : false, credentials: false, methods: ["GET", "POST", "DELETE", "OPTIONS"], allowedHeaders: ["Authorization", "Content-Type", "If-None-Match"] }));
 
 app.use((req, _res, next) => {
     req.id = req.headers["x-request-id"] || Math.random().toString(36).slice(2, 10);
@@ -72,16 +60,11 @@ app.use((req, _res, next) => {
 app.use(compression());
 app.use(bodyParser.json({ limit: "200kb" }));
 
-const globalLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: 2000,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: "Too many requests – please try again later."
-});
+const globalLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 2000, standardHeaders: true, legacyHeaders: false, message: "Too many requests – please try again later." });
 app.use(globalLimiter);
 
 app.use(requestLogger);
+app.use(auth);
 
 const swaggerUi = require("swagger-ui-express");
 const { getOpenApiSpec } = require("./config/swagger");
@@ -101,7 +84,7 @@ function bearerAuthHandler(req) {
     const token = authHeader.split(" ")[1];
     try {
         req.user = jwt.verify(token, JWT_SECRET);
-    } catch (e) {
+    } catch {
         const err = new Error("Invalid token");
         err.status = 403;
         throw err;
@@ -110,24 +93,10 @@ function bearerAuthHandler(req) {
 }
 
 if (process.env.VALIDATE_REQUESTS === "true") {
-    app.use(
-        OpenApiValidator.middleware({
-            apiSpec: openapi,
-            validateRequests: true,
-            validateResponses: process.env.VALIDATE_RESPONSES === "true",
-            validateSecurity: {
-                handlers: { BearerAuth: bearerAuthHandler }
-            }
-        })
-    );
+    app.use(OpenApiValidator.middleware({ apiSpec: openapi, validateRequests: true, validateResponses: process.env.VALIDATE_RESPONSES === "true", validateSecurity: { handlers: { BearerAuth: bearerAuthHandler } } }));
 }
 
-const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 20,
-    standardHeaders: true,
-    legacyHeaders: false
-});
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
 
 app.post("/login", loginLimiter, (req, res) => {
     const { username, password } = req.body;
@@ -142,7 +111,12 @@ app.post("/login", loginLimiter, (req, res) => {
 
 function requireRole(role) {
     return (req, _res, next) => {
-        if (!req.user || req.user.role !== role) {
+        if (!req.user) {
+            const err = new Error("Unauthorized");
+            err.status = 401;
+            throw err;
+        }
+        if (req.user.role !== role) {
             const err = new Error("Forbidden");
             err.status = 403;
             throw err;
@@ -186,14 +160,8 @@ app.use((err, req, res, next) => {
     if (status >= 500) logger.error(err.stack || err.message);
     const payload = {
         error: {
-            type:
-                status === 400 ? "bad_request" :
-                    status === 401 ? "unauthorized" :
-                        status === 403 ? "forbidden" :
-                            status === 404 ? "not_found" : "internal_error",
-            message: status >= 500 && process.env.NODE_ENV === "production"
-                ? "Internal server error."
-                : (err.publicMessage || err.message || "Error"),
+            type: status === 400 ? "bad_request" : status === 401 ? "unauthorized" : status === 403 ? "forbidden" : status === 404 ? "not_found" : "internal_error",
+            message: status >= 500 && process.env.NODE_ENV === "production" ? "Internal server error." : err.publicMessage || err.message || "Error",
             details: Array.isArray(err.errors) ? err.errors : undefined,
             traceId
         }

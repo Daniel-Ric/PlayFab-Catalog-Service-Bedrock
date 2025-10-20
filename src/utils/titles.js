@@ -16,7 +16,7 @@ function readTitlesFromDisk() {
         }
     } catch {
         if (!titlesCache) {
-            logger.warn("titles.json not found → staring with an empty mapping table.");
+            logger.warn("titles.json not found → starting with an empty mapping table.");
             titlesCache = {};
         }
     }

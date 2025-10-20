@@ -19,7 +19,7 @@ const consoleFormat = winston.format.printf(({ timestamp, level, message }) => {
 });
 
 const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || "debug",
+    level: process.env.LOG_LEVEL || "info",
     transports: [
         new winston.transports.File({
             filename: "catalog-service.log",

@@ -1,10 +1,11 @@
 const crypto = require("crypto");
+const stringify = require("fast-json-stable-stringify");
 
 function withETag(handler) {
     return async (req, res, next) => {
         try {
             const result = await handler(req, res);
-            const body = JSON.stringify(result);
+            const body = stringify(result);
             const tag = crypto.createHash("md5").update(body).digest("hex");
             res.setHeader("ETag", tag);
             if (req.headers["if-none-match"] === tag) {

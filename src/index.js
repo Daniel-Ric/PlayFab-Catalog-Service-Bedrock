@@ -1,11 +1,11 @@
 require("dotenv").config();
 const express = require("express");
-const bodyParser = require("body-parser");
 const compression = require("compression");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
+const winston = require("winston");
 const logger = require("./config/logger");
 const requestLogger = require("./middleware/requestLogger");
 const titlesRoutes = require("./routes/titles");
@@ -27,6 +27,10 @@ const mpSales = require("./routes/marketplace/sales");
 const chalkImport = require("chalk");
 const chalk = chalkImport.default || chalkImport;
 const auth = require("./middleware/auth");
+const swaggerUi = require("swagger-ui-express");
+const { getOpenApiSpec } = require("./config/swagger");
+const OpenApiValidator = require("express-openapi-validator");
+const NodeCache = require("node-cache");
 
 const art = `
  /$$    /$$ /$$      /$$  /$$$$$$     /$$   /$$ /$$$$$$$$ /$$$$$$$$
@@ -57,49 +61,20 @@ app.use((req, _res, next) => {
     next();
 });
 
-app.use(compression());
-app.use(bodyParser.json({ limit: "200kb" }));
-
 const globalLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 2000, standardHeaders: true, legacyHeaders: false, message: "Too many requests – please try again later." });
 app.use(globalLimiter);
 
-app.use(requestLogger);
-app.use(auth);
+if ((process.env.LOG_LEVEL || "info").toLowerCase() === "debug" || (logger.level || "") === "debug" || winston.level === "debug") {
+    app.use(requestLogger);
+}
 
-const swaggerUi = require("swagger-ui-express");
-const { getOpenApiSpec } = require("./config/swagger");
 const openapi = getOpenApiSpec();
 app.get("/openapi.json", (_, res) => res.json(openapi));
 app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, { explorer: true }));
 
-const OpenApiValidator = require("express-openapi-validator");
-
-function bearerAuthHandler(req) {
-    const authHeader = req.headers["authorization"];
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        const err = new Error("Unauthorized");
-        err.status = 401;
-        throw err;
-    }
-    const token = authHeader.split(" ")[1];
-    try {
-        req.user = jwt.verify(token, JWT_SECRET);
-    } catch {
-        const err = new Error("Invalid token");
-        err.status = 403;
-        throw err;
-    }
-    return true;
-}
-
-if (process.env.VALIDATE_REQUESTS === "true") {
-    app.use(OpenApiValidator.middleware({ apiSpec: openapi, validateRequests: true, validateResponses: process.env.VALIDATE_RESPONSES === "true", validateSecurity: { handlers: { BearerAuth: bearerAuthHandler } } }));
-}
-
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
-
-app.post("/login", loginLimiter, (req, res) => {
-    const { username, password } = req.body;
+app.post("/login", loginLimiter, express.json({ limit: "100kb" }), (req, res) => {
+    const { username, password } = req.body || {};
     const isAdmin = username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS;
     if (isAdmin) {
         const token = jwt.sign({ sub: username, role: "admin" }, JWT_SECRET, { expiresIn: "1h" });
@@ -108,6 +83,41 @@ app.post("/login", loginLimiter, (req, res) => {
         res.status(401).json({ error: "Invalid username or password" });
     }
 });
+
+app.use(auth);
+
+const jwtCache = new NodeCache({ stdTTL: 0, checkperiod: 120, useClones: false });
+const isDocs = p => p === "/docs" || p.startsWith("/docs/");
+const enforceAuth = (req, res, next) => {
+    if (req.method === "OPTIONS") return next();
+    if (req.path === "/openapi.json" && req.method === "GET") return next();
+    if (isDocs(req.path)) return next();
+    if (req.path === "/login" && req.method === "POST") return next();
+    const header = req.headers["authorization"];
+    if (!header || header.charCodeAt(0) !== 66 || !header.startsWith("Bearer ")) {
+        return res.status(401).json({ error: { type: "unauthorized", message: "Unauthorized", traceId: req.headers["x-request-id"] || req.id } });
+    }
+    const token = header.slice(7);
+    const cached = jwtCache.get(token);
+    if (cached) {
+        req.user = cached;
+        return next();
+    }
+    try {
+        const payload = jwt.verify(token, JWT_SECRET);
+        req.user = payload;
+        const nowSec = Math.floor(Date.now() / 1000);
+        const ttl = typeof payload.exp === "number" ? Math.max(1, payload.exp - nowSec) : 300;
+        jwtCache.set(token, payload, ttl);
+        return next();
+    } catch {
+        return res.status(403).json({ error: { type: "forbidden", message: "Invalid token", traceId: req.headers["x-request-id"] || req.id } });
+    }
+};
+app.use(enforceAuth);
+
+app.use(compression());
+app.use(express.json({ limit: "200kb" }));
 
 function requireRole(role) {
     return (req, _res, next) => {
@@ -123,6 +133,36 @@ function requireRole(role) {
         }
         next();
     };
+}
+
+if (process.env.VALIDATE_REQUESTS === "true") {
+    function bearerAuthHandler(req) {
+        const authHeader = req.headers["authorization"];
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+            const err = new Error("Unauthorized");
+            err.status = 401;
+            throw err;
+        }
+        const token = authHeader.slice(7);
+        const cached = jwtCache.get(token);
+        if (cached) {
+            req.user = cached;
+            return true;
+        }
+        try {
+            const payload = jwt.verify(token, JWT_SECRET);
+            req.user = payload;
+            const nowSec = Math.floor(Date.now() / 1000);
+            const ttl = typeof payload.exp === "number" ? Math.max(1, payload.exp - nowSec) : 300;
+            jwtCache.set(token, payload, ttl);
+            return true;
+        } catch {
+            const err = new Error("Invalid token");
+            err.status = 403;
+            throw err;
+        }
+    }
+    app.use(OpenApiValidator.middleware({ apiSpec: openapi, validateRequests: true, validateResponses: process.env.VALIDATE_RESPONSES === "true", validateSecurity: { handlers: { BearerAuth: bearerAuthHandler } } }));
 }
 
 function cacheHeaders(seconds = 60) {

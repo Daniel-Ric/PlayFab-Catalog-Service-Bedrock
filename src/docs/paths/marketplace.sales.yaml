@@ -1,23 +1,14 @@
-/marketplace/search/{alias}:
+/marketplace/sales:
   get:
     tags:
       - Marketplace
-    summary: Search items by creator and keyword
+    summary: Get current sales
+    description: Returns active sales and included items. Optional filter by creator display name.
     security: []
     parameters:
-      - in: path
-        name: alias
-        required: true
-        schema:
-          type: string
       - in: query
-        name: creatorName
-        required: true
-        schema:
-          type: string
-      - in: query
-        name: keyword
-        required: true
+        name: creator
+        required: false
         schema:
           type: string
     responses:
@@ -30,9 +21,7 @@
         content:
           application/json:
             schema:
-              type: array
-              items:
-                $ref: "#/components/schemas/Item"
+              $ref: "#/components/schemas/SalesOverview"
       "400":
         description: Bad request
         content:
@@ -40,7 +29,7 @@
             schema:
               $ref: "#/components/schemas/Error"
       "404":
-        description: Not found
+        description: No sales currently active
         content:
           application/json:
             schema:

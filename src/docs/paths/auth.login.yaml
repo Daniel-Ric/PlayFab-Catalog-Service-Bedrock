@@ -3,6 +3,7 @@
     tags:
       - Auth
     summary: Login to receive a JWT
+    description: Returns a short-lived admin JWT if credentials match environment variables.
     security: []
     requestBody:
       required: true
@@ -19,7 +20,7 @@
               - username
               - password
     responses:
-      '200':
+      "200":
         description: Successful login
         content:
           application/json:
@@ -28,9 +29,9 @@
               properties:
                 token:
                   type: string
-      '401':
+      "401":
         description: Invalid credentials
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
+              $ref: "#/components/schemas/Error"

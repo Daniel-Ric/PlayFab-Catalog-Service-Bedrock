@@ -1,8 +1,9 @@
-'/marketplace/summary/{alias}':
+/marketplace/summary/{alias}:
   get:
     tags:
       - Marketplace
     summary: Get a summary of items
+    security: []
     parameters:
       - in: path
         name: alias
@@ -10,7 +11,7 @@
         schema:
           type: string
     responses:
-      '200':
+      "200":
         description: OK
         headers:
           ETag:
@@ -29,33 +30,21 @@
                     type: string
                   detailsUrl:
                     type: string
+                    format: uri
                   clientUrl:
                     type: string
+                    format: uri
                 required:
                   - id
-      '401':
-        description: Unauthorized
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
-      '403':
-        description: Forbidden
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
-      '404':
+      "404":
         description: Not found
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
-      '500':
+              $ref: "#/components/schemas/Error"
+      "500":
         description: Server error
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
-    security:
-      - BearerAuth: []
+              $ref: "#/components/schemas/Error"

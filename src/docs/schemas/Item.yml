@@ -12,7 +12,7 @@ Item:
     Images:
       type: array
       items:
-        $ref: '#/components/schemas/Image'
+        $ref: "#/components/schemas/Image"
     DisplayProperties:
       type: object
       additionalProperties: true

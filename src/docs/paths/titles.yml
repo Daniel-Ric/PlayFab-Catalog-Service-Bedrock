@@ -3,83 +3,52 @@
     tags:
       - Titles
     summary: List all titles
+    security: []
     responses:
-      '200':
+      "200":
         description: OK
         content:
           application/json:
             schema:
               type: array
               items:
-                $ref: '#/components/schemas/Title'
-      '401':
-        description: Unauthorized
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
-      '403':
-        description: Forbidden
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
-      '500':
+                $ref: "#/components/schemas/Title"
+      "500":
         description: Server error
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
-    security:
-      - BearerAuth: []
+              $ref: "#/components/schemas/Error"
   post:
     tags:
       - Titles
     summary: Create a title
+    security: []
     requestBody:
       required: true
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Title'
+            $ref: "#/components/schemas/Title"
     responses:
-      '201':
+      "201":
         description: Created
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Title'
-      '400':
+              $ref: "#/components/schemas/Title"
+      "400":
         description: Bad request
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
-      '401':
-        description: Unauthorized
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
-      '403':
-        description: Forbidden
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
-      '500':
-        description: Server error
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
-    security:
-      - BearerAuth: []
-'/titles/{alias}':
+              $ref: "#/components/schemas/Error"
+/titles/{alias}:
   delete:
     tags:
       - Titles
     summary: Delete a title
+    security: []
     parameters:
       - in: path
         name: alias
@@ -87,7 +56,7 @@
         schema:
           type: string
     responses:
-      '200':
+      "200":
         description: OK
         content:
           application/json:
@@ -96,29 +65,15 @@
               properties:
                 deleted:
                   type: string
-      '401':
-        description: Unauthorized
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
-      '403':
-        description: Forbidden
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
-      '404':
+      "404":
         description: Not found
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
-      '500':
+              $ref: "#/components/schemas/Error"
+      "500":
         description: Server error
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Error'
-    security:
-      - BearerAuth: []
+              $ref: "#/components/schemas/Error"

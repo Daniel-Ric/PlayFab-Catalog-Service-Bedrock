@@ -19,6 +19,5 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas: {}
-security:
-  - BearerAuth: []
 paths: {}
+security: []

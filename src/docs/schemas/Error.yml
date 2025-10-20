@@ -2,8 +2,21 @@ Error:
   type: object
   properties:
     error:
-      oneOf:
-        - type: string
-        - type: object
+      type: object
+      properties:
+        type:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        traceId:
+          type: string
+      required:
+        - type
+        - message
   required:
     - error

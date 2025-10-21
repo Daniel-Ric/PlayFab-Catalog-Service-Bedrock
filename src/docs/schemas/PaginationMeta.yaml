@@ -1,0 +1,31 @@
+PaginationMeta:
+  type: object
+  properties:
+    total:
+      type: integer
+      format: int64
+      minimum: 0
+    page:
+      type: integer
+      minimum: 1
+    pageSize:
+      type: integer
+      minimum: 1
+    skip:
+      type: integer
+      minimum: 0
+    limit:
+      type: integer
+      minimum: 1
+    hasNext:
+      type: boolean
+    nextPage:
+      type: integer
+      minimum: 1
+      nullable: true
+    start:
+      type: integer
+      minimum: 0
+    end:
+      type: integer
+      minimum: 0

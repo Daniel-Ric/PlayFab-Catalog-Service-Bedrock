@@ -1,9 +1,10 @@
 const withETag = require("../../middleware/etag");
+const withPagination = require("../../middleware/pagination");
 const { dataCache } = require("../../config/cache");
 const service = require("../../services/marketplaceService");
 const cacheKey = require("../../utils/cacheKey");
 
-exports.getByTag = withETag(async (req, res) => {
+exports.getByTag = withETag(withPagination(async (req, res) => {
     const key = cacheKey(req);
     if (dataCache.has(key)) {
         return dataCache.get(key);
@@ -11,4 +12,4 @@ exports.getByTag = withETag(async (req, res) => {
     const items = await service.fetchByTag(req.params.alias, req.params.tag);
     dataCache.set(key, items);
     return items;
-});
+}));

@@ -18,21 +18,12 @@ const consoleFormat = winston.format.printf(({timestamp, level, message}) => {
     }
 });
 
+const transports = [new winston.transports.Console({
+    format: winston.format.combine(winston.format.timestamp({format: "HH:mm:ss"}), consoleFormat)
+})];
+
 const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || "info",
-    transports: [
-        new winston.transports.File({
-            filename: "catalog-service.log",
-            level: "info",
-            format: winston.format.json()
-        }),
-        new winston.transports.Console({
-            format: winston.format.combine(
-                winston.format.timestamp({format: "HH:mm:ss"}),
-                consoleFormat
-            )
-        })
-    ]
+    level: process.env.LOG_LEVEL || "info", transports
 });
 
 module.exports = logger;

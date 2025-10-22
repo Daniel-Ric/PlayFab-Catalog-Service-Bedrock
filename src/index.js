@@ -4,7 +4,6 @@ const compression = require("compression");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
 const winston = require("winston");
 const logger = require("./config/logger");
 const requestLogger = require("./middleware/requestLogger");
@@ -26,9 +25,8 @@ const mpFeaturedServers = require("./routes/marketplace/featured-servers");
 const mpSales = require("./routes/marketplace/sales");
 const chalkImport = require("chalk");
 const chalk = chalkImport.default || chalkImport;
-const auth = require("./middleware/auth");
 const swaggerUi = require("swagger-ui-express");
-const {getOpenApiSpec} = require("./config/swagger");
+const { getOpenApiSpec } = require("./config/swagger");
 const OpenApiValidator = require("express-openapi-validator");
 const NodeCache = require("node-cache");
 
@@ -65,7 +63,7 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
     process.exit(1);
 }
 
-app.use(helmet({contentSecurityPolicy: false, crossOriginResourcePolicy: {policy: "cross-origin"}}));
+app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
 const allowed = (process.env.CORS_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
 app.use(cors({
@@ -80,42 +78,33 @@ app.use((req, _res, next) => {
     next();
 });
 
-const globalLimiter = rateLimit({
-    windowMs: 60 * 60 * 1000,
-    max: 2000,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: "Too many requests – please try again later."
-});
-app.use(globalLimiter);
-
 if ((process.env.LOG_LEVEL || "info").toLowerCase() === "debug" || (logger.level || "") === "debug" || winston.level === "debug") {
     app.use(requestLogger);
 }
 
 const openapi = getOpenApiSpec();
 app.get("/openapi.json", (_, res) => res.json(openapi));
-app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, {explorer: true}));
+if (process.env.ENABLE_DOCS === "true") {
+    app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, { explorer: true }));
+}
 
-app.get("/", (_req, res) => res.json({ok: true, name: "View Marketplace API"}));
+app.get("/", (_req, res) => res.json({ ok: true, name: "View Marketplace API" }));
 
-const loginLimiter = rateLimit({windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false});
+const loginLimiter = require("./config/rateLimiter").createRateLimiter({ windowMs: 15 * 60 * 1000, max: 20 });
 app.post(
     ["/login", "/login/"],
     loginLimiter,
-    express.json({limit: "100kb"}),
+    express.json({ limit: "100kb" }),
     (req, res) => {
-        const {username, password} = req.body || {};
+        const { username, password } = req.body || {};
         const isAdmin = username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS;
-        if (!isAdmin) return res.status(401).json({error: "Invalid username or password"});
-        const token = jwt.sign({sub: username, role: "admin"}, JWT_SECRET, {expiresIn: "1h"});
-        res.json({token});
+        if (!isAdmin) return res.status(401).json({ error: "Invalid username or password" });
+        const token = jwt.sign({ sub: username, role: "admin" }, JWT_SECRET, { expiresIn: "1h" });
+        res.json({ token });
     }
 );
 
-app.use(require("./middleware/auth"));
-
-const jwtCache = new NodeCache({stdTTL: 0, checkperiod: 120, useClones: false});
+const jwtCache = new NodeCache({ stdTTL: 0, checkperiod: 120, useClones: false });
 const isDocs = p => p === "/docs" || p.startsWith("/docs/");
 const pathIs = (reqPath, probe) => reqPath === probe || reqPath === `${probe}/`;
 
@@ -124,11 +113,10 @@ function enforceAuth(req, res, next) {
     if (req.path === "/openapi.json" && req.method === "GET") return next();
     if (isDocs(req.path)) return next();
     if ((pathIs(req.path, "/login")) && req.method === "POST") return next();
-
     const header = req.headers["authorization"];
     if (!header || !header.startsWith("Bearer ")) {
         return res.status(401).json({
-            error: {type: "unauthorized", message: "Unauthorized", traceId: req.headers["x-request-id"] || req.id}
+            error: { type: "unauthorized", message: "Unauthorized", traceId: req.headers["x-request-id"] || req.id }
         });
     }
     const token = header.slice(7);
@@ -146,13 +134,13 @@ function enforceAuth(req, res, next) {
         return next();
     } catch {
         return res.status(403).json({
-            error: {type: "forbidden", message: "Invalid token", traceId: req.headers["x-request-id"] || req.id}
+            error: { type: "forbidden", message: "Invalid token", traceId: req.headers["x-request-id"] || req.id }
         });
     }
 }
 
-app.use(compression());
-app.use(express.json({limit: "200kb"}));
+app.use(compression({ threshold: 1024, level: 4 }));
+app.use(express.json({ limit: "200kb" }));
 
 function requireRole(role) {
     return (req, _res, next) => {
@@ -202,13 +190,13 @@ if (process.env.VALIDATE_REQUESTS === "true") {
         apiSpec: openapi,
         validateRequests: true,
         validateResponses: process.env.VALIDATE_RESPONSES === "true",
-        validateSecurity: {handlers: {BearerAuth: bearerAuthHandler}}
+        validateSecurity: { handlers: { BearerAuth: bearerAuthHandler } }
     }));
 }
 
-function cacheHeaders(seconds = 60) {
+function cacheHeaders(seconds = 60, smax = 300) {
     return (_req, res, next) => {
-        res.setHeader("Cache-Control", `public, max-age=${seconds}, stale-while-revalidate=300`);
+        res.setHeader("Cache-Control", `public, max-age=${seconds}, s-maxage=${smax}, stale-while-revalidate=600`);
         next();
     };
 }
@@ -218,22 +206,22 @@ app.use("/session", enforceAuth, requireRole("admin"), sessionRoutes);
 app.use("/titles", enforceAuth, titlesRoutes);
 app.use("/creators", enforceAuth, creatorsRoutes);
 
-app.use("/marketplace/all", enforceAuth, cacheHeaders(60), mpAll);
-app.use("/marketplace/latest", enforceAuth, cacheHeaders(30), mpLatest);
-app.use("/marketplace/search", enforceAuth, cacheHeaders(30), mpSearch);
-app.use("/marketplace/popular", enforceAuth, cacheHeaders(45), mpPopular);
-app.use("/marketplace/tag", enforceAuth, cacheHeaders(60), mpTag);
-app.use("/marketplace/free", enforceAuth, cacheHeaders(60), mpFree);
-app.use("/marketplace/details", enforceAuth, cacheHeaders(120), mpDetails);
-app.use("/marketplace/friendly", enforceAuth, cacheHeaders(120), mpFriendly);
-app.use("/marketplace/summary", enforceAuth, cacheHeaders(120), mpSummary);
-app.use("/marketplace/resolve", enforceAuth, cacheHeaders(60), mpResolve);
-app.use("/marketplace/compare", enforceAuth, cacheHeaders(60), mpCompare);
-app.use("/marketplace/featured-servers", enforceAuth, cacheHeaders(300), mpFeaturedServers);
-app.use("/marketplace/sales", enforceAuth, cacheHeaders(60), mpSales);
+app.use("/marketplace/all", enforceAuth, cacheHeaders(60, 300), mpAll);
+app.use("/marketplace/latest", enforceAuth, cacheHeaders(30, 180), mpLatest);
+app.use("/marketplace/search", enforceAuth, cacheHeaders(30, 180), mpSearch);
+app.use("/marketplace/popular", enforceAuth, cacheHeaders(45, 240), mpPopular);
+app.use("/marketplace/tag", enforceAuth, cacheHeaders(60, 300), mpTag);
+app.use("/marketplace/free", enforceAuth, cacheHeaders(60, 300), mpFree);
+app.use("/marketplace/details", enforceAuth, cacheHeaders(120, 600), mpDetails);
+app.use("/marketplace/friendly", enforceAuth, cacheHeaders(120, 600), mpFriendly);
+app.use("/marketplace/summary", enforceAuth, cacheHeaders(120, 600), mpSummary);
+app.use("/marketplace/resolve", enforceAuth, cacheHeaders(60, 300), mpResolve);
+app.use("/marketplace/compare", enforceAuth, cacheHeaders(60, 300), mpCompare);
+app.use("/marketplace/featured-servers", enforceAuth, cacheHeaders(300, 1200), mpFeaturedServers);
+app.use("/marketplace/sales", enforceAuth, cacheHeaders(60, 300), mpSales);
 
 app.use((req, res) => {
-    res.status(404).json({error: "Route not found."});
+    res.status(404).json({ error: "Route not found." });
 });
 
 app.use((err, req, res, _next) => {
@@ -242,15 +230,8 @@ app.use((err, req, res, _next) => {
     if (status >= 500) logger.error(err.stack || err.message);
     const payload = {
         error: {
-            type:
-                status === 400 ? "bad_request" :
-                    status === 401 ? "unauthorized" :
-                        status === 403 ? "forbidden" :
-                            status === 404 ? "not_found" : "internal_error",
-            message:
-                status >= 500 && process.env.NODE_ENV === "production"
-                    ? "Internal server error."
-                    : err.publicMessage || err.message || "Error",
+            type: status === 400 ? "bad_request" : status === 401 ? "unauthorized" : status === 403 ? "forbidden" : status === 404 ? "not_found" : "internal_error",
+            message: status >= 500 && process.env.NODE_ENV === "production" ? "Internal server error." : err.publicMessage || err.message || "Error",
             details: Array.isArray(err.errors) ? err.errors : undefined,
             traceId
         }
@@ -260,5 +241,5 @@ app.use((err, req, res, _next) => {
 
 app.listen(port, () => {
     console.log(chalk.cyan(art));
-    logger.info(`✨ API running at http://localhost:${port} ✨`);
+    logger.info(`API running at http://localhost:${port}`);
 });

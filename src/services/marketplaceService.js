@@ -11,7 +11,7 @@ const MULTILANG_ALL = process.env.MULTILANG_ALL === "true";
 const ENRICH_BATCH = Math.max(10, parseInt(process.env.MULTILANG_ENRICH_BATCH || "100", 10));
 const ENRICH_CONCURRENCY = Math.max(1, parseInt(process.env.MULTILANG_ENRICH_CONCURRENCY || "5", 10));
 const STORE_CONCURRENCY = Math.max(1, parseInt(process.env.STORE_CONCURRENCY || "4", 10));
-const STORE_MAX_FOR_PRICE_ENRICH = Math.max(1, parseInt(process.env.STORE_MAX_FOR_PRICE_ENRICH || "20", 10));
+const STORE_MAX_FOR_PRICE_ENRICH = Math.max(1, parseInt(process.env.STORE_MAX_FOR_PRICE_ENRICH || "12", 10));
 
 const creatorsArr = loadCreators();
 const creatorsByNormalized = new Map(creatorsArr.map(c => [String(c.creatorName).replace(/\s/g, "").toLowerCase(), c]));
@@ -24,9 +24,9 @@ function andFilter(a, b) {
     return A || B || "";
 }
 
-async function searchLoop(titleId, { filter = "", orderBy = "creationDate desc", batch = 300 }) {
+async function searchLoop(titleId, { filter = "", orderBy = "creationDate desc", batch = 300, maxBatches = Number(process.env.MAX_SEARCH_BATCHES || 10) }) {
     const out = [];
-    for (let skip = 0; ; skip += batch) {
+    for (let i = 0, skip = 0; i < maxBatches; i += 1, skip += batch) {
         const payload = buildSearchPayload({ filter, search: "", top: batch, skip, orderBy });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
         const items = (data.Items || []).filter(isValidItem).map(transformItem);
@@ -215,6 +215,11 @@ async function enrichItemWithReviews(titleId, itemId, take = 10) {
     return { summary: summary || {}, reviews: reviews?.Reviews || reviews?.reviews || [] };
 }
 
+function parseExpand(expandParam) {
+    const set = new Set(String(expandParam || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean));
+    return { prices: set.has("prices"), reviews: set.has("reviews"), refs: set.has("refs") || set.has("references") };
+}
+
 module.exports = {
     async fetchAll(alias, query = {}) {
         const titleId = resolveTitle(alias);
@@ -291,8 +296,9 @@ module.exports = {
         return withRefs;
     },
 
-    async fetchDetails(alias, itemId) {
+    async fetchDetails(alias, itemId, expandParam) {
         const titleId = resolveTitle(alias);
+        const expand = parseExpand(expandParam);
         const raw = await getItemsByIds(titleId, [itemId], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
         const items = raw.filter(isValidItem).map(transformItem);
         if (!items.length) {
@@ -301,9 +307,9 @@ module.exports = {
             throw e;
         }
         const base = items[0];
-        const withRefs = await enrichItemsWithResolvedReferences(titleId, [base]);
-        const prices = await enrichItemWithStorePrices(titleId, itemId);
-        const reviews = await enrichItemWithReviews(titleId, itemId, 10);
+        const withRefs = expand.refs ? await enrichItemsWithResolvedReferences(titleId, [base]) : [base];
+        const prices = expand.prices ? await enrichItemWithStorePrices(titleId, itemId) : [];
+        const reviews = expand.reviews ? await enrichItemWithReviews(titleId, itemId, 10) : { summary: {}, reviews: [] };
         return { ...withRefs[0], StorePrices: prices, Reviews: reviews };
     },
 

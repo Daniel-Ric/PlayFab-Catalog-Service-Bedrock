@@ -5,17 +5,17 @@ const { Mutex } = require("async-mutex");
 const { sessionCache } = require("../config/cache");
 const logger = require("../config/logger");
 
-const httpAgent = new http.Agent({ keepAlive: true, maxSockets: 128, keepAliveMsecs: 60000 });
-const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: 128, keepAliveMsecs: 60000 });
+const httpAgent = new http.Agent({ keepAlive: true, maxSockets: Number(process.env.HTTP_MAX_SOCKETS || 512), keepAliveMsecs: 60000, scheduling: "lifo" });
+const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: Number(process.env.HTTPS_MAX_SOCKETS || 512), keepAliveMsecs: 60000, scheduling: "lifo" });
 
 const api = axios.create({
-    timeout: 20000,
+    timeout: Number(process.env.UPSTREAM_TIMEOUT_MS || 20000),
     httpAgent,
     httpsAgent,
     headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "User-Agent": "ViewMarketplace/legacy-fast"
+        "User-Agent": "ViewMarketplace/optimized"
     },
     validateStatus: () => true
 });
@@ -32,6 +32,11 @@ function parseRetryAfter(h) {
     const n = Number(h);
     if (!Number.isNaN(n)) return Math.max(0, Math.floor(n * 1000));
     return 3000;
+}
+
+function jitter(base, attempt, max) {
+    const exp = Math.min(max, Math.pow(2, attempt) * base);
+    return Math.floor(Math.random() * exp);
 }
 
 async function loginWithIOSDeviceID(titleId, os) {
@@ -78,7 +83,8 @@ async function getSession(titleId, os) {
 async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-EntityToken", maxRetries = 3, os) {
     let attempt = 0;
     let lastErr;
-    while (attempt <= maxRetries) {
+    const budget = Number(process.env.RETRY_BUDGET || maxRetries);
+    while (attempt <= budget) {
         try {
             const ses = await getSession(titleId, os);
             const headers = {
@@ -89,26 +95,26 @@ async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-Ent
                 return r.data.data ?? r.data;
             }
             const status = r.status;
-            if (status === 401 && attempt < maxRetries) {
-                sessionCache.del(`session_${titleId}`);
+            if (status === 401 && attempt < budget) {
+                sessionCache.delete(`session_${titleId}`);
             }
             const shouldRetry = [401, 408, 409, 425, 429, 500, 502, 503, 504].includes(status);
-            if (!shouldRetry || attempt >= maxRetries) {
+            if (!shouldRetry || attempt >= budget) {
                 const e = new Error(`Upstream error ${status}`);
                 e.status = status;
                 e.response = r;
                 throw e;
             }
             let waitMs;
-            if (status === 429) waitMs = parseRetryAfter(r.headers["retry-after"]) ?? 3000;
-            else waitMs = Math.min(10000, 400 * Math.pow(2, attempt));
+            if (status === 429) waitMs = parseRetryAfter(r.headers["retry-after"]) ?? jitter(200, attempt, 10000);
+            else waitMs = jitter(200, attempt, 10000);
             await sleep(waitMs);
             attempt++;
             continue;
         } catch (err) {
             lastErr = err;
-            if (attempt >= maxRetries) throw err;
-            await sleep(Math.min(10000, 400 * Math.pow(2, attempt)));
+            if (attempt >= budget) throw err;
+            await sleep(jitter(200, attempt, 10000));
             attempt++;
         }
     }
@@ -116,12 +122,7 @@ async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-Ent
 }
 
 function buildSearchPayload({ filter = "", search = "", top = 100, skip = 0, orderBy = "creationDate desc", selectFields = "images,startDate", expandFields = "images" }) {
-    const p = {
-        Search: search || "",
-        Top: top,
-        Skip: skip,
-        OrderBy: orderBy || "creationDate desc"
-    };
+    const p = { Search: search || "", Top: top, Skip: skip, OrderBy: orderBy || "creationDate desc" };
     const f = (filter || "").trim();
     if (f) p.Filter = f;
     const sel = (selectFields || "").trim();
@@ -132,45 +133,27 @@ function buildSearchPayload({ filter = "", search = "", top = 100, skip = 0, ord
 }
 
 function isValidItem(item) {
-    return item.DisplayProperties &&
-        (item.Title?.NEUTRAL || item.Title?.neutral) &&
-        Array.isArray(item.Images) &&
-        item.Images.length > 0;
+    return item.DisplayProperties && (item.Title?.NEUTRAL || item.Title?.neutral) && Array.isArray(item.Images) && item.Images.length > 0;
 }
 
 function transformItem(item) {
     const images = (item.Images || []).map(img => {
         const tag = (img.Tag || "").toLowerCase();
-        return {
-            Id: img.Id,
-            Tag: img.Tag,
-            Type: tag === "thumbnail" ? "thumbnail" : "screenshot",
-            Url: img.Url
-        };
+        return { Id: img.Id, Tag: img.Tag, Type: tag === "thumbnail" ? "thumbnail" : "screenshot", Url: img.Url };
     });
     const thumbs = images.filter(i => i.Type === "thumbnail");
     const shots = images.filter(i => i.Type !== "thumbnail");
-    return {
-        ...item,
-        StartDate: item.startDate || item.StartDate || item.CreationDate,
-        Images: [...thumbs, ...shots]
-    };
+    return { ...item, StartDate: item.startDate || item.StartDate || item.CreationDate, Images: [...thumbs, ...shots] };
 }
 
-async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSize = 300, concurrency = 5) {
+async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSize = 300, concurrency = 5, maxBatches = Number(process.env.MAX_FETCH_BATCHES || 20)) {
     const all = [];
     const skips = [];
-    for (let s = 0; s <= 10000; s += batchSize) skips.push(s);
+    for (let s = 0; s < maxBatches * batchSize; s += batchSize) skips.push(s);
     for (let i = 0; i < skips.length; i += concurrency) {
         const chunk = skips.slice(i, i + concurrency);
         const res = await Promise.all(chunk.map(async skip => {
-            const payload = buildSearchPayload({
-                filter,
-                search: "",
-                top: batchSize,
-                skip,
-                orderBy: "creationDate desc"
-            });
+            const payload = buildSearchPayload({ filter, search: "", top: batchSize, skip, orderBy: "creationDate desc" });
             const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, os);
             return data.Items || [];
         }));
@@ -191,9 +174,7 @@ async function getItemsByIds(titleId, ids, os, batchSize = 100, concurrency = 5)
     for (let i = 0; i < list.length; i += batchSize * concurrency) {
         const window = list.slice(i, i + batchSize * concurrency);
         const groups = [];
-        for (let j = 0; j < window.length; j += batchSize) {
-            groups.push(window.slice(j, j + batchSize));
-        }
+        for (let j = 0; j < window.length; j += batchSize) groups.push(window.slice(j, j + batchSize));
         const res = await Promise.all(groups.map(async g => {
             const r = await sendPlayFabRequest(titleId, "Catalog/GetItems", { Ids: g, Expand: "Images" }, "X-EntityToken", 3, os);
             return r.Items || r.items || [];

@@ -1,5 +1,5 @@
 const withETag = require("../../middleware/etag");
-const { dataCache } = require("../../config/cache");
+const {dataCache} = require("../../config/cache");
 const service = require("../../services/marketplaceService");
 const cacheKey = require("../../utils/cacheKey");
 

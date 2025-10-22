@@ -2,7 +2,7 @@ const winston = require("winston");
 const chalkImport = require("chalk");
 const chalk = chalkImport.default || chalkImport;
 
-const consoleFormat = winston.format.printf(({ timestamp, level, message }) => {
+const consoleFormat = winston.format.printf(({timestamp, level, message}) => {
     const time = chalk.dim(timestamp);
     switch (level) {
         case "error":
@@ -28,7 +28,7 @@ const logger = winston.createLogger({
         }),
         new winston.transports.Console({
             format: winston.format.combine(
-                winston.format.timestamp({ format: "HH:mm:ss" }),
+                winston.format.timestamp({format: "HH:mm:ss"}),
                 consoleFormat
             )
         })

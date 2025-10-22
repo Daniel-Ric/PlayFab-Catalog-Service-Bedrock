@@ -42,7 +42,8 @@ function saveTitles(titles) {
     titlesCache = titles;
     try {
         mtimeMs = fs.statSync(file).mtimeMs;
-    } catch {}
+    } catch {
+    }
 }
 
-module.exports = { loadTitles, saveTitles, resolveTitle };
+module.exports = {loadTitles, saveTitles, resolveTitle};

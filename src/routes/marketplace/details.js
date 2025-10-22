@@ -1,7 +1,7 @@
-const router   = require("express").Router();
-const { check } = require("express-validator");
+const router = require("express").Router();
+const {check} = require("express-validator");
 const validate = require("../../middleware/validate");
-const ctrl     = require("../../controllers/marketplace/detailsController");
+const ctrl = require("../../controllers/marketplace/detailsController");
 
 router.get(
     "/:alias/:itemId",

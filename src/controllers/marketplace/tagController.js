@@ -1,6 +1,6 @@
 const withETag = require("../../middleware/etag");
 const withPagination = require("../../middleware/pagination");
-const { dataCache } = require("../../config/cache");
+const {dataCache} = require("../../config/cache");
 const service = require("../../services/marketplaceService");
 const cacheKey = require("../../utils/cacheKey");
 

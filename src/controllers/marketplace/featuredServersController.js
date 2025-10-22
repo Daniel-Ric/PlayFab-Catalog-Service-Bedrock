@@ -1,8 +1,8 @@
 const withETag = require("../../middleware/etag");
-const { dataCache } = require("../../config/cache");
+const {dataCache} = require("../../config/cache");
 const featured = require("../../config/featuredServers");
-const { resolveTitle } = require("../../utils/titles");
-const { sendPlayFabRequest, buildSearchPayload, isValidItem, transformItem } = require("../../utils/playfab");
+const {resolveTitle} = require("../../utils/titles");
+const {sendPlayFabRequest, buildSearchPayload, isValidItem, transformItem} = require("../../utils/playfab");
 
 function getPrimaryTitleId() {
     const v = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || process.env.TITLE_ID || "").trim();

@@ -12,4 +12,4 @@ const dataCache = new NodeCache({
     useClones: false
 });
 
-module.exports = { sessionCache, dataCache };
+module.exports = {sessionCache, dataCache};

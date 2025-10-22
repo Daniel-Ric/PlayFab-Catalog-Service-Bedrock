@@ -11,7 +11,7 @@ function normalizeParams(query, opts = {}) {
         pageSizeMax: 100,
         limitMax: 1000
     };
-    const cfg = { ...defaults, ...opts };
+    const cfg = {...defaults, ...opts};
     const hasPage = typeof query.page !== "undefined";
     const hasPageSize = typeof query.pageSize !== "undefined";
     const hasSkip = typeof query.skip !== "undefined";
@@ -25,7 +25,7 @@ function normalizeParams(query, opts = {}) {
     const limit = Math.min(cfg.limitMax, limitRaw);
     const skipFromPage = (page - 1) * pageSize;
     const effectiveSkip = hasSkip ? skipRaw : skipFromPage;
-    return { apply, page, pageSize, skip: effectiveSkip, limit };
+    return {apply, page, pageSize, skip: effectiveSkip, limit};
 }
 
 function sliceArray(items, params) {
@@ -46,7 +46,7 @@ function sliceArray(items, params) {
         start,
         end: end - 1
     };
-    return { items: sliced, meta };
+    return {items: sliced, meta};
 }
 
 function setPaginationHeaders(res, meta) {
@@ -54,4 +54,4 @@ function setPaginationHeaders(res, meta) {
     res.setHeader("Content-Range", `items ${meta.start}-${meta.end >= meta.start ? meta.end : meta.start}/${meta.total}`);
 }
 
-module.exports = { normalizeParams, sliceArray, setPaginationHeaders };
+module.exports = {normalizeParams, sliceArray, setPaginationHeaders};

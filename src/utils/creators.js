@@ -31,4 +31,4 @@ function resolveCreatorId(creators, name) {
     return c.id;
 }
 
-module.exports = { loadCreators, resolveCreatorId };
+module.exports = {loadCreators, resolveCreatorId};

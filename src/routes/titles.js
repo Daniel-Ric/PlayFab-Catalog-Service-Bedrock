@@ -1,8 +1,8 @@
 const express = require("express");
-const { check } = require("express-validator");
-const validate   = require("../middleware/validate");
-const router     = express.Router();
-const ctrl       = require("../controllers/titlesController");
+const {check} = require("express-validator");
+const validate = require("../middleware/validate");
+const router = express.Router();
+const ctrl = require("../controllers/titlesController");
 
 router.get("/", ctrl.getAll);
 

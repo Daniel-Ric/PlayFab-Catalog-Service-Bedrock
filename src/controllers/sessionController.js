@@ -1,5 +1,5 @@
-const { resolveTitle } = require("../utils/titles");
-const { getSession }   = require("../utils/playfab");
+const {resolveTitle} = require("../utils/titles");
+const {getSession} = require("../utils/playfab");
 
 exports.getSession = async (req, res, next) => {
     try {

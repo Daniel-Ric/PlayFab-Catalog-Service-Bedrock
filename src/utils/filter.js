@@ -1,4 +1,4 @@
-const { resolveCreatorId } = require("./creators");
+const {resolveCreatorId} = require("./creators");
 
 function buildFilter(req, creators, extra = "") {
     const parts = [];
@@ -10,4 +10,4 @@ function buildFilter(req, creators, extra = "") {
     return parts.join(" and ");
 }
 
-module.exports = { buildFilter };
+module.exports = {buildFilter};

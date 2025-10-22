@@ -5,7 +5,7 @@ const YAML = require("yamljs");
 function deepMerge(target, source) {
     if (Array.isArray(target) && Array.isArray(source)) return [...target, ...source];
     if (typeof target === "object" && typeof source === "object" && target && source) {
-        const out = { ...target };
+        const out = {...target};
         for (const k of Object.keys(source)) {
             if (k in out) out[k] = deepMerge(out[k], source[k]);
             else out[k] = source[k];
@@ -33,18 +33,18 @@ function loadDirYaml(acc, dir, mapper) {
 function getOpenApiSpec() {
     const base = loadYaml(path.join(__dirname, "..", "docs", "openapi-base.yaml"));
 
-    let spec = { ...base };
+    let spec = {...base};
 
     const schemasDir = path.join(__dirname, "..", "docs", "schemas");
     spec.components = spec.components || {};
     spec.components.schemas = spec.components.schemas || {};
-    spec.components.schemas = loadDirYaml(spec.components.schemas, schemasDir, (acc, doc) => ({ ...acc, ...doc }));
+    spec.components.schemas = loadDirYaml(spec.components.schemas, schemasDir, (acc, doc) => ({...acc, ...doc}));
 
     const pathsDir = path.join(__dirname, "..", "docs", "paths");
     spec.paths = spec.paths || {};
-    spec.paths = loadDirYaml(spec.paths, pathsDir, (acc, doc) => ({ ...acc, ...doc }));
+    spec.paths = loadDirYaml(spec.paths, pathsDir, (acc, doc) => ({...acc, ...doc}));
 
     return spec;
 }
 
-module.exports = { getOpenApiSpec };
+module.exports = {getOpenApiSpec};

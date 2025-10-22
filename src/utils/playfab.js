@@ -185,8 +185,20 @@ async function getItemsByIds(titleId, ids, os, batchSize = 100, concurrency = 5)
 }
 
 async function getStoreItems(titleId, storeId, os) {
-    const r = await sendPlayFabRequest(titleId, "Catalog/GetStoreItems", { StoreId: storeId }, "X-EntityToken", 3, os);
-    return r;
+    logger.debug(`[PF] GetStoreItems titleId=${titleId} storeId=${storeId}`);
+    try {
+        const r = await sendPlayFabRequest(titleId, "Catalog/GetStoreItems", { StoreId: storeId }, "X-EntityToken", 3, os);
+        const items = r?.Items || r?.items || [];
+        logger.debug(`[PF] GetStoreItems result storeId=${storeId} items=${items.length}`);
+        return r;
+    } catch (err) {
+        const status = err?.status || err?.response?.status || 0;
+        const msg = err?.response?.data?.error?.message || err?.message || "unknown";
+        const isTransient = [429, 500, 502, 503, 504].includes(status);
+        const level = isTransient ? "warn" : "debug";
+        logger[level](`[PF] GetStoreItems error storeId=${storeId} status=${status || "ERR"} msg=${msg}`);
+        return { Items: [] };
+    }
 }
 
 async function getItemReviewSummary(titleId, itemId, os) {

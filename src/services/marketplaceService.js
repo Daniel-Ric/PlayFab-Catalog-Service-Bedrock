@@ -3,10 +3,11 @@ const { resolveTitle } = require("../utils/titles");
 const { loadCreators, resolveCreatorId } = require("../utils/creators");
 const { buildFilter } = require("../utils/filter");
 const featuredServers = require("../config/featuredServers");
+const logger = require("../config/logger");
 
 const OS = process.env.OS || "iOS";
 const PAGE_SIZE = 100;
-const PROD_TITLE_ID = (process.env.TITLE_ID || "20CA2").toLowerCase();
+const PROD_TITLE_ID = process.env.TITLE_ID || "20CA2";
 const MULTILANG_ALL = process.env.MULTILANG_ALL === "true";
 const ENRICH_BATCH = Math.max(10, parseInt(process.env.MULTILANG_ENRICH_BATCH || "100", 10));
 const ENRICH_CONCURRENCY = Math.max(1, parseInt(process.env.MULTILANG_ENRICH_CONCURRENCY || "5", 10));
@@ -42,9 +43,9 @@ function getPrimaryTitleIdUnified() {
     if (v) {
         try {
             const id = resolveTitle(v);
-            return String(id).toLowerCase();
+            return String(id);
         } catch {
-            if (/^[A-Za-z0-9]{4,10}$/.test(v)) return v.toLowerCase();
+            if (/^[A-Za-z0-9]{4,10}$/.test(v)) return v;
         }
     }
     return PROD_TITLE_ID;
@@ -62,22 +63,52 @@ function normDate(v) {
 
 async function fetchStores(titleId) {
     const data = await sendPlayFabRequest(titleId, "Catalog/SearchStores", {}, "X-EntityToken", 2, OS);
-    const stores = data?.Stores || data?.data?.Stores || [];
+    const raw = data?.Stores || data?.data?.Stores || [];
+    const stores = (raw || []).map(x => x?.Store || x).filter(Boolean);
+    logger.debug(`[SearchStores] titleId=${titleId} storesRaw=${Array.isArray(raw) ? raw.length : 0} storesUnwrapped=${stores.length}`);
+    for (const s of stores) {
+        const sid = s?.Id || s?.id || "unknown";
+        const stitle = s?.Title?.NEUTRAL || s?.Title?.neutral || s?.Name || "";
+        const refs = Array.isArray(s?.ItemReferences) ? s.ItemReferences.length : 0;
+        const dp = s?.DisplayProperties || {};
+        logger.debug(`[SearchStores] store id=${sid} title="${stitle}" refs=${refs} discount=${typeof dp.discount === "number" ? dp.discount : "n/a"}`);
+    }
     return stores;
 }
 
 async function fetchStoresWithItems(titleId) {
     const stores = await fetchStores(titleId);
+    logger.debug(`[Sales] fetchStoresWithItems: stores=${Array.isArray(stores) ? stores.length : 0}`);
     if (!stores.length) return [];
     const tasks = [];
     for (let i = 0; i < stores.length; i += STORE_CONCURRENCY) {
         const chunk = stores.slice(i, i + STORE_CONCURRENCY);
-        const res = await Promise.all(chunk.map(async s => {
-            const r = await getStoreItems(titleId, s.Id || s.id, OS);
-            return { Store: s, Items: r.Items || r.items || [] };
-        }));
+        const res = await Promise.all(
+            chunk.map(s =>
+                (async () => {
+                    const sid = s?.Id || s?.id || "unknown";
+                    const stitle = s?.Title?.NEUTRAL || s?.Title?.neutral || s?.Name || "";
+                    const refs = Array.isArray(s?.ItemReferences) ? s.ItemReferences.length : 0;
+                    const dp = s?.DisplayProperties || {};
+                    logger.debug(`[Sales] store meta id=${sid} title="${stitle}" refs=${refs} discount=${typeof dp.discount === "number" ? dp.discount : "n/a"}`);
+                    const r = await getStoreItems(titleId, sid, OS);
+                    const items = r?.Items || r?.items || [];
+                    logger.debug(`[PF] GetStoreItems result storeId=${sid} items=${items.length}`);
+                    return { Store: s, Items: items };
+                })().catch(e => {
+                    const status = e?.status || e?.response?.status || 0;
+                    const msg = e?.response?.data?.error?.message || e?.message || "unknown";
+                    const isTransient = [429, 500, 502, 503, 504].includes(status);
+                    const level = isTransient ? "warn" : "debug";
+                    const sid = s?.Id || s?.id || "unknown";
+                    logger[level](`[Sales] getStoreItems caught storeId=${sid} status=${status || "ERR"} msg=${msg}`);
+                    return { Store: s, Items: [] };
+                })
+            )
+        );
         tasks.push(...res);
     }
+    logger.debug(`[Sales] fetchStoresWithItems: collected=${tasks.length}`);
     return tasks;
 }
 
@@ -399,10 +430,13 @@ module.exports = {
         });
     },
 
-    async fetchSales(query = {}) {
-        const titleId = PROD_TITLE_ID;
+    async fetchSales(query = {}, alias) {
+        const titleId = alias ? resolveTitle(alias) : PROD_TITLE_ID;
+        logger.debug(`[Sales] start titleId=${titleId}`);
         const storesWithItems = await fetchStoresWithItems(titleId);
+        logger.debug(`[Sales] storesWithItems=${storesWithItems.length}`);
         if (!storesWithItems.length) return { totalItems: 0, itemsPerCreator: {}, sales: {} };
+
         const headers = storesWithItems.map(x => {
             const s = x.Store;
             if (!s.ItemReferences && Array.isArray(x.Items)) {
@@ -413,8 +447,18 @@ module.exports = {
             }
             return toSaleHeader({ Store: s });
         }).filter(h => h.id);
+
+        logger.debug(`[Sales] headers=${headers.length}`);
+        for (const h of headers) {
+            const n = Array.isArray(h.itemRefs) ? h.itemRefs.length : 0;
+            logger.debug(`[Sales] header.storeId=${h.id} itemRefs=${n} discount=${h.discountPercent ?? "null"}`);
+        }
+
         const allIds = headers.flatMap(h => h.itemRefs.map(r => r.id));
-        const details = await fetchItemsByIds(titleId, allIds);
+        const unique = Array.from(new Set(allIds));
+        logger.debug(`[Sales] uniqueItemIds=${unique.length}`);
+
+        const details = unique.length ? await fetchItemsByIds(titleId, unique) : {};
         let creatorDisplayNameFilter = null;
         if (query.creator) {
             const normalized = String(query.creator).replace(/\s/g, "").toLowerCase();
@@ -426,7 +470,16 @@ module.exports = {
             }
             creatorDisplayNameFilter = entry.displayName;
         }
-        return buildSalesResponse(headers, details, creatorDisplayNameFilter);
+
+        const result = buildSalesResponse(headers, details, creatorDisplayNameFilter);
+        const saleKeys = Object.keys(result.sales || {});
+        logger.debug(`[Sales] sales.buckets=${saleKeys.length} totalItems=${result.totalItems}`);
+        for (const k of saleKeys) {
+            const bucket = result.sales[k];
+            const n = Array.isArray(bucket.items) ? bucket.items.length : 0;
+            logger.debug(`[Sales] saleId=${k} items=${n} discount=${bucket.discountPercent ?? "null"}`);
+        }
+        return result;
     },
 
     async fetchStoreCollections(alias, storeIds = []) {

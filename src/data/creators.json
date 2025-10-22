@@ -455,9 +455,9 @@
     "displayName": "Eescal Studios"
   },
   {
-    "creatorName": "Enchanted",
+    "creatorName": "Enchanted Dragons",
     "id": "master_player_account!5366842229349662",
-    "displayName": "Enchanted"
+    "displayName": "Enchanted Dragons"
   },
   {
     "creatorName": "Endorah",
@@ -665,9 +665,14 @@
     "displayName": "inPixel"
   },
   {
-    "creatorName": "Mineville/InPvP",
+    "creatorName": "Mineville",
     "id": "master_player_account!4CACD50BFFEC08EA",
-    "displayName": "InPvP"
+    "displayName": "Mineville/InPvP"
+  },
+  {
+    "creatorName": "InPvP",
+    "id": "master_player_account!4CACD50BFFEC08EA",
+    "displayName": "Mineville/InPvP"
   },
   {
     "creatorName": "InsaneLogic",

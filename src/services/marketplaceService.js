@@ -1,4 +1,4 @@
-const { sendPlayFabRequest, isValidItem, transformItem, buildSearchPayload, fetchAllMarketplaceItemsEfficiently } = require("../utils/playfab");
+const { sendPlayFabRequest, isValidItem, transformItem, buildSearchPayload, fetchAllMarketplaceItemsEfficiently, getItemsByIds, getStoreItems, getItemReviewSummary, getItemReviews } = require("../utils/playfab");
 const { resolveTitle } = require("../utils/titles");
 const { loadCreators, resolveCreatorId } = require("../utils/creators");
 const { buildFilter } = require("../utils/filter");
@@ -7,6 +7,11 @@ const featuredServers = require("../config/featuredServers");
 const OS = process.env.OS || "iOS";
 const PAGE_SIZE = 100;
 const PROD_TITLE_ID = (process.env.TITLE_ID || "20CA2").toLowerCase();
+const MULTILANG_ALL = process.env.MULTILANG_ALL === "true";
+const ENRICH_BATCH = Math.max(10, parseInt(process.env.MULTILANG_ENRICH_BATCH || "100", 10));
+const ENRICH_CONCURRENCY = Math.max(1, parseInt(process.env.MULTILANG_ENRICH_CONCURRENCY || "5", 10));
+const STORE_CONCURRENCY = Math.max(1, parseInt(process.env.STORE_CONCURRENCY || "4", 10));
+const STORE_MAX_FOR_PRICE_ENRICH = Math.max(1, parseInt(process.env.STORE_MAX_FOR_PRICE_ENRICH || "20", 10));
 
 const creatorsArr = loadCreators();
 const creatorsByNormalized = new Map(creatorsArr.map(c => [String(c.creatorName).replace(/\s/g, "").toLowerCase(), c]));
@@ -61,26 +66,25 @@ async function fetchStores(titleId) {
     return stores;
 }
 
-async function fetchItemsByIds(titleId, ids) {
-    const details = {};
-    const list = Array.from(new Set(ids));
-    const chunk = 50;
-    for (let i = 0; i < list.length; i += chunk) {
-        const slice = list.slice(i, i + chunk);
-        const filter = slice.map(id => `id eq '${esc(id)}'`).join(" or ");
-        const payload = buildSearchPayload({
-            filter,
-            search: "",
-            top: slice.length,
-            skip: 0,
-            orderBy: "creationDate desc",
-            selectFields: "images,Description,Title,Tags,Platforms,ContentType,Keywords,CustomData,DisplayProperties",
-            expandFields: "images"
-        });
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 2, OS);
-        const items = data.Items || [];
-        for (const it of items) details[it.Id] = it;
+async function fetchStoresWithItems(titleId) {
+    const stores = await fetchStores(titleId);
+    if (!stores.length) return [];
+    const tasks = [];
+    for (let i = 0; i < stores.length; i += STORE_CONCURRENCY) {
+        const chunk = stores.slice(i, i + STORE_CONCURRENCY);
+        const res = await Promise.all(chunk.map(async s => {
+            const r = await getStoreItems(titleId, s.Id || s.id, OS);
+            return { Store: s, Items: r.Items || r.items || [] };
+        }));
+        tasks.push(...res);
     }
+    return tasks;
+}
+
+async function fetchItemsByIds(titleId, ids) {
+    const raw = await getItemsByIds(titleId, ids, OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
+    const details = {};
+    for (const it of raw) details[it.Id] = it;
     return details;
 }
 
@@ -160,13 +164,67 @@ function buildSalesResponse(headers, itemDetails, creatorDisplayNameFilter) {
     return { totalItems, itemsPerCreator, sales };
 }
 
+async function enrichWithFullItems(titleId, items) {
+    if (!MULTILANG_ALL || !items || !items.length) return items;
+    const ids = items.map(i => i.Id);
+    const full = await getItemsByIds(titleId, ids, OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
+    const byId = new Map(full.map(i => [i.Id, i]));
+    return items.map(i => byId.get(i.Id) || i);
+}
+
+async function enrichItemsWithResolvedReferences(titleId, items) {
+    const allRefIds = [];
+    for (const it of items) {
+        const refs = Array.isArray(it.ItemReferences) ? it.ItemReferences : [];
+        for (const r of refs) if (r?.Id) allRefIds.push(r.Id);
+    }
+    const unique = Array.from(new Set(allRefIds));
+    if (!unique.length) return items;
+    const refDetails = await getItemsByIds(titleId, unique, OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
+    const refMap = new Map(refDetails.map(x => [x.Id, transformItem(x)]));
+    return items.map(it => {
+        const refs = Array.isArray(it.ItemReferences) ? it.ItemReferences : [];
+        const resolved = refs.map(r => refMap.get(r.Id)).filter(Boolean);
+        return { ...it, ResolvedReferences: resolved };
+    });
+}
+
+async function enrichItemWithStorePrices(titleId, itemId) {
+    const stores = await fetchStores(titleId);
+    if (!stores.length) return [];
+    const limited = stores.slice(0, STORE_MAX_FOR_PRICE_ENRICH);
+    const prices = [];
+    for (let i = 0; i < limited.length; i += STORE_CONCURRENCY) {
+        const chunk = limited.slice(i, i + STORE_CONCURRENCY);
+        const res = await Promise.all(chunk.map(async s => {
+            const r = await getStoreItems(titleId, s.Id || s.id, OS);
+            const items = r.Items || r.items || [];
+            const hit = items.find(si => si?.Item?.Id === itemId || si?.ItemId === itemId);
+            if (!hit) return null;
+            const amounts = (hit?.Price?.Prices || []).flatMap(p => (p.Amounts || []).map(a => ({ currencyId: a.CurrencyId, amount: a.Amount })));
+            return { storeId: s.Id || s.id, storeTitle: s.Title || s.Name, amounts };
+        }));
+        for (const x of res) if (x && x.amounts && x.amounts.length) prices.push(x);
+    }
+    return prices;
+}
+
+async function enrichItemWithReviews(titleId, itemId, take = 10) {
+    const summary = await getItemReviewSummary(titleId, itemId, OS);
+    const reviews = await getItemReviews(titleId, itemId, take, 0, OS);
+    return { summary: summary || {}, reviews: reviews?.Reviews || reviews?.reviews || [] };
+}
+
 module.exports = {
     async fetchAll(alias, query = {}) {
         const titleId = resolveTitle(alias);
         const tagClause = query.tag ? `tags/any(t:t eq '${String(query.tag).replace(/'/g, "''")}')` : "";
         const base = buildFilter({ query }, creatorsArr);
         const filter = andFilter(base, tagClause);
-        return fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5);
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5);
+        const enriched = await enrichWithFullItems(titleId, list);
+        const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
+        return withRefs;
     },
 
     async fetchLatest(alias, count, query = {}) {
@@ -180,7 +238,10 @@ module.exports = {
             orderBy: "creationDate desc"
         });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        return (data.Items || []).filter(isValidItem).map(transformItem);
+        let items = (data.Items || []).filter(isValidItem);
+        items = await enrichWithFullItems(titleId, items);
+        items = await enrichItemsWithResolvedReferences(titleId, items);
+        return items.map(transformItem);
     },
 
     async search(alias, creatorName, keyword) {
@@ -195,19 +256,28 @@ module.exports = {
             orderBy: "creationDate desc"
         });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        return (data.Items || []).filter(isValidItem).map(transformItem);
+        let items = (data.Items || []).filter(isValidItem);
+        items = await enrichWithFullItems(titleId, items);
+        items = await enrichItemsWithResolvedReferences(titleId, items);
+        return items.map(transformItem);
     },
 
     async fetchPopular(alias, query = {}) {
         const titleId = resolveTitle(alias);
         const filter = buildFilter({ query }, creatorsArr);
-        return searchLoop(titleId, { filter, orderBy: "rating/totalcount desc", batch: 300 });
+        let items = await searchLoop(titleId, { filter, orderBy: "rating/totalcount desc", batch: 300 });
+        items = await enrichWithFullItems(titleId, items);
+        items = await enrichItemsWithResolvedReferences(titleId, items);
+        return items;
     },
 
     async fetchByTag(alias, tag) {
         const titleId = resolveTitle(alias);
         const tagClause = `tags/any(t:t eq '${String(tag).replace(/'/g, "''")}')`;
-        return fetchAllMarketplaceItemsEfficiently(titleId, tagClause, OS, 300, 5);
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, tagClause, OS, 300, 5);
+        const enriched = await enrichWithFullItems(titleId, list);
+        const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
+        return withRefs;
     },
 
     async fetchFree(alias, query = {}) {
@@ -215,26 +285,26 @@ module.exports = {
         const base = buildFilter({ query }, creatorsArr);
         const freeClause = "displayProperties/price eq 0";
         const filter = andFilter(base, freeClause);
-        return fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5);
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5);
+        const enriched = await enrichWithFullItems(titleId, list);
+        const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
+        return withRefs;
     },
 
     async fetchDetails(alias, itemId) {
         const titleId = resolveTitle(alias);
-        const payload = buildSearchPayload({
-            filter: `id eq '${String(itemId).replace(/'/g, "''")}'`,
-            search: "",
-            top: 1,
-            skip: 0,
-            orderBy: "creationDate desc"
-        });
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        const items = (data.Items || []).filter(isValidItem).map(transformItem);
+        const raw = await getItemsByIds(titleId, [itemId], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
+        const items = raw.filter(isValidItem).map(transformItem);
         if (!items.length) {
             const e = new Error("Item nicht gefunden.");
             e.status = 404;
             throw e;
         }
-        return items[0];
+        const base = items[0];
+        const withRefs = await enrichItemsWithResolvedReferences(titleId, [base]);
+        const prices = await enrichItemWithStorePrices(titleId, itemId);
+        const reviews = await enrichItemWithReviews(titleId, itemId, 10);
+        return { ...withRefs[0], StorePrices: prices, Reviews: reviews };
     },
 
     async fetchSummary(alias) {
@@ -251,7 +321,9 @@ module.exports = {
         const cid = resolveCreatorId(creatorsArr, creatorName);
         const entries = Object.entries(titlesMap).map(async ([alias, { id: titleId }]) => {
             const filter = `creatorId eq '${esc(cid)}'`;
-            const items = await searchLoop(titleId, { filter, orderBy: "creationDate desc", batch: 300 });
+            let items = await searchLoop(titleId, { filter, orderBy: "creationDate desc", batch: 300 });
+            items = await enrichWithFullItems(titleId, items);
+            items = await enrichItemsWithResolvedReferences(titleId, items);
             return [alias, items];
         });
         return Object.fromEntries(await Promise.all(entries));
@@ -259,15 +331,16 @@ module.exports = {
 
     async resolveByItemId(alias, itemId) {
         const titleId = resolveTitle(alias);
-        const payload = buildSearchPayload({ filter: `id eq '${String(itemId).replace(/'/g, "''")}'`, search: "", top: 1, skip: 0 });
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        const items = (data.Items || []).filter(isValidItem).map(transformItem);
+        const raw = await getItemsByIds(titleId, [itemId], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
+        const items = raw.filter(isValidItem).map(transformItem);
         if (!items.length) {
             const e = new Error("Item nicht gefunden.");
             e.status = 404;
             throw e;
         }
-        return items[0];
+        const base = items[0];
+        const withRefs = await enrichItemsWithResolvedReferences(titleId, [base]);
+        return withRefs[0];
     },
 
     async resolveByFriendly(alias, friendlyId) {
@@ -275,13 +348,17 @@ module.exports = {
         const filter = `alternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${String(friendlyId).replace(/'/g, "''")}')`;
         const payload = buildSearchPayload({ filter, search: "", top: 1, skip: 0 });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        const items = (data.Items || []).filter(isValidItem).map(transformItem);
+        const items = data.Items || [];
         if (!items.length) {
             const e = new Error(`Kein Item mit FriendlyId ${friendlyId} gefunden.`);
             e.status = 404;
             throw e;
         }
-        return items[0];
+        const id = items[0].Id;
+        const full = await getItemsByIds(titleId, [id], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
+        const t = full.filter(isValidItem).map(transformItem)[0];
+        const withRefs = await enrichItemsWithResolvedReferences(titleId, [t]);
+        return withRefs[0];
     },
 
     async fetchByFriendly(alias, friendlyId) {
@@ -289,31 +366,24 @@ module.exports = {
         const filter = `alternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${String(friendlyId).replace(/'/g, "''")}')`;
         const payload = buildSearchPayload({ filter, search: "", top: 1, skip: 0 });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        const items = (data.Items || []).filter(isValidItem).map(transformItem);
+        const items = data.Items || [];
         if (!items.length) {
             const e = new Error(`No item with the FriendlyId ${friendlyId} has been found`);
             e.status = 404;
             throw e;
         }
-        return items[0];
+        const id = items[0].Id;
+        const full = await getItemsByIds(titleId, [id], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
+        const t = full.filter(isValidItem).map(transformItem)[0];
+        const withRefs = await enrichItemsWithResolvedReferences(titleId, [t]);
+        return withRefs[0];
     },
 
     async fetchFeaturedServers() {
         const titleId = getPrimaryTitleIdUnified();
         const ids = featuredServers.map(s => s.id);
-        const filter = ids.map(id => `id eq '${esc(id)}'`).join(" or ");
-        const payload = buildSearchPayload({
-            filter,
-            search: "",
-            top: Math.max(ids.length, 50),
-            skip: 0,
-            orderBy: "creationDate desc",
-            selectFields: "id,title,displayProperties,images,startDate,creationDate,alternateIds",
-            expandFields: "images"
-        });
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 2, OS);
-        const arr = (data.Items || []).filter(isValidItem);
-        const byId = new Map(arr.map(raw => {
+        const full = await getItemsByIds(titleId, ids, OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
+        const byId = new Map(full.map(raw => {
             const t = transformItem(raw);
             return [t.Id || raw.Id || raw.id, t];
         }));
@@ -325,9 +395,18 @@ module.exports = {
 
     async fetchSales(query = {}) {
         const titleId = PROD_TITLE_ID;
-        const stores = await fetchStores(titleId);
-        if (!stores.length) return { totalItems: 0, itemsPerCreator: {}, sales: {} };
-        const headers = stores.map(toSaleHeader).filter(h => h.id);
+        const storesWithItems = await fetchStoresWithItems(titleId);
+        if (!storesWithItems.length) return { totalItems: 0, itemsPerCreator: {}, sales: {} };
+        const headers = storesWithItems.map(x => {
+            const s = x.Store;
+            if (!s.ItemReferences && Array.isArray(x.Items)) {
+                s.ItemReferences = x.Items.map(i => ({
+                    Id: i?.Item?.Id || i?.ItemId,
+                    Price: i?.Price
+                })).filter(r => r.Id);
+            }
+            return toSaleHeader({ Store: s });
+        }).filter(h => h.id);
         const allIds = headers.flatMap(h => h.itemRefs.map(r => r.id));
         const details = await fetchItemsByIds(titleId, allIds);
         let creatorDisplayNameFilter = null;
@@ -342,5 +421,25 @@ module.exports = {
             creatorDisplayNameFilter = entry.displayName;
         }
         return buildSalesResponse(headers, details, creatorDisplayNameFilter);
+    },
+
+    async fetchStoreCollections(alias, storeIds = []) {
+        const titleId = resolveTitle(alias);
+        const arr = Array.isArray(storeIds) && storeIds.length ? storeIds : [];
+        const stores = arr.length ? arr.map(id => ({ Id: id })) : await fetchStores(titleId);
+        const out = {};
+        for (let i = 0; i < stores.length; i += STORE_CONCURRENCY) {
+            const chunk = stores.slice(i, i + STORE_CONCURRENCY);
+            const res = await Promise.all(chunk.map(s => getStoreItems(titleId, s.Id || s.id, OS)));
+            for (let j = 0; j < chunk.length; j++) {
+                const sid = chunk[j].Id || chunk[j].id;
+                const items = (res[j].Items || res[j].items || []).map(it => ({
+                    itemId: it?.Item?.Id || it?.ItemId,
+                    prices: (it?.Price?.Prices || []).flatMap(p => (p.Amounts || []).map(a => ({ currencyId: a.CurrencyId, amount: a.Amount })))
+                }));
+                out[sid] = items;
+            }
+        }
+        return out;
     }
 };

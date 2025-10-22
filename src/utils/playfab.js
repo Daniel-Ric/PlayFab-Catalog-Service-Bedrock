@@ -15,7 +15,6 @@ const api = axios.create({
     headers: {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "Accept-Language": "en-GB",
         "User-Agent": "ViewMarketplace/legacy-fast"
     },
     validateStatus: () => true
@@ -65,11 +64,9 @@ async function getSession(titleId, os) {
     const key = `session_${titleId}`;
     const cached = sessionCache.get(key);
     if (cached && (!cached.expiresAt || cached.expiresAt > Date.now())) return cached;
-
     return mutex.runExclusive(async () => {
         const again = sessionCache.get(key);
         if (again && (!again.expiresAt || again.expiresAt > Date.now())) return again;
-
         const { SessionTicket, PlayFabId } = await loginWithIOSDeviceID(titleId, os);
         const EntityToken = await getEntityToken(titleId, SessionTicket, PlayFabId);
         const session = { SessionTicket, PlayFabId, EntityToken, expiresAt: Date.now() + SESSION_SOFT_TTL_MS };
@@ -118,15 +115,7 @@ async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-Ent
     throw lastErr || new Error("sendPlayFabRequest failed");
 }
 
-function buildSearchPayload({
-                                filter = "",
-                                search = "",
-                                top = 100,
-                                skip = 0,
-                                orderBy = "creationDate desc",
-                                selectFields = "images,startDate",
-                                expandFields = "images"
-                            }) {
+function buildSearchPayload({ filter = "", search = "", top = 100, skip = 0, orderBy = "creationDate desc", selectFields = "images,startDate", expandFields = "images" }) {
     const p = {
         Search: search || "",
         Top: top,
@@ -195,6 +184,40 @@ async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSiz
     return all;
 }
 
+async function getItemsByIds(titleId, ids, os, batchSize = 100, concurrency = 5) {
+    const list = Array.from(new Set((ids || []).filter(Boolean)));
+    if (!list.length) return [];
+    const out = [];
+    for (let i = 0; i < list.length; i += batchSize * concurrency) {
+        const window = list.slice(i, i + batchSize * concurrency);
+        const groups = [];
+        for (let j = 0; j < window.length; j += batchSize) {
+            groups.push(window.slice(j, j + batchSize));
+        }
+        const res = await Promise.all(groups.map(async g => {
+            const r = await sendPlayFabRequest(titleId, "Catalog/GetItems", { Ids: g, Expand: "Images" }, "X-EntityToken", 3, os);
+            return r.Items || r.items || [];
+        }));
+        for (const arr of res) out.push(...arr);
+    }
+    return out;
+}
+
+async function getStoreItems(titleId, storeId, os) {
+    const r = await sendPlayFabRequest(titleId, "Catalog/GetStoreItems", { StoreId: storeId }, "X-EntityToken", 3, os);
+    return r;
+}
+
+async function getItemReviewSummary(titleId, itemId, os) {
+    const r = await sendPlayFabRequest(titleId, "Catalog/GetItemReviewSummary", { Id: itemId }, "X-EntityToken", 3, os);
+    return r;
+}
+
+async function getItemReviews(titleId, itemId, count = 10, skip = 0, os) {
+    const r = await sendPlayFabRequest(titleId, "Catalog/GetItemReviews", { Id: itemId, Count: count, Skip: skip }, "X-EntityToken", 3, os);
+    return r;
+}
+
 module.exports = {
     loginWithIOSDeviceID,
     getEntityToken,
@@ -203,5 +226,9 @@ module.exports = {
     fetchAllMarketplaceItemsEfficiently,
     isValidItem,
     transformItem,
-    buildSearchPayload
+    buildSearchPayload,
+    getItemsByIds,
+    getStoreItems,
+    getItemReviewSummary,
+    getItemReviews
 };

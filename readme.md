@@ -81,7 +81,7 @@ The service is intentionally stateless (except JSON files on disk) and productio
 
 ```bash
 # 1) Clone & install
-git clone <REPO_URL>
+git clone https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock
 cd playfab-catalog-api
 npm ci
 

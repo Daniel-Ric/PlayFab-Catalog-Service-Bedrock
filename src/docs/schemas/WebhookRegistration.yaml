@@ -1,0 +1,12 @@
+WebhookRegistration:
+  type: object
+  required: [ event, url ]
+  properties:
+    event:
+      type: string
+    url:
+      type: string
+      format: uri
+    secret:
+      type: string
+      nullable: true

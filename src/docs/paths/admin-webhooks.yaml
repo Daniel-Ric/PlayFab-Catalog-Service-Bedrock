@@ -1,0 +1,22 @@
+/admin/webhooks:
+  post:
+    summary: Register a webhook
+    operationId: registerWebhook
+    tags: [ admin ]
+    security:
+      - BearerAuth: [ ]
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/WebhookRegistration'
+    responses:
+      '200':
+        description: OK
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookResult'
+      '401': { description: Unauthorized }
+      '403': { description: Forbidden }

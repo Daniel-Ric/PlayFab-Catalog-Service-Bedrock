@@ -1,0 +1,14 @@
+/events/sales/stream:
+  get:
+    summary: Sales events stream
+    operationId: salesEventsStream
+    tags: [ events ]
+    security:
+      - BearerAuth: [ ]
+    responses:
+      '200':
+        description: Server-Sent Events stream
+        content:
+          text/event-stream:
+            schema:
+              type: string

@@ -11,56 +11,73 @@
 			"name": "Health / Meta / Docs",
 			"item": [
 				{
-					"name": "Catch-all 404 (expect 404)",
+					"name": "Login",
 					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						},
 						{
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test(\"Status code is 404\", () => pm.response.code === 404);",
-									"pm.test(\"Body is JSON with error\", () => {",
-									"  try { const b = pm.response.json(); pm.expect(b).to.have.property('error'); } catch(e) { pm.expect.fail('Not JSON'); }",
-									"});",
-									"pm.test(\"Response time < 3000ms\", () => pm.response.responseTime < 3000);"
+									"let data;\r",
+									"try {\r",
+									"  data = pm.response.json();\r",
+									"} catch (e) {\r",
+									"  pm.test(\"Antwort ist JSON\", function () {\r",
+									"    pm.expect.fail(\"Antwort ist kein gültiges JSON\");\r",
+									"  });\r",
+									"}\r",
+									"\r",
+									"const token = data?.token;\r",
+									"pm.test(\"Token vorhanden\", function () {\r",
+									"  pm.expect(token, \"Token fehlt in der Login-Antwort\").to.exist;\r",
+									"});\r",
+									"\r",
+									"pm.collectionVariables.set(\"token\", token);\r",
+									"\r",
+									"try {\r",
+									"  const payload = JSON.parse(atob(token.split('.')[1]));\r",
+									"  if (payload?.exp) pm.collectionVariables.set(\"token_exp\", payload.exp);\r",
+									"} catch (e) {\r",
+									"  // Ignoriere\r",
+									"}\r",
+									""
 								],
 								"type": "text/javascript",
-								"packages": {}
+								"packages": {},
+								"requests": {}
 							}
 						}
 					],
 					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Accept",
-								"value": "application/json"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/this-route-does-not-exist",
-							"host": [
-								"{{baseUrl}}"
-							],
-							"path": [
-								"this-route-does-not-exist"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Login",
-					"request": {
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "POST",
 						"header": [
 							{
 								"key": "Accept",
 								"value": "application/json"
+							},
+							{
+								"key": "",
+								"value": "",
+								"type": "text",
+								"disabled": true
 							}
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"username\": \"adm7nQwR4vZ\",\r\n  \"password\": \"X9uYcV7rPq1LmE\"\r\n}",
+							"raw": "{ \"username\": \"adm7nQwR4vZ\", \"password\": \"X9uYcV7rPq1LmE\" }",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -80,7 +97,7 @@
 					"response": []
 				},
 				{
-					"name": "New Request",
+					"name": "Open API JSON",
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -97,17 +114,28 @@
 					"response": []
 				},
 				{
-					"name": "New Request Copy",
+					"name": "Session by Alias",
 					"request": {
 						"method": "GET",
-						"header": [],
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
+							}
+						],
 						"url": {
-							"raw": "{{baseUrl}}/openapi.json",
+							"raw": "{{baseUrl}}/session/{{alias_prod}}",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
-								"openapi.json"
+								"session",
+								"{{alias_prod}}"
 							]
 						}
 					},
@@ -119,7 +147,7 @@
 			"name": "Creators",
 			"item": [
 				{
-					"name": "GET /creators → list creators (creatorName, displayName)",
+					"name": "GET /creators",
 					"event": [
 						{
 							"listen": "test",
@@ -136,7 +164,9 @@
 									"});",
 									"pm.test(\"Response time < 3000ms\", () => pm.response.responseTime < 3000);"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
 							}
 						}
 					],
@@ -146,6 +176,11 @@
 							{
 								"key": "Accept",
 								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
 							}
 						],
 						"url": {
@@ -184,7 +219,9 @@
 									"});",
 									"pm.test(\"Response time < 3000ms\", () => pm.response.responseTime < 3000);"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
 							}
 						}
 					],
@@ -194,6 +231,11 @@
 							{
 								"key": "Accept",
 								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
 							}
 						],
 						"url": {
@@ -227,7 +269,9 @@
 									"pm.collectionVariables.set('created_id', b.id);",
 									"pm.test(\"Response time < 4000ms\", () => pm.response.responseTime < 4000);"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
 							}
 						}
 					],
@@ -241,6 +285,11 @@
 							{
 								"key": "Accept",
 								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
 							}
 						],
 						"body": {
@@ -271,7 +320,9 @@
 									"  pm.request.url = pm.request.url.toString().replace('{{created_alias}}', pm.collectionVariables.get('alias_to_delete'));",
 									"}"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
 							}
 						},
 						{
@@ -285,7 +336,9 @@
 									"});",
 									"pm.test(\"Response time < 3000ms\", () => pm.response.responseTime < 3000);"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
 							}
 						}
 					],
@@ -295,6 +348,11 @@
 							{
 								"key": "Accept",
 								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
 							}
 						],
 						"url": {
@@ -332,7 +390,9 @@
 									"});",
 									"pm.test(\"Response time < 7000ms (login may be slow)\", () => pm.response.responseTime < 7000);"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
 							}
 						}
 					],
@@ -342,6 +402,11 @@
 							{
 								"key": "Accept",
 								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
 							}
 						],
 						"url": {
@@ -370,7 +435,9 @@
 									"pm.test(\"Has EntityToken\", () => pm.expect(b).to.have.property('EntityToken'));",
 									"pm.test(\"Response time < 7000ms\", () => pm.response.responseTime < 7000);"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
 							}
 						}
 					],
@@ -380,6 +447,11 @@
 							{
 								"key": "Accept",
 								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}",
+								"type": "text"
 							}
 						],
 						"url": {
@@ -435,7 +507,9 @@
 											"  });",
 											"}"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
@@ -445,6 +519,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -472,7 +551,9 @@
 											"pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
 											"pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
@@ -482,6 +563,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -515,7 +601,9 @@
 											"pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
 											"pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
@@ -525,6 +613,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -558,7 +651,9 @@
 											"pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
 											"pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
@@ -568,6 +663,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -601,7 +701,9 @@
 											"pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
 											"pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
@@ -611,6 +713,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -648,7 +755,9 @@
 											"pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
 											"pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
@@ -658,6 +767,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -695,7 +809,9 @@
 											"  pm.expect(arr.length).to.be.at.most(10);",
 											"});"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
@@ -705,6 +821,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -735,6 +856,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -765,6 +891,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -829,6 +960,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -863,6 +999,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -897,6 +1038,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -935,6 +1081,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -971,6 +1122,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -995,6 +1151,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1025,6 +1186,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1055,6 +1221,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1109,6 +1280,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1133,6 +1309,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1163,6 +1344,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1199,6 +1385,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1224,6 +1415,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1255,6 +1451,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1289,6 +1490,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1335,7 +1541,9 @@
 											"  pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
 											"}"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
@@ -1345,6 +1553,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1376,7 +1589,9 @@
 											"  pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
 											"}"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
@@ -1386,6 +1601,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1411,6 +1631,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1442,6 +1667,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1467,6 +1697,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1498,6 +1733,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1522,6 +1762,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1557,7 +1802,9 @@
 											"  pm.expect(b).to.be.an('object');",
 											"});"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
@@ -1567,6 +1814,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1591,6 +1843,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1609,6 +1866,369 @@
 						}
 					],
 					"description": "Compare items across all titles for a single creator."
+				},
+				{
+					"name": "Advanced Search",
+					"item": [
+						{
+							"name": "Advanced Search: basic full-text",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+											"pm.test(\"Has items + meta + facets\", function () {",
+											"  const json = pm.response.json();",
+											"  pm.expect(json).to.have.property('items');",
+											"  pm.expect(json).to.have.property('meta');",
+											"  pm.expect(json).to.have.property('facets');",
+											"});"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"query\": \"survival\",\n  \"filters\": {\n    \"tags\": [\"adventure\", \"multiplayer\"],\n    \"priceMin\": 0,\n    \"priceMax\": 1990,\n    \"contentTypes\": [\"world\", \"skinpack\"]\n  },\n  \"sort\": [\n    { \"field\": \"creationDate\", \"dir\": \"desc\" }\n  ]\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/marketplace/search/advanced/{{alias}}?page=1&pageSize=24",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"marketplace",
+										"search",
+										"advanced",
+										"{{alias}}"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "pageSize",
+											"value": "24"
+										}
+									]
+								},
+								"description": "Runs an advanced search with full-text and simple filters."
+							},
+							"response": []
+						},
+						{
+							"name": "Advanced Search: by creatorName, narrow date window",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+											"pm.test(\"Facets present\", () => { const j = pm.response.json(); pm.expect(j.facets).to.be.an('object'); });"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"filters\": {\n    \"creatorName\": \"Lifeboat\",\n    \"createdFrom\": \"2025-01-01T00:00:00.000Z\",\n    \"createdTo\": \"2025-12-31T23:59:59.000Z\"\n  },\n  \"sort\": [\n    { \"field\": \"rating/totalcount\", \"dir\": \"desc\" }\n  ]\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/marketplace/search/advanced/{{alias}}?page=1&pageSize=12",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"marketplace",
+										"search",
+										"advanced",
+										"{{alias}}"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "pageSize",
+											"value": "12"
+										}
+									]
+								},
+								"description": "Creator-focused advanced search with date window and rating-based sort."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Events – Sales SSE",
+					"item": [
+						{
+							"name": "Sales Stream (SSE)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+											"pm.test(\"Content-Type SSE\", () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/event-stream'));"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									},
+									{
+										"key": "Accept",
+										"value": "text/event-stream"
+									},
+									{
+										"key": "Cache-Control",
+										"value": "no-store"
+									},
+									{
+										"key": "Connection",
+										"value": "keep-alive"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/events/sales/stream",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"events",
+										"sales",
+										"stream"
+									]
+								},
+								"description": "Subscribes to server-sent events for sales updates. Postman will display the initial chunk; for continuous testing, prefer curl or a client that supports streaming logs."
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Admin – Webhooks (new events)",
+					"item": [
+						{
+							"name": "Register webhook – sale.update",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+											"const j = pm.response.json();",
+											"pm.test(\"Webhook object present\", () => pm.expect(j.webhook).to.be.an('object'));",
+											"pm.collectionVariables.set('lastWebhookId', j.webhook.id || '');"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"event\": \"sale.update\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/admin/webhooks",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"webhooks"
+									]
+								},
+								"description": "Registers a webhook for sales updates."
+							},
+							"response": []
+						},
+						{
+							"name": "Register webhook – item.created",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"event\": \"item.created\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/admin/webhooks",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"webhooks"
+									]
+								},
+								"description": "Registers a webhook for newly created items."
+							},
+							"response": []
+						},
+						{
+							"name": "Register webhook – item.updated",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"event\": \"item.updated\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/admin/webhooks",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"webhooks"
+									]
+								},
+								"description": "Registers a webhook for item updates."
+							},
+							"response": []
+						},
+						{
+							"name": "Register webhook – price.changed",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"event\": \"price.changed\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/admin/webhooks",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"webhooks"
+									]
+								},
+								"description": "Registers a webhook for price changes."
+							},
+							"response": []
+						},
+						{
+							"name": "Register webhook – creator.trending",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									},
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"event\": \"creator.trending\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\"\n}"
+								},
+								"url": {
+									"raw": "{{baseUrl}}/admin/webhooks",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"admin",
+										"webhooks"
+									]
+								},
+								"description": "Registers a webhook for trending creators."
+							},
+							"response": []
+						}
+					]
 				},
 				{
 					"name": "Featured Servers",
@@ -1631,7 +2251,9 @@
 											"  }",
 											"});"
 										],
-										"type": "text/javascript"
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
 									}
 								}
 							],
@@ -1641,6 +2263,11 @@
 									{
 										"key": "Accept",
 										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
 									}
 								],
 								"url": {
@@ -1660,27 +2287,87 @@
 					"description": "Predefined featured servers; returns item data and screenshots (if available). ETag-enabled."
 				},
 				{
-					"name": "New Request",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "Accept",
-								"value": "application/json"
-							}
-						],
-						"url": {
-							"raw": "{{baseUrl}}/marketplace/saltes",
-							"host": [
-								"{{baseUrl}}"
+					"name": "Sales",
+					"item": [
+						{
+							"name": "GET Sales",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/marketplace/sales",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"marketplace",
+										"sales"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "GET /marketplace/featured-servers",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status 200\", () => pm.response.code === 200);",
+											"pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+											"pm.test(\"Array of server entries\", () => {",
+											"  const arr = pm.response.json();",
+											"  pm.expect(Array.isArray(arr)).to.be.true;",
+											"  if (arr.length) {",
+											"    pm.expect(arr[0]).to.have.property('name');",
+											"    pm.expect(arr[0]).to.have.property('id');",
+											"  }",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
 							],
-							"path": [
-								"marketplace",
-								"saltes"
-							]
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "Accept",
+										"value": "application/json"
+									},
+									{
+										"key": "Authorization",
+										"value": "Bearer {{token}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{baseUrl}}/marketplace/featured-servers",
+									"host": [
+										"{{baseUrl}}"
+									],
+									"path": [
+										"marketplace",
+										"featured-servers"
+									]
+								}
+							},
+							"response": []
 						}
-					},
-					"response": []
+					]
 				}
 			]
 		}
@@ -1769,6 +2456,15 @@
 		},
 		{
 			"key": "etag_all_prod",
+			"value": ""
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "default"
+		},
+		{
+			"key": "token_exp",
 			"value": ""
 		}
 	]

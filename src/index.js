@@ -23,12 +23,22 @@ const mpSummary = require("./routes/marketplace/summary");
 const mpCompare = require("./routes/marketplace/compare");
 const mpFeaturedServers = require("./routes/marketplace/featured-servers");
 const mpSales = require("./routes/marketplace/sales");
+const mpSearchAdvanced = require("./routes/marketplace/search-advanced");
+const eventsSales = require("./routes/events/sales");
+const eventsItems = require("./routes/events/items");
+const eventsPrices = require("./routes/events/prices");
+const eventsTrending = require("./routes/events/trending");
+const adminWebhooks = require("./routes/admin/webhooks");
 const chalkImport = require("chalk");
 const chalk = chalkImport.default || chalkImport;
 const swaggerUi = require("swagger-ui-express");
-const { getOpenApiSpec } = require("./config/swagger");
+const {getOpenApiSpec} = require("./config/swagger");
 const OpenApiValidator = require("express-openapi-validator");
 const NodeCache = require("node-cache");
+const {salesWatcher} = require("./services/salesWatcher");
+const {itemWatcher} = require("./services/itemWatcher");
+const {priceWatcher} = require("./services/priceWatcher");
+const {trendingWatcher} = require("./services/trendingWatcher");
 
 const art = `
  /$$    /$$ /$$      /$$  /$$$$$$     /$$   /$$ /$$$$$$$$ /$$$$$$$$
@@ -45,15 +55,7 @@ const app = express();
 
 (function configureTrustProxy() {
     const val = process.env.TRUST_PROXY;
-    if (typeof val === "undefined") {
-        app.set("trust proxy", 1);
-    } else if (/^\d+$/.test(val)) {
-        app.set("trust proxy", parseInt(val, 10));
-    } else if (val === "true" || val === "false") {
-        app.set("trust proxy", val === "true");
-    } else {
-        app.set("trust proxy", val.split(",").map(s => s.trim()).filter(Boolean));
-    }
+    if (typeof val === "undefined") app.set("trust proxy", 1); else if (/^\d+$/.test(val)) app.set("trust proxy", parseInt(val, 10)); else if (val === "true" || val === "false") app.set("trust proxy", val === "true"); else app.set("trust proxy", val.split(",").map(s => s.trim()).filter(Boolean));
 })();
 
 const port = process.env.PORT || 3000;
@@ -63,7 +65,7 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
     process.exit(1);
 }
 
-app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use(helmet({contentSecurityPolicy: false, crossOriginResourcePolicy: {policy: "cross-origin"}}));
 
 const allowed = (process.env.CORS_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
 app.use(cors({
@@ -85,26 +87,21 @@ if ((process.env.LOG_LEVEL || "info").toLowerCase() === "debug" || (logger.level
 const openapi = getOpenApiSpec();
 app.get("/openapi.json", (_, res) => res.json(openapi));
 if (process.env.ENABLE_DOCS === "true") {
-    app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, { explorer: true }));
+    app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, {explorer: true}));
 }
 
-app.get("/", (_req, res) => res.json({ ok: true, name: "View Marketplace API" }));
+app.get("/", (_req, res) => res.json({ok: true, name: "View Marketplace API"}));
 
-const loginLimiter = require("./config/rateLimiter").createRateLimiter({ windowMs: 15 * 60 * 1000, max: 20 });
-app.post(
-    ["/login", "/login/"],
-    loginLimiter,
-    express.json({ limit: "100kb" }),
-    (req, res) => {
-        const { username, password } = req.body || {};
-        const isAdmin = username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS;
-        if (!isAdmin) return res.status(401).json({ error: "Invalid username or password" });
-        const token = jwt.sign({ sub: username, role: "admin" }, JWT_SECRET, { expiresIn: "1h" });
-        res.json({ token });
-    }
-);
+const loginLimiter = require("./config/rateLimiter").createRateLimiter({windowMs: 15 * 60 * 1000, max: 20});
+app.post(["/login", "/login/"], loginLimiter, express.json({limit: "100kb"}), (req, res) => {
+    const {username, password} = req.body || {};
+    const isAdmin = username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS;
+    if (!isAdmin) return res.status(401).json({error: "Invalid username or password"});
+    const token = jwt.sign({sub: username, role: "admin"}, JWT_SECRET, {expiresIn: "1h"});
+    res.json({token});
+});
 
-const jwtCache = new NodeCache({ stdTTL: 0, checkperiod: 120, useClones: false });
+const jwtCache = new NodeCache({stdTTL: 0, checkperiod: 120, useClones: false});
 const isDocs = p => p === "/docs" || p.startsWith("/docs/");
 const pathIs = (reqPath, probe) => reqPath === probe || reqPath === `${probe}/`;
 
@@ -116,7 +113,7 @@ function enforceAuth(req, res, next) {
     const header = req.headers["authorization"];
     if (!header || !header.startsWith("Bearer ")) {
         return res.status(401).json({
-            error: { type: "unauthorized", message: "Unauthorized", traceId: req.headers["x-request-id"] || req.id }
+            error: {type: "unauthorized", message: "Unauthorized", traceId: req.headers["x-request-id"] || req.id}
         });
     }
     const token = header.slice(7);
@@ -134,13 +131,13 @@ function enforceAuth(req, res, next) {
         return next();
     } catch {
         return res.status(403).json({
-            error: { type: "forbidden", message: "Invalid token", traceId: req.headers["x-request-id"] || req.id }
+            error: {type: "forbidden", message: "Invalid token", traceId: req.headers["x-request-id"] || req.id}
         });
     }
 }
 
-app.use(compression({ threshold: 1024, level: 4 }));
-app.use(express.json({ limit: "200kb" }));
+app.use(compression({threshold: 1024, level: 4}));
+app.use(express.json({limit: "200kb"}));
 
 function requireRole(role) {
     return (req, _res, next) => {
@@ -190,7 +187,7 @@ if (process.env.VALIDATE_REQUESTS === "true") {
         apiSpec: openapi,
         validateRequests: true,
         validateResponses: process.env.VALIDATE_RESPONSES === "true",
-        validateSecurity: { handlers: { BearerAuth: bearerAuthHandler } }
+        validateSecurity: {handlers: {BearerAuth: bearerAuthHandler}}
     }));
 }
 
@@ -219,9 +216,17 @@ app.use("/marketplace/resolve", enforceAuth, cacheHeaders(60, 300), mpResolve);
 app.use("/marketplace/compare", enforceAuth, cacheHeaders(60, 300), mpCompare);
 app.use("/marketplace/featured-servers", enforceAuth, cacheHeaders(300, 1200), mpFeaturedServers);
 app.use("/marketplace/sales", enforceAuth, cacheHeaders(60, 300), mpSales);
+app.use("/marketplace/search/advanced", enforceAuth, mpSearchAdvanced);
+
+app.use("/events/sales", enforceAuth, eventsSales);
+app.use("/events/items", enforceAuth, eventsItems);
+app.use("/events/prices", enforceAuth, eventsPrices);
+app.use("/events/trending", enforceAuth, eventsTrending);
+
+app.use("/admin/webhooks", enforceAuth, requireRole("admin"), adminWebhooks);
 
 app.use((req, res) => {
-    res.status(404).json({ error: "Route not found." });
+    res.status(404).json({error: "Route not found."});
 });
 
 app.use((err, req, res, _next) => {
@@ -242,4 +247,32 @@ app.use((err, req, res, _next) => {
 app.listen(port, () => {
     console.log(chalk.cyan(art));
     logger.info(`API running at http://localhost:${port}`);
+    if (process.env.ENABLE_SALES_WATCHER === "true") {
+        const {eventBus} = require("./services/eventBus");
+        const {webhookService} = require("./services/webhookService");
+        salesWatcher.start(eventBus);
+        logger.info("Sales watcher started");
+        void webhookService;
+    }
+    if (process.env.ENABLE_ITEM_WATCHER === "true") {
+        const {eventBus} = require("./services/eventBus");
+        const {webhookService} = require("./services/webhookService");
+        itemWatcher.start(eventBus);
+        logger.info("Item watcher started");
+        void webhookService;
+    }
+    if (process.env.ENABLE_PRICE_WATCHER === "true") {
+        const {eventBus} = require("./services/eventBus");
+        const {webhookService} = require("./services/webhookService");
+        priceWatcher.start(eventBus);
+        logger.info("Price watcher started");
+        void webhookService;
+    }
+    if (process.env.ENABLE_TRENDING_WATCHER === "true") {
+        const {eventBus} = require("./services/eventBus");
+        const {webhookService} = require("./services/webhookService");
+        trendingWatcher.start(eventBus);
+        logger.info("Trending watcher started");
+        void webhookService;
+    }
 });

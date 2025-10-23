@@ -1,0 +1,14 @@
+SaleEvent:
+  type: object
+  properties:
+    ts:
+      type: integer
+    changes:
+      type: array
+      items:
+        type: object
+        properties:
+          storeId:
+            type: string
+          type:
+            type: string

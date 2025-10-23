@@ -1,0 +1,64 @@
+AdvancedSearchResponse:
+  type: object
+  properties:
+    items:
+      type: array
+      items:
+        type: object
+    meta:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        hasNext:
+          type: boolean
+        nextPage:
+          type: integer
+          nullable: true
+        start:
+          type: integer
+        end:
+          type: integer
+    facets:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            type: object
+            properties:
+              value:
+                type: string
+              count:
+                type: integer
+        creators:
+          type: array
+          items:
+            type: object
+            properties:
+              value:
+                type: string
+              count:
+                type: integer
+        contentTypes:
+          type: array
+          items:
+            type: object
+            properties:
+              value:
+                type: string
+              count:
+                type: integer
+        price:
+          type: array
+          items:
+            type: object
+            properties:
+              bucket:
+                type: string
+              count:
+                type: integer

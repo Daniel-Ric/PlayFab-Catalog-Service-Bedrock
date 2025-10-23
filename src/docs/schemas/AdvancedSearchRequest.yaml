@@ -1,0 +1,45 @@
+AdvancedSearchRequest:
+  type: object
+  properties:
+    query:
+      type: string
+      maxLength: 200
+    filters:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            type: string
+        creatorIds:
+          type: array
+          items:
+            type: string
+        creatorName:
+          type: string
+        priceMin:
+          type: integer
+          minimum: 0
+        priceMax:
+          type: integer
+          minimum: 0
+        createdFrom:
+          type: string
+          format: date-time
+        createdTo:
+          type: string
+          format: date-time
+        contentTypes:
+          type: array
+          items:
+            type: string
+    sort:
+      type: array
+      items:
+        type: object
+        properties:
+          field:
+            type: string
+          dir:
+            type: string
+            enum: [ asc, desc ]

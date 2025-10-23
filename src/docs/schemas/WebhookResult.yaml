@@ -1,0 +1,27 @@
+WebhookResult:
+  type: object
+  properties:
+    ok:
+      type: boolean
+    webhook:
+      type: object
+      properties:
+        id:
+          type: string
+        event:
+          type: string
+        url:
+          type: string
+          format: uri
+        secret:
+          type: string
+          nullable: true
+        createdAt:
+          type: integer
+        updatedAt:
+          type: integer
+        failures:
+          type: integer
+        lastStatus:
+          type: integer
+          nullable: true

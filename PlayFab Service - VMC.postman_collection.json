@@ -2,142 +2,83 @@
   "info": {
     "_postman_id": "2aa298d9-29b3-4cdd-8889-9552243b07df",
     "name": "PlayFab Service | VMC",
-    "description": "Complete Postman collection for the View-MarketplaceNET PlayFab service (Express API). Includes every endpoint found in the provided codebase, with extensive variants (with/without creatorName, with tag filter, pagination/count examples) and automatic tests. All request names, folders, and descriptions are in English as requested.\n\nSetup:\n1) Set {{baseUrl}} to your running instance (e.g., http://localhost:3000).\n2) Aliases come from src/data/titles.json (prod, bedrock, edu, demo, staging, stage, dev, experimental, creator).\n3) Variables used: {{creator1}} / {{creator2}} (CubeCraftGames / TheHive), {{keyword}} (Rank), {{tag}} (hidden_offer), {{itemId}}, {{friendlyId}}.\n4) ETag-aware endpoints have tests that also re-request with If-None-Match to expect 304.\n\nNotes:\n- Marketplace endpoints are wrapped with ETag (see middleware/etag.js).\n- Search requires both creatorName and keyword.\n- Free supports creatorName as an optional filter; price==0 is enforced server-side.\n- Latest supports an optional ?count (capped at 50 in the controller).\n- Compare spans all titles for a given creator.\n- Featured servers are pre-configured in src/config/featuredServers.js.",
+    "description": "Complete Postman collection for the View-MarketplaceNET PlayFab service (Express API). All names and descriptions are in English, request examples are tidy, and tests are included (including ETag round-trips where applicable).\n\nSetup:\n1) Set {{baseUrl}} to your running instance, including scheme (e.g., https://testing.view-marketplace.net or http://localhost:3000).\n2) Title aliases originate from src/data/titles.json (examples: prod, bedrock, edu, demo, staging, stage, dev, experimental, creator).\n3) Variables used across requests: {{creator1}} / {{creator2}} (CubeCraftGames / TheHive), {{keyword}} (Rank), {{tag}} (hidden_offer), {{itemId}}, {{friendlyId}}.\n4) ETag-aware endpoints have tests that also re-request with If-None-Match to expect 304.\n\nNotes:\n- Marketplace endpoints support ETag via middleware/etag.js.\n- /marketplace/search requires both creatorName and keyword.\n- /marketplace/free enforces price==0 server-side; supports optional creatorName filter.\n- /marketplace/latest supports optional ?count (capped at 50 by the controller).\n- /marketplace/compare spans all titles for a given creator.\n- Featured servers are defined under src/config/featuredServers.js.\n- Admin Webhooks: this collection adds **List webhooks** and helper test scripts that persist {{webhookId}} and counts for convenience.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "37965769"
   },
   "item": [
     {
-      "name": "Health / Meta / Docs",
+      "name": "Auth & Meta",
       "item": [
         {
-          "name": "Login",
+          "name": "POST /login → get API token",
           "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "exec": [
-                  ""
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            },
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "let data;\r",
-                  "try {\r",
-                  "  data = pm.response.json();\r",
-                  "} catch (e) {\r",
-                  "  pm.test(\"Antwort ist JSON\", function () {\r",
-                  "    pm.expect.fail(\"Antwort ist kein gültiges JSON\");\r",
-                  "  });\r",
-                  "}\r",
-                  "\r",
-                  "const token = data?.token;\r",
-                  "pm.test(\"Token vorhanden\", function () {\r",
-                  "  pm.expect(token, \"Token fehlt in der Login-Antwort\").to.exist;\r",
-                  "});\r",
-                  "\r",
-                  "pm.collectionVariables.set(\"token\", token);\r",
-                  "\r",
-                  "try {\r",
-                  "  const payload = JSON.parse(atob(token.split('.')[1]));\r",
-                  "  if (payload?.exp) pm.collectionVariables.set(\"token_exp\", payload.exp);\r",
-                  "} catch (e) {\r",
-                  "  // Ignoriere\r",
-                  "}\r",
-                  ""
+                  "let data;",
+                  "try {",
+                  "  data = pm.response.json();",
+                  "} catch (e) {",
+                  "  pm.test(\"Response is JSON\", function () {",
+                  "    pm.expect.fail(\"Response is not valid JSON\");",
+                  "  });",
+                  "}",
+                  "",
+                  "const token = data?.token;",
+                  "pm.test(\"Token is present\", function () {",
+                  "  pm.expect(token, \"Token missing in login response\").to.exist;",
+                  "});",
+                  "",
+                  "pm.collectionVariables.set(\"token\", token || \"\");",
+                  "",
+                  "// Try to decode JWT to extract exp (if it is a JWT)",
+                  "try {",
+                  "  const payload = JSON.parse(atob(String(token).split('.')[1]));",
+                  "  if (payload?.exp) pm.collectionVariables.set(\"token_exp\", payload.exp);",
+                  "} catch (e) {",
+                  "  // ignore non-JWT tokens",
+                  "}"
                 ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
+                "type": "text/javascript"
               }
             }
           ],
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
+            "auth": { "type": "noauth" },
             "method": "POST",
             "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "",
-                "value": "",
-                "type": "text",
-                "disabled": true
-              }
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
               "raw": "{ \"username\": \"adm7nQwR4vZ\", \"password\": \"X9uYcV7rPq1LmE\" }",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "login"
-              ]
-            }
+            "url": { "raw": "{{baseUrl}}/login", "host": [ "{{baseUrl}}" ], "path": [ "login" ] }
           },
           "response": []
         },
         {
-          "name": "Open API JSON",
+          "name": "GET /openapi.json → OpenAPI document",
           "request": {
             "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/openapi.json",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "openapi.json"
-              ]
-            }
+            "header": [ { "key": "Accept", "value": "application/json" } ],
+            "url": { "raw": "{{baseUrl}}/openapi.json", "host": [ "{{baseUrl}}" ], "path": [ "openapi.json" ] }
           },
           "response": []
         },
         {
-          "name": "Session by Alias",
+          "name": "GET /session/:alias → basic session (example: prod)",
           "request": {
             "method": "GET",
             "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
             ],
-            "url": {
-              "raw": "{{baseUrl}}/session/{{alias_prod}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "session",
-                "{{alias_prod}}"
-              ]
-            }
+            "url": { "raw": "{{baseUrl}}/session/{{alias_prod}}", "host": [ "{{baseUrl}}" ], "path": [ "session", "{{alias_prod}}" ] }
           },
           "response": []
         }
@@ -147,15 +88,15 @@
       "name": "Creators",
       "item": [
         {
-          "name": "GET /creators",
+          "name": "GET /creators → all creators",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                  "pm.test(\"JSON array\", () => Array.isArray(pm.response.json()));",
-                  "pm.test(\"Creator objects have creatorName & displayName\", () => {",
+                  "pm.test(\"Response is an array\", () => Array.isArray(pm.response.json()));",
+                  "pm.test(\"Creator objects include creatorName & displayName\", () => {",
                   "  const arr = pm.response.json();",
                   "  if (arr.length) {",
                   "    pm.expect(arr[0]).to.have.property('creatorName');",
@@ -164,34 +105,17 @@
                   "});",
                   "pm.test(\"Response time < 3000ms\", () => pm.response.responseTime < 3000);"
                 ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
+                "type": "text/javascript"
               }
             }
           ],
           "request": {
             "method": "GET",
             "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
             ],
-            "url": {
-              "raw": "{{baseUrl}}/creators",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "creators"
-              ]
-            },
+            "url": { "raw": "{{baseUrl}}/creators", "host": [ "{{baseUrl}}" ], "path": [ "creators" ] },
             "description": "Returns all creators from src/data/creators.json."
           },
           "response": []
@@ -202,14 +126,14 @@
       "name": "Titles",
       "item": [
         {
-          "name": "GET /titles → all titles (alias, id, notes)",
+          "name": "GET /titles → list titles (alias, id, notes)",
           "event": [
             {
               "listen": "test",
               "script": {
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                  "pm.test(\"JSON array\", () => Array.isArray(pm.response.json()));",
+                  "pm.test(\"Response is an array\", () => Array.isArray(pm.response.json()));",
                   "pm.test(\"First entry has alias & id\", () => {",
                   "  const arr = pm.response.json();",
                   "  if (arr.length) {",
@@ -219,40 +143,23 @@
                   "});",
                   "pm.test(\"Response time < 3000ms\", () => pm.response.responseTime < 3000);"
                 ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
+                "type": "text/javascript"
               }
             }
           ],
           "request": {
             "method": "GET",
             "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
             ],
-            "url": {
-              "raw": "{{baseUrl}}/titles",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "titles"
-              ]
-            },
+            "url": { "raw": "{{baseUrl}}/titles", "host": [ "{{baseUrl}}" ], "path": [ "titles" ] },
             "description": "Reads all known titles from src/data/titles.json."
           },
           "response": []
         },
         {
-          "name": "POST /titles → create title",
+          "name": "POST /titles → create a title mapping",
           "event": [
             {
               "listen": "test",
@@ -260,57 +167,36 @@
                 "exec": [
                   "pm.test(\"Status 201\", () => pm.response.code === 201);",
                   "const b = pm.response.json();",
-                  "pm.test(\"Echoed alias/id\", () => {",
+                  "pm.test(\"Echoed alias & id\", () => {",
                   "  pm.expect(b).to.have.property('alias');",
                   "  pm.expect(b).to.have.property('id');",
                   "});",
-                  "// Store alias for subsequent delete",
                   "pm.collectionVariables.set('created_alias', b.alias);",
                   "pm.collectionVariables.set('created_id', b.id);",
                   "pm.test(\"Response time < 4000ms\", () => pm.response.responseTime < 4000);"
                 ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
+                "type": "text/javascript"
               }
             }
           ],
           "request": {
             "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"alias\": \"{{new_alias}}\",\n  \"id\": \"{{new_id}}\",\n  \"notes\": \"Created via Postman at {{ts}}\"\n}"
             },
-            "url": {
-              "raw": "{{baseUrl}}/titles",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "titles"
-              ]
-            },
-            "description": "Create a new title mapping. Uses {{new_alias}} and {{new_id}} variables."
+            "url": { "raw": "{{baseUrl}}/titles", "host": [ "{{baseUrl}}" ], "path": [ "titles" ] },
+            "description": "Creates a new title mapping. Uses {{new_alias}} and {{new_id}} variables."
           },
           "response": []
         },
         {
-          "name": "DELETE /titles/:alias → delete created title",
+          "name": "DELETE /titles/:alias → delete title (uses created_alias or alias_to_delete)",
           "event": [
             {
               "listen": "prerequest",
@@ -320,9 +206,7 @@
                   "  pm.request.url = pm.request.url.toString().replace('{{created_alias}}', pm.collectionVariables.get('alias_to_delete'));",
                   "}"
                 ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
+                "type": "text/javascript"
               }
             },
             {
@@ -330,42 +214,24 @@
               "script": {
                 "exec": [
                   "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                  "pm.test(\"Deleted field present\", () => {",
+                  "pm.test(\"Body has 'deleted' field\", () => {",
                   "  const b = pm.response.json();",
                   "  pm.expect(b).to.have.property('deleted');",
                   "});",
                   "pm.test(\"Response time < 3000ms\", () => pm.response.responseTime < 3000);"
                 ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
+                "type": "text/javascript"
               }
             }
           ],
           "request": {
             "method": "DELETE",
             "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
             ],
-            "url": {
-              "raw": "{{baseUrl}}/titles/{{created_alias}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "titles",
-                "{{created_alias}}"
-              ]
-            },
-            "description": "Deletes the title created in the previous step. Falls back to {{alias_to_delete}} if collection var missing."
+            "url": { "raw": "{{baseUrl}}/titles/{{created_alias}}", "host": [ "{{baseUrl}}" ], "path": [ "titles", "{{created_alias}}" ] },
+            "description": "Deletes the title created in the previous step. Falls back to {{alias_to_delete}} if the collection variable is missing."
           },
           "response": []
         }
@@ -375,7 +241,7 @@
       "name": "Session",
       "item": [
         {
-          "name": "GET /session/:alias (prod)",
+          "name": "GET /session/:alias → session for 'prod'",
           "event": [
             {
               "listen": "test",
@@ -388,43 +254,25 @@
                   "  pm.expect(b).to.have.property('SessionTicket');",
                   "  pm.expect(b).to.have.property('PlayFabId');",
                   "});",
-                  "pm.test(\"Response time < 7000ms (login may be slow)\", () => pm.response.responseTime < 7000);"
+                  "pm.test(\"Response time < 7000ms\", () => pm.response.responseTime < 7000);"
                 ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
+                "type": "text/javascript"
               }
             }
           ],
           "request": {
             "method": "GET",
             "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
             ],
-            "url": {
-              "raw": "{{baseUrl}}/session/{{alias_prod}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "session",
-                "{{alias_prod}}"
-              ]
-            },
-            "description": "Returns PlayFab session { SessionTicket, PlayFabId, EntityToken } for the given alias (prod)."
+            "url": { "raw": "{{baseUrl}}/session/{{alias_prod}}", "host": [ "{{baseUrl}}" ], "path": [ "session", "{{alias_prod}}" ] },
+            "description": "Returns PlayFab session { SessionTicket, PlayFabId, EntityToken } for the given alias."
           },
           "response": []
         },
         {
-          "name": "GET /session/:alias (bedrock)",
+          "name": "GET /session/:alias → session for 'bedrock'",
           "event": [
             {
               "listen": "test",
@@ -435,36 +283,18 @@
                   "pm.test(\"Has EntityToken\", () => pm.expect(b).to.have.property('EntityToken'));",
                   "pm.test(\"Response time < 7000ms\", () => pm.response.responseTime < 7000);"
                 ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
+                "type": "text/javascript"
               }
             }
           ],
           "request": {
             "method": "GET",
             "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
             ],
-            "url": {
-              "raw": "{{baseUrl}}/session/{{alias_bedrock}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "session",
-                "{{alias_bedrock}}"
-              ]
-            },
-            "description": "Returns PlayFab session for alias bedrock."
+            "url": { "raw": "{{baseUrl}}/session/{{alias_bedrock}}", "host": [ "{{baseUrl}}" ], "path": [ "session", "{{alias_bedrock}}" ] },
+            "description": "Returns PlayFab session for alias 'bedrock'."
           },
           "response": []
         }
@@ -475,9 +305,10 @@
       "item": [
         {
           "name": "All",
+          "description": "All items for a given title alias. ETag-enabled; tests include 304 re-fetch.",
           "item": [
             {
-              "name": "GET /marketplace/all/:alias (no filters)",
+              "name": "GET /marketplace/all/:alias → all items (no filters, prod)",
               "event": [
                 {
                   "listen": "test",
@@ -487,9 +318,9 @@
                       "pm.test(\"ETag present\", () => {",
                       "  const et = pm.response.headers.get('ETag');",
                       "  pm.collectionVariables.set('etag_all_prod', et || '');",
-                      "  pm.expect(!!et).to.be.true;",
+                      "  pm.expect(Boolean(et)).to.be.true;",
                       "});",
-                      "pm.test(\"Body is array of items or empty\", () => {",
+                      "pm.test(\"Body is array (possibly empty)\", () => {",
                       "  const body = pm.response.json();",
                       "  pm.expect(Array.isArray(body)).to.be.true;",
                       "});",
@@ -507,413 +338,238 @@
                       "  });",
                       "}"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/all/{{alias_prod}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "all",
-                    "{{alias_prod}}"
-                  ]
-                }
+                "url": { "raw": "{{baseUrl}}/marketplace/all/{{alias_prod}}", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "all", "{{alias_prod}}" ] }
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/all/:alias (creatorName={{creator1}})",
+              "name": "GET /marketplace/all/:alias → filter by creatorName={{creator1}}",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
                       "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+                      "pm.test(\"ETag present\", () => pm.expect(Boolean(pm.response.headers.get('ETag'))).to.be.true);",
                       "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/all/{{alias_prod}}?creatorName={{creator1}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "all",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator1}}"
-                    }
-                  ]
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "all", "{{alias_prod}}" ],
+                  "query": [ { "key": "creatorName", "value": "{{creator1}}" } ]
                 }
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/all/:alias (creatorName={{creator2}})",
+              "name": "GET /marketplace/all/:alias → filter by creatorName={{creator2}}",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
                       "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+                      "pm.test(\"ETag present\", () => pm.expect(Boolean(pm.response.headers.get('ETag'))).to.be.true);",
                       "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/all/{{alias_prod}}?creatorName={{creator2}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "all",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator2}}"
-                    }
-                  ]
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "all", "{{alias_prod}}" ],
+                  "query": [ { "key": "creatorName", "value": "{{creator2}}" } ]
                 }
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/all/:alias (tag={{tag}})",
+              "name": "GET /marketplace/all/:alias → filter by tag={{tag}}",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
                       "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+                      "pm.test(\"ETag present\", () => pm.expect(Boolean(pm.response.headers.get('ETag'))).to.be.true);",
                       "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/all/{{alias_prod}}?tag={{tag}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "all",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "tag",
-                      "value": "{{tag}}"
-                    }
-                  ]
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "all", "{{alias_prod}}" ],
+                  "query": [ { "key": "tag", "value": "{{tag}}" } ]
                 }
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/all/:alias (creatorName + tag)",
+              "name": "GET /marketplace/all/:alias → filter by creatorName+tag",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
                       "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+                      "pm.test(\"ETag present\", () => pm.expect(Boolean(pm.response.headers.get('ETag'))).to.be.true);",
                       "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/all/{{alias_prod}}?creatorName={{creator1}}&tag={{tag}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "all",
-                    "{{alias_prod}}"
-                  ],
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "all", "{{alias_prod}}" ],
                   "query": [
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator1}}"
-                    },
-                    {
-                      "key": "tag",
-                      "value": "{{tag}}"
-                    }
+                    { "key": "creatorName", "value": "{{creator1}}" },
+                    { "key": "tag", "value": "{{tag}}" }
                   ]
                 }
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/all/:alias (bedrock, no filters)",
+              "name": "GET /marketplace/all/:alias → all items (bedrock, no filters)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
                       "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+                      "pm.test(\"ETag present\", () => pm.expect(Boolean(pm.response.headers.get('ETag'))).to.be.true);",
                       "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/all/{{alias_bedrock}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "all",
-                    "{{alias_bedrock}}"
-                  ]
-                }
+                "url": { "raw": "{{baseUrl}}/marketplace/all/{{alias_bedrock}}", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "all", "{{alias_bedrock}}" ] }
               },
               "response": []
             }
-          ],
-          "description": "All items for a given title alias. ETag-enabled; tests include 304 re-fetch."
+          ]
         },
         {
           "name": "Latest",
+          "description": "Latest items for a title. Optional ?count (1..50). ETag-enabled; includes ETag checks.",
           "item": [
             {
-              "name": "GET /marketplace/latest/:alias?count=10 (no filters)",
+              "name": "GET /marketplace/latest/:alias?count=10 (prod, no filters)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
                       "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
-                      "pm.test(\"Array <= 10\", () => {",
+                      "pm.test(\"ETag present\", () => pm.expect(Boolean(pm.response.headers.get('ETag'))).to.be.true);",
+                      "pm.test(\"Array length <= 10\", () => {",
                       "  const arr = pm.response.json();",
                       "  pm.expect(Array.isArray(arr)).to.be.true;",
                       "  pm.expect(arr.length).to.be.at.most(10);",
                       "});"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=10",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "latest",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "count",
-                      "value": "10"
-                    }
-                  ]
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "latest", "{{alias_prod}}" ],
+                  "query": [ { "key": "count", "value": "10" } ]
                 }
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/latest/:alias?count=25 (no filters)",
+              "name": "GET /marketplace/latest/:alias?count=25 (prod, no filters)",
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=25",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "latest",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "count",
-                      "value": "25"
-                    }
-                  ]
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "latest", "{{alias_prod}}" ],
+                  "query": [ { "key": "count", "value": "25" } ]
                 }
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/latest/:alias?count=50 (cap)",
+              "name": "GET /marketplace/latest/:alias?count=50 (prod, cap)",
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=50",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "latest",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "count",
-                      "value": "50"
-                    }
-                  ]
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "latest", "{{alias_prod}}" ],
+                  "query": [ { "key": "count", "value": "50" } ]
                 }
               },
               "response": []
@@ -922,31 +578,14 @@
               "name": "GET /marketplace/latest/:alias?count=25&creatorName={{creator1}}",
               "request": {
                 "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  }
-                ],
+                "header": [ { "key": "Accept", "value": "application/json" } ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=25&creatorName={{creator1}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "latest",
-                    "{{alias_prod}}"
-                  ],
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "latest", "{{alias_prod}}" ],
                   "query": [
-                    {
-                      "key": "count",
-                      "value": "25"
-                    },
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator1}}"
-                    }
+                    { "key": "count", "value": "25" },
+                    { "key": "creatorName", "value": "{{creator1}}" }
                   ]
                 }
               },
@@ -957,35 +596,16 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=25&creatorName={{creator2}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "latest",
-                    "{{alias_prod}}"
-                  ],
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "latest", "{{alias_prod}}" ],
                   "query": [
-                    {
-                      "key": "count",
-                      "value": "25"
-                    },
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator2}}"
-                    }
+                    { "key": "count", "value": "25" },
+                    { "key": "creatorName", "value": "{{creator2}}" }
                   ]
                 }
               },
@@ -996,35 +616,16 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=25&tag={{tag}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "latest",
-                    "{{alias_prod}}"
-                  ],
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "latest", "{{alias_prod}}" ],
                   "query": [
-                    {
-                      "key": "count",
-                      "value": "25"
-                    },
-                    {
-                      "key": "tag",
-                      "value": "{{tag}}"
-                    }
+                    { "key": "count", "value": "25" },
+                    { "key": "tag", "value": "{{tag}}" }
                   ]
                 }
               },
@@ -1035,39 +636,17 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=25&creatorName={{creator1}}&tag={{tag}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "latest",
-                    "{{alias_prod}}"
-                  ],
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "latest", "{{alias_prod}}" ],
                   "query": [
-                    {
-                      "key": "count",
-                      "value": "25"
-                    },
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator1}}"
-                    },
-                    {
-                      "key": "tag",
-                      "value": "{{tag}}"
-                    }
+                    { "key": "count", "value": "25" },
+                    { "key": "creatorName", "value": "{{creator1}}" },
+                    { "key": "tag", "value": "{{tag}}" }
                   ]
                 }
               },
@@ -1078,68 +657,44 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/latest/{{alias_bedrock}}?count=10",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "latest",
-                    "{{alias_bedrock}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "count",
-                      "value": "10"
-                    }
-                  ]
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "latest", "{{alias_bedrock}}" ],
+                  "query": [ { "key": "count", "value": "10" } ]
                 }
               },
               "response": []
             }
-          ],
-          "description": "Latest items for a title. Optional ?count (1..50). ETag-enabled; includes ETag tests."
+          ]
         },
         {
           "name": "Popular",
+          "description": "Popular items ordered by rating/totalcount descending. ETag-enabled.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response) { pm.test(\"Status 200\", () => [200,304].includes(pm.response.code)); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "item": [
             {
-              "name": "GET /marketplace/popular/:alias (no filters)",
+              "name": "GET /marketplace/popular/:alias (prod, no filters)",
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/popular/{{alias_prod}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "popular",
-                    "{{alias_prod}}"
-                  ]
-                }
+                "url": { "raw": "{{baseUrl}}/marketplace/popular/{{alias_prod}}", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "popular", "{{alias_prod}}" ] }
               },
               "response": []
             },
@@ -1148,32 +703,14 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/popular/{{alias_prod}}?creatorName={{creator1}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "popular",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator1}}"
-                    }
-                  ]
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "popular", "{{alias_prod}}" ],
+                  "query": [ { "key": "creatorName", "value": "{{creator1}}" } ]
                 }
               },
               "response": []
@@ -1183,32 +720,14 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/popular/{{alias_prod}}?creatorName={{creator2}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "popular",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator2}}"
-                    }
-                  ]
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "popular", "{{alias_prod}}" ],
+                  "query": [ { "key": "creatorName", "value": "{{creator2}}" } ]
                 }
               },
               "response": []
@@ -1218,86 +737,36 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/popular/{{alias_prod}}?creatorName={{creator1}}&tag={{tag}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "popular",
-                    "{{alias_prod}}"
-                  ],
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "popular", "{{alias_prod}}" ],
                   "query": [
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator1}}"
-                    },
-                    {
-                      "key": "tag",
-                      "value": "{{tag}}"
-                    }
+                    { "key": "creatorName", "value": "{{creator1}}" },
+                    { "key": "tag", "value": "{{tag}}" }
                   ]
                 }
               },
               "response": []
             }
-          ],
-          "description": "Popular items ordered by rating/totalcount desc. ETag-enabled.",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "// Folder-level quick check for last response (if any)",
-                  "if (pm.response) {",
-                  "  pm.test(\"Status 200\", () => [200,304].includes(pm.response.code));",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
           ]
         },
         {
           "name": "Free",
+          "description": "Free items only (DisplayProperties/price == 0). ETag-enabled. Optional creatorName filter.",
           "item": [
             {
-              "name": "GET /marketplace/free/:alias (no filters)",
+              "name": "GET /marketplace/free/:alias (prod, no filters)",
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/free/{{alias_prod}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "free",
-                    "{{alias_prod}}"
-                  ]
-                }
+                "url": { "raw": "{{baseUrl}}/marketplace/free/{{alias_prod}}", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "free", "{{alias_prod}}" ] }
               },
               "response": []
             },
@@ -1306,32 +775,14 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/free/{{alias_prod}}?creatorName={{creator1}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "free",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator1}}"
-                    }
-                  ]
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "free", "{{alias_prod}}" ],
+                  "query": [ { "key": "creatorName", "value": "{{creator1}}" } ]
                 }
               },
               "response": []
@@ -1341,69 +792,33 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/free/{{alias_prod}}?creatorName={{creator2}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "free",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator2}}"
-                    }
-                  ]
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "free", "{{alias_prod}}" ],
+                  "query": [ { "key": "creatorName", "value": "{{creator2}}" } ]
                 }
               },
               "response": []
             }
-          ],
-          "description": "Free items only (DisplayProperties/price eq 0). ETag-enabled. Optional creatorName."
+          ]
         },
         {
           "name": "Tag",
+          "description": "Items filtered by a given tag using /marketplace/tag/:alias/:tag. ETag-enabled.",
           "item": [
             {
               "name": "GET /marketplace/tag/:alias/:tag (prod)",
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/tag/{{alias_prod}}/{{tag}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "tag",
-                    "{{alias_prod}}",
-                    "{{tag}}"
-                  ]
-                }
+                "url": { "raw": "{{baseUrl}}/marketplace/tag/{{alias_prod}}/{{tag}}", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "tag", "{{alias_prod}}", "{{tag}}" ] }
               },
               "response": []
             },
@@ -1412,71 +827,34 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/tag/{{alias_bedrock}}/{{tag}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "tag",
-                    "{{alias_bedrock}}",
-                    "{{tag}}"
-                  ]
-                }
+                "url": { "raw": "{{baseUrl}}/marketplace/tag/{{alias_bedrock}}/{{tag}}", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "tag", "{{alias_bedrock}}", "{{tag}}" ] }
               },
               "response": []
             }
-          ],
-          "description": "Items filtered by a given tag using /marketplace/tag/:alias/:tag. ETag-enabled."
+          ]
         },
         {
           "name": "Search",
+          "description": "Search by creatorName + keyword.",
           "item": [
             {
               "name": "GET /marketplace/search/:alias?creatorName={{creator1}}&keyword={{keyword}} (prod)",
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/search/{{alias_prod}}?creatorName={{creator1}}&keyword={{keyword}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "search",
-                    "{{alias_prod}}"
-                  ],
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "search", "{{alias_prod}}" ],
                   "query": [
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator1}}"
-                    },
-                    {
-                      "key": "keyword",
-                      "value": "{{keyword}}"
-                    }
+                    { "key": "creatorName", "value": "{{creator1}}" },
+                    { "key": "keyword", "value": "{{keyword}}" }
                   ]
                 }
               },
@@ -1487,45 +865,26 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/marketplace/search/{{alias_prod}}?creatorName={{creator2}}&keyword={{keyword}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "search",
-                    "{{alias_prod}}"
-                  ],
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "search", "{{alias_prod}}" ],
                   "query": [
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator2}}"
-                    },
-                    {
-                      "key": "keyword",
-                      "value": "{{keyword}}"
-                    }
+                    { "key": "creatorName", "value": "{{creator2}}" },
+                    { "key": "keyword", "value": "{{keyword}}" }
                   ]
                 }
               },
               "response": []
             }
-          ],
-          "description": "Search by creatorName + keyword using /marketplace/search/:alias?creatorName=...&keyword=... . ETag-enabled."
+          ]
         },
         {
           "name": "Details",
+          "description": "Full multilingual item details for a specific itemId. ETag-enabled.",
           "item": [
             {
               "name": "GET /marketplace/details/:alias/:itemId (prod)",
@@ -1534,92 +893,24 @@
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "pm.test(\"Status 200 or 404 (if invalid itemId)\", () => [200,404].includes(pm.response.code));",
+                      "pm.test(\"Status 200 or 404\", () => [200,404].includes(pm.response.code));",
                       "if (pm.response.code === 200) {",
                       "  const b = pm.response.json();",
                       "  pm.test(\"Has Id\", () => pm.expect(b).to.have.property('Id'));",
-                      "  pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+                      "  pm.test(\"ETag present\", () => pm.expect(Boolean(pm.response.headers.get('ETag'))).to.be.true);",
                       "}"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/details/{{alias_prod}}/{{itemId}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "details",
-                    "{{alias_prod}}",
-                    "{{itemId}}"
-                  ]
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "GET /marketplace/details/:alias/:itemId (prod) Copy",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "exec": [
-                      "pm.test(\"Status 200 or 404 (if invalid itemId)\", () => [200,404].includes(pm.response.code));",
-                      "if (pm.response.code === 200) {",
-                      "  const b = pm.response.json();",
-                      "  pm.test(\"Has Id\", () => pm.expect(b).to.have.property('Id'));",
-                      "  pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
-                      "}"
-                    ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
-                  }
-                }
-              ],
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/details/{{alias_prod}}/{{itemId}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "details",
-                    "{{alias_prod}}",
-                    "{{itemId}}"
-                  ]
-                }
+                "url": { "raw": "{{baseUrl}}/marketplace/details/{{alias_prod}}/{{itemId}}", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "details", "{{alias_prod}}", "{{itemId}}" ] }
               },
               "response": []
             },
@@ -1628,64 +919,28 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/details/{{alias_bedrock}}/{{itemId}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "details",
-                    "{{alias_bedrock}}",
-                    "{{itemId}}"
-                  ]
-                }
+                "url": { "raw": "{{baseUrl}}/marketplace/details/{{alias_bedrock}}/{{itemId}}", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "details", "{{alias_bedrock}}", "{{itemId}}" ] }
               },
               "response": []
             }
-          ],
-          "description": "Full multilingual item details for a specific itemId. ETag-enabled."
+          ]
         },
         {
           "name": "Friendly",
+          "description": "Fetch a single item by FriendlyId. ETag-enabled.",
           "item": [
             {
               "name": "GET /marketplace/friendly/:alias/:friendlyId (prod)",
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/friendly/{{alias_prod}}/{{friendlyId}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "friendly",
-                    "{{alias_prod}}",
-                    "{{friendlyId}}"
-                  ]
-                }
+                "url": { "raw": "{{baseUrl}}/marketplace/friendly/{{alias_prod}}/{{friendlyId}}", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "friendly", "{{alias_prod}}", "{{friendlyId}}" ] }
               },
               "response": []
             },
@@ -1694,63 +949,28 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/friendly/{{alias_bedrock}}/{{friendlyId}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "friendly",
-                    "{{alias_bedrock}}",
-                    "{{friendlyId}}"
-                  ]
-                }
+                "url": { "raw": "{{baseUrl}}/marketplace/friendly/{{alias_bedrock}}/{{friendlyId}}", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "friendly", "{{alias_bedrock}}", "{{friendlyId}}" ] }
               },
               "response": []
             }
-          ],
-          "description": "Fetch a single item by FriendlyId. ETag-enabled."
+          ]
         },
         {
           "name": "Summary",
+          "description": "Returns a lightweight summary for all items (id, title, URLs). ETag-enabled.",
           "item": [
             {
               "name": "GET /marketplace/summary/:alias (prod)",
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/summary/{{alias_prod}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "summary",
-                    "{{alias_prod}}"
-                  ]
-                }
+                "url": { "raw": "{{baseUrl}}/marketplace/summary/{{alias_prod}}", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "summary", "{{alias_prod}}" ] }
               },
               "response": []
             },
@@ -1759,35 +979,18 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/summary/{{alias_bedrock}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "summary",
-                    "{{alias_bedrock}}"
-                  ]
-                }
+                "url": { "raw": "{{baseUrl}}/marketplace/summary/{{alias_bedrock}}", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "summary", "{{alias_bedrock}}" ] }
               },
               "response": []
             }
-          ],
-          "description": "Returns a lightweight summary for all items (id, title, URLs). ETag-enabled."
+          ]
         },
         {
           "name": "Compare",
+          "description": "Compare items across all titles for a single creator.",
           "item": [
             {
               "name": "GET /marketplace/compare/:creatorName ({{creator1}})",
@@ -1797,41 +1000,22 @@
                   "script": {
                     "exec": [
                       "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"Response is object keyed by alias\", () => {",
+                      "pm.test(\"Response is an object keyed by alias\", () => {",
                       "  const b = pm.response.json();",
                       "  pm.expect(b).to.be.an('object');",
                       "});"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/compare/{{creator1}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "compare",
-                    "{{creator1}}"
-                  ]
-                }
+                "url": { "raw": "{{baseUrl}}/marketplace/compare/{{creator1}}", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "compare", "{{creator1}}" ] }
               },
               "response": []
             },
@@ -1840,45 +1024,27 @@
               "request": {
                 "method": "GET",
                 "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+                  { "key": "Accept", "value": "application/json" },
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/compare/{{creator2}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "compare",
-                    "{{creator2}}"
-                  ]
-                }
+                "url": { "raw": "{{baseUrl}}/marketplace/compare/{{creator2}}", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "compare", "{{creator2}}" ] }
               },
               "response": []
             }
-          ],
-          "description": "Compare items across all titles for a single creator."
+          ]
         },
         {
           "name": "Advanced Search",
           "item": [
             {
-              "name": "Advanced Search: basic full-text",
+              "name": "POST /marketplace/search/advanced/:alias → full-text + filters",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
                       "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
-                      "pm.test(\"Has items + meta + facets\", function () {",
+                      "pm.test(\"Contains items + meta + facets\", function () {",
                       "  const json = pm.response.json();",
                       "  pm.expect(json).to.have.property('items');",
                       "  pm.expect(json).to.have.property('meta');",
@@ -1892,40 +1058,20 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+                  { "key": "Content-Type", "value": "application/json" }
                 ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"query\": \"survival\",\n  \"filters\": {\n    \"tags\": [\"adventure\", \"multiplayer\"],\n    \"priceMin\": 0,\n    \"priceMax\": 1990,\n    \"contentTypes\": [\"world\", \"skinpack\"]\n  },\n  \"sort\": [\n    { \"field\": \"creationDate\", \"dir\": \"desc\" }\n  ]\n}"
                 },
                 "url": {
-                  "raw": "{{baseUrl}}/marketplace/search/advanced/{{alias}}?page=1&pageSize=24",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "search",
-                    "advanced",
-                    "{{alias}}"
-                  ],
+                  "raw": "{{baseUrl}}/marketplace/search/advanced/{{alias_prod}}?page=1&pageSize=24",
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "search", "advanced", "{{alias_prod}}" ],
                   "query": [
-                    {
-                      "key": "page",
-                      "value": "1"
-                    },
-                    {
-                      "key": "pageSize",
-                      "value": "24"
-                    }
+                    { "key": "page", "value": "1" },
+                    { "key": "pageSize", "value": "24" }
                   ]
                 },
                 "description": "Runs an advanced search with full-text and simple filters."
@@ -1933,7 +1079,7 @@
               "response": []
             },
             {
-              "name": "Advanced Search: by creatorName, narrow date window",
+              "name": "POST /marketplace/search/advanced/:alias → by creator + date window",
               "event": [
                 {
                   "listen": "test",
@@ -1949,427 +1095,290 @@
               "request": {
                 "method": "POST",
                 "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
+                  { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+                  { "key": "Content-Type", "value": "application/json" }
                 ],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"filters\": {\n    \"creatorName\": \"Lifeboat\",\n    \"createdFrom\": \"2025-01-01T00:00:00.000Z\",\n    \"createdTo\": \"2025-12-31T23:59:59.000Z\"\n  },\n  \"sort\": [\n    { \"field\": \"rating/totalcount\", \"dir\": \"desc\" }\n  ]\n}"
                 },
                 "url": {
-                  "raw": "{{baseUrl}}/marketplace/search/advanced/{{alias}}?page=1&pageSize=12",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "search",
-                    "advanced",
-                    "{{alias}}"
-                  ],
+                  "raw": "{{baseUrl}}/marketplace/search/advanced/{{alias_prod}}?page=1&pageSize=12",
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "marketplace", "search", "advanced", "{{alias_prod}}" ],
                   "query": [
-                    {
-                      "key": "page",
-                      "value": "1"
-                    },
-                    {
-                      "key": "pageSize",
-                      "value": "12"
-                    }
+                    { "key": "page", "value": "1" },
+                    { "key": "pageSize", "value": "12" }
                   ]
                 },
-                "description": "Creator-focused advanced search with date window and rating-based sort."
+                "description": "Creator-focused advanced search with a narrow date window and rating-based sort."
               },
               "response": []
             }
           ]
-        },
+        }
+      ]
+    },
+    {
+      "name": "Events – Sales SSE",
+      "item": [
         {
-          "name": "Events – Sales SSE",
-          "item": [
+          "name": "GET /events/sales/stream → SSE sales stream",
+          "event": [
             {
-              "name": "Sales Stream (SSE)",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "exec": [
-                      "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                      "pm.test(\"Content-Type SSE\", () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/event-stream'));"
-                    ],
-                    "type": "text/javascript"
-                  }
-                }
-              ],
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Accept",
-                    "value": "text/event-stream"
-                  },
-                  {
-                    "key": "Cache-Control",
-                    "value": "no-store"
-                  },
-                  {
-                    "key": "Connection",
-                    "value": "keep-alive"
-                  }
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Content-Type is SSE\", () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/event-stream'));"
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/events/sales/stream",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "events",
-                    "sales",
-                    "stream"
-                  ]
-                },
-                "description": "Subscribes to server-sent events for sales updates. Postman will display the initial chunk; for continuous testing, prefer curl or a client that supports streaming logs."
-              },
-              "response": []
-            }
-          ]
-        },
-        {
-          "name": "Admin – Webhooks (new events)",
-          "item": [
-            {
-              "name": "Register webhook – sale.update",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "exec": [
-                      "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                      "const j = pm.response.json();",
-                      "pm.test(\"Webhook object present\", () => pm.expect(j.webhook).to.be.an('object'));",
-                      "pm.collectionVariables.set('lastWebhookId', j.webhook.id || '');"
-                    ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
-                  }
-                }
-              ],
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"event\": \"sale.update\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\",\n  \"provider\": \"{{webhookProvider}}\"\n}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/admin/webhooks",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "admin",
-                    "webhooks"
-                  ]
-                },
-                "description": "Registers a webhook for sales updates."
-              },
-              "response": []
-            },
-            {
-              "name": "Register webhook – item.created",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"event\": \"item.created\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\"\n  \"provider\": \"{{webhookProvider}}\"\n}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/admin/webhooks",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "admin",
-                    "webhooks"
-                  ]
-                },
-                "description": "Registers a webhook for newly created items."
-              },
-              "response": []
-            },
-            {
-              "name": "Register webhook – item.updated",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"event\": \"item.updated\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\",\n  \"provider\": \"{{webhookProvider}}\"\n}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/admin/webhooks",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "admin",
-                    "webhooks"
-                  ]
-                },
-                "description": "Registers a webhook for item updates."
-              },
-              "response": []
-            },
-            {
-              "name": "Register webhook – price.changed",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"event\": \"price.changed\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\",\n  \"provider\": \"{{webhookProvider}}\"\n}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/admin/webhooks",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "admin",
-                    "webhooks"
-                  ]
-                },
-                "description": "Registers a webhook for price changes."
-              },
-              "response": []
-            },
-            {
-              "name": "Register webhook – creator.trending",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"event\": \"creator.trending\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\",\n  \"provider\": \"{{webhookProvider}}\"\n}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/admin/webhooks",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "admin",
-                    "webhooks"
-                  ]
-                },
-                "description": "Registers a webhook for trending creators."
-              },
-              "response": []
-            }
-          ]
-        },
-        {
-          "name": "Featured Servers",
-          "item": [
-            {
-              "name": "GET /marketplace/featured-servers",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "exec": [
-                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
-                      "pm.test(\"Array of server entries\", () => {",
-                      "  const arr = pm.response.json();",
-                      "  pm.expect(Array.isArray(arr)).to.be.true;",
-                      "  if (arr.length) {",
-                      "    pm.expect(arr[0]).to.have.property('name');",
-                      "    pm.expect(arr[0]).to.have.property('id');",
-                      "  }",
-                      "});"
-                    ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
-                  }
-                }
-              ],
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/featured-servers",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "featured-servers"
-                  ]
-                }
-              },
-              "response": []
+                "type": "text/javascript"
+              }
             }
           ],
-          "description": "Predefined featured servers; returns item data and screenshots (if available). ETag-enabled."
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Accept", "value": "text/event-stream" },
+              { "key": "Cache-Control", "value": "no-store" },
+              { "key": "Connection", "value": "keep-alive" }
+            ],
+            "url": { "raw": "{{baseUrl}}/events/sales/stream", "host": [ "{{baseUrl}}" ], "path": [ "events", "sales", "stream" ] },
+            "description": "Subscribes to server-sent events for sales updates. Postman will display the initial chunk only; for continuous testing prefer curl or a streaming client."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Admin – Webhooks",
+      "item": [
+        {
+          "name": "GET /admin/webhooks → list webhooks",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "let j;",
+                  "try { j = pm.response.json(); } catch (e) { pm.expect.fail('Response is not JSON'); }",
+                  "const items = Array.isArray(j) ? j : (j && j.items) ? j.items : [];",
+                  "pm.test(\"List returned\", () => pm.expect(items).to.be.an('array'));",
+                  "pm.collectionVariables.set('webhookCount', String(items.length || 0));",
+                  "if (items.length) {",
+                  "  const first = items[0];",
+                  "  pm.collectionVariables.set('webhookId', first.id || '');",
+                  "  pm.test(\"First item has id/url/event\", () => {",
+                  "    pm.expect(first).to.have.property('id');",
+                  "    pm.expect(first).to.have.property('url');",
+                  "    pm.expect(first).to.have.property('event');",
+                  "  });",
+                  "} else {",
+                  "  pm.collectionVariables.set('webhookId', '');",
+                  "}",
+                  "console.log('webhooks:', items.map(w => ({ id: w.id, event: w.event, provider: w.provider })));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": { "raw": "{{baseUrl}}/admin/webhooks", "host": [ "{{baseUrl}}" ], "path": [ "admin", "webhooks" ] }
+          },
+          "response": []
         },
         {
-          "name": "Sales",
-          "item": [
+          "name": "POST /admin/webhooks → register webhook (sale.update)",
+          "event": [
             {
-              "name": "GET Sales",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"Webhook object present\", () => pm.expect(j.webhook).to.be.an('object'));",
+                  "pm.collectionVariables.set('lastWebhookId', j.webhook.id || '');"
                 ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/sales",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "sales"
-                  ]
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "GET /marketplace/featured-servers",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "exec": [
-                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
-                      "pm.test(\"Array of server entries\", () => {",
-                      "  const arr = pm.response.json();",
-                      "  pm.expect(Array.isArray(arr)).to.be.true;",
-                      "  if (arr.length) {",
-                      "    pm.expect(arr[0]).to.have.property('name');",
-                      "    pm.expect(arr[0]).to.have.property('id');",
-                      "  }",
-                      "});"
-                    ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
-                  }
-                }
-              ],
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/featured-servers",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "featured-servers"
-                  ]
-                }
-              },
-              "response": []
+                "type": "text/javascript"
+              }
             }
-          ]
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"sale.update\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\",\n  \"provider\": \"{{webhookProvider}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/admin/webhooks", "host": [ "{{baseUrl}}" ], "path": [ "admin", "webhooks" ] },
+            "description": "Registers a webhook for sales updates."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /admin/webhooks → register webhook (item.created)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"item.created\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\",\n  \"provider\": \"{{webhookProvider}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/admin/webhooks", "host": [ "{{baseUrl}}" ], "path": [ "admin", "webhooks" ] },
+            "description": "Registers a webhook for newly created items."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /admin/webhooks → register webhook (item.updated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"item.updated\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\",\n  \"provider\": \"{{webhookProvider}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/admin/webhooks", "host": [ "{{baseUrl}}" ], "path": [ "admin", "webhooks" ] },
+            "description": "Registers a webhook for item updates."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /admin/webhooks → register webhook (price.changed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"price.changed\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\",\n  \"provider\": \"{{webhookProvider}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/admin/webhooks", "host": [ "{{baseUrl}}" ], "path": [ "admin", "webhooks" ] },
+            "description": "Registers a webhook for price changes."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /admin/webhooks → register webhook (creator.trending)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"creator.trending\",\n  \"url\": \"{{webhookUrl}}\",\n  \"secret\": \"{{webhookSecret}}\",\n  \"provider\": \"{{webhookProvider}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/admin/webhooks", "host": [ "{{baseUrl}}" ], "path": [ "admin", "webhooks" ] },
+            "description": "Registers a webhook for trending creators."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Featured Servers",
+      "description": "Predefined featured servers; returns item data and screenshots (if available). ETag-enabled.",
+      "item": [
+        {
+          "name": "GET /marketplace/featured-servers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                  "pm.test(\"ETag present\", () => pm.expect(Boolean(pm.response.headers.get('ETag'))).to.be.true);",
+                  "pm.test(\"Array of server entries\", () => {",
+                  "  const arr = pm.response.json();",
+                  "  pm.expect(Array.isArray(arr)).to.be.true;",
+                  "  if (arr.length) {",
+                  "    pm.expect(arr[0]).to.have.property('name');",
+                  "    pm.expect(arr[0]).to.have.property('id');",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": { "raw": "{{baseUrl}}/marketplace/featured-servers", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "featured-servers" ] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Sales",
+      "item": [
+        {
+          "name": "GET /marketplace/sales",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": { "raw": "{{baseUrl}}/marketplace/sales", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "sales" ] }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /marketplace/featured-servers (duplicate quick access)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                  "pm.test(\"ETag present\", () => pm.expect(Boolean(pm.response.headers.get('ETag'))).to.be.true);",
+                  "pm.test(\"Array of server entries\", () => {",
+                  "  const arr = pm.response.json();",
+                  "  pm.expect(Array.isArray(arr)).to.be.true;",
+                  "  if (arr.length) {",
+                  "    pm.expect(arr[0]).to.have.property('name');",
+                  "    pm.expect(arr[0]).to.have.property('id');",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}", "type": "text" }
+            ],
+            "url": { "raw": "{{baseUrl}}/marketplace/featured-servers", "host": [ "{{baseUrl}}" ], "path": [ "marketplace", "featured-servers" ] }
+          },
+          "response": []
         }
       ]
     }
@@ -2388,90 +1397,35 @@
     {
       "listen": "test",
       "script": {
-        "exec": [
-          "// Collection-level test placeholder"
-        ],
+        "exec": [ "// Collection-level tests placeholder" ],
         "type": "text/javascript"
       }
     }
   ],
   "variable": [
-    {
-      "key": "baseUrl",
-      "value": "testing.view-marketplace.net"
-    },
-    {
-      "key": "alias_prod",
-      "value": "prod"
-    },
-    {
-      "key": "alias_bedrock",
-      "value": "bedrock"
-    },
-    {
-      "key": "creator1",
-      "value": "CubeCraftGames"
-    },
-    {
-      "key": "creator2",
-      "value": "TheHive"
-    },
-    {
-      "key": "keyword",
-      "value": "Rank"
-    },
-    {
-      "key": "tag",
-      "value": "hidden_offer"
-    },
-    {
-      "key": "itemId",
-      "value": "REPLACE_WITH_REAL_ITEM_ID"
-    },
-    {
-      "key": "friendlyId",
-      "value": "REPLACE_WITH_REAL_FRIENDLY_ID"
-    },
-    {
-      "key": "alias_to_delete",
-      "value": "demo"
-    },
-    {
-      "key": "new_alias",
-      "value": "postman-added-{{ts}}"
-    },
-    {
-      "key": "new_id",
-      "value": "PSTMN{{ts}}"
-    },
-    {
-      "key": "ts",
-      "value": ""
-    },
-    {
-      "key": "created_alias",
-      "value": ""
-    },
-    {
-      "key": "created_id",
-      "value": ""
-    },
-    {
-      "key": "etag_all_prod",
-      "value": ""
-    },
-    {
-      "key": "token",
-      "value": "",
-      "type": "default"
-    },
-    {
-      "key": "webhookProvider",
-      "value": "auto"
-    },
-    {
-      "key": "token_exp",
-      "value": ""
-    }
+    { "key": "baseUrl", "value": "https://testing.view-marketplace.net" },
+    { "key": "alias_prod", "value": "prod" },
+    { "key": "alias_bedrock", "value": "bedrock" },
+    { "key": "creator1", "value": "CubeCraftGames" },
+    { "key": "creator2", "value": "TheHive" },
+    { "key": "keyword", "value": "Rank" },
+    { "key": "tag", "value": "hidden_offer" },
+    { "key": "itemId", "value": "REPLACE_WITH_REAL_ITEM_ID" },
+    { "key": "friendlyId", "value": "REPLACE_WITH_REAL_FRIENDLY_ID" },
+    { "key": "alias_to_delete", "value": "demo" },
+    { "key": "new_alias", "value": "postman-added-{{ts}}" },
+    { "key": "new_id", "value": "PSTMN{{ts}}" },
+    { "key": "ts", "value": "" },
+    { "key": "created_alias", "value": "" },
+    { "key": "created_id", "value": "" },
+    { "key": "etag_all_prod", "value": "" },
+    { "key": "token", "value": "", "type": "default" },
+    { "key": "token_exp", "value": "" },
+    { "key": "webhookProvider", "value": "auto" },
+    { "key": "webhookUrl", "value": "https://example.com/webhook" },
+    { "key": "webhookSecret", "value": "change-me" },
+    { "key": "webhookId", "value": "" },
+    { "key": "webhookCount", "value": "0" },
+    { "key": "lastWebhookId", "value": "" }
   ]
 }

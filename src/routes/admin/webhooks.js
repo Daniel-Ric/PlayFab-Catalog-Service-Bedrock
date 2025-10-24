@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const { body } = require("express-validator");
+const { body, param } = require("express-validator");
 const validate = require("../../middleware/validate");
 const ctrl = require("../../controllers/admin/webhooksController");
 
@@ -13,6 +13,20 @@ router.post(
     ],
     validate,
     ctrl.register
+);
+
+router.get(
+    "/",
+    ctrl.list
+);
+
+router.delete(
+    "/:id",
+    [
+        param("id").notEmpty().isString()
+    ],
+    validate,
+    ctrl.remove
 );
 
 module.exports = router;

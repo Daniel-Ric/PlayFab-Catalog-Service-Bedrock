@@ -141,6 +141,18 @@ class WebhookService {
         return hook;
     }
 
+    async list() {
+        return this.hooks.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    }
+
+    async remove(id) {
+        const before = this.hooks.length;
+        this.hooks = this.hooks.filter(h => h.id !== id);
+        const changed = this.hooks.length !== before;
+        if (changed) this.persist();
+        return changed;
+    }
+
     async dispatch(event, payload) {
         const list = this.hooks.filter(h => h.event === event);
         if (!list.length) return;

@@ -8,7 +8,8 @@ router.post(
     [
         body("event").notEmpty().isString(),
         body("url").notEmpty().isURL(),
-        body("secret").optional().isString().isLength({ max: 256 })
+        body("secret").optional().isString().isLength({ max: 256 }),
+        body("provider").optional().isString().isLength({ max: 32 })
     ],
     validate,
     ctrl.register

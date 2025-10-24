@@ -1,12 +1,95 @@
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
+const crypto = require("crypto");
 const {stableHash} = require("../utils/hash");
 const {readJson, writeJsonAtomic} = require("../utils/storage");
 const {eventBus} = require("./eventBus");
 const logger = require("../config/logger");
 
 const file = path.join(__dirname, "..", "data", "webhooks.json");
+
+function detectProvider(url, override) {
+    if (override && typeof override === "string") return override.toLowerCase();
+    try {
+        const u = new URL(url);
+        const h = u.hostname.toLowerCase();
+        if (h.includes("discord.com") || h.includes("discordapp.com")) return "discord";
+        if (h.includes("hooks.slack.com")) return "slack";
+        if (h.includes("chat.googleapis.com")) return "googlechat";
+        if (h.includes("outlook.office.com") || h.includes("office.com") || h.includes("teams.microsoft.com")) return "teams";
+        return "generic";
+    } catch {
+        return "generic";
+    }
+}
+
+function toPlainText(event, payload) {
+    const ts = new Date(payload.ts || Date.now()).toISOString();
+    const base = [`event: ${event}`, `ts: ${ts}`];
+    if (payload && payload.payload && typeof payload.payload === "object") {
+        const p = payload.payload;
+        if (event === "sale.update" && Array.isArray(p.changes)) {
+            base.push(`changes: ${p.changes.length}`);
+        } else if (event === "item.created" && Array.isArray(p.items)) {
+            base.push(`created: ${p.items.length}`);
+        } else if (event === "item.updated" && Array.isArray(p.items)) {
+            base.push(`updated: ${p.items.length}`);
+        } else if (event === "price.changed" && Array.isArray(p.changes)) {
+            base.push(`priceChanges: ${p.changes.length}`);
+        } else if (event === "item.snapshot" && typeof p.count === "number") {
+            base.push(`snapshotCount: ${p.count}`);
+        } else if (event === "sale.snapshot" && typeof p.stores === "number") {
+            base.push(`saleStores: ${p.stores}`);
+        } else if (event === "creator.trending" && Array.isArray(p.leaders)) {
+            base.push(`leaders: ${p.leaders.length}`);
+        }
+    }
+    return base.join("\n");
+}
+
+function buildDiscordBody(event, payload) {
+    const content = `Webhook: ${event}`;
+    const ts = new Date(payload.ts || Date.now()).toISOString();
+    const description = toPlainText(event, payload);
+    const embed = {
+        title: event,
+        description,
+        timestamp: ts
+    };
+    return { content, embeds: [embed] };
+}
+
+function buildSlackBody(event, payload) {
+    return { text: toPlainText(event, payload) };
+}
+
+function buildGoogleChatBody(event, payload) {
+    return { text: toPlainText(event, payload) };
+}
+
+function buildTeamsBody(event, payload) {
+    const text = toPlainText(event, payload);
+    return {
+        "@type": "MessageCard",
+        "@context": "https://schema.org/extensions",
+        summary: event,
+        themeColor: "0076D7",
+        title: event,
+        text
+    };
+}
+
+function buildGenericBody(event, payload) {
+    return { event, ts: Date.now(), payload };
+}
+
+function signGenericBody(secret, body) {
+    const payload = JSON.stringify(body);
+    const ts = Date.now().toString();
+    const h = crypto.createHmac("sha256", secret).update(payload, "utf8").digest("hex");
+    return { ts, sig: `sha256=${h}` };
+}
 
 class WebhookService {
     constructor() {
@@ -32,19 +115,20 @@ class WebhookService {
     persist() {
         try {
             writeJsonAtomic(file, this.hooks);
-        } catch {
-        }
+        } catch {}
     }
 
-    async register({event, url, secret}) {
+    async register({event, url, secret, provider}) {
         if (!event || !url) throw new Error("event and url required");
-        const id = stableHash({event, url, secret: secret || ""});
+        const prov = detectProvider(url, provider);
+        const id = stableHash({event, url, secret: secret || "", provider: prov});
         const now = Date.now();
         const existing = this.hooks.find(h => h.id === id);
         const hook = existing ? existing : {
             id,
             event,
             url,
+            provider: prov,
             secret: secret || null,
             createdAt: now,
             updatedAt: now,
@@ -75,10 +159,24 @@ class WebhookService {
         }
     }
 
+    buildBodyAndHeaders(hook, event, payload) {
+        const provider = hook.provider || detectProvider(hook.url);
+        if (provider === "discord") return { body: buildDiscordBody(event, { event, ts: Date.now(), payload }), headers: { "Content-Type": "application/json" } };
+        if (provider === "slack") return { body: buildSlackBody(event, { event, ts: Date.now(), payload }), headers: { "Content-Type": "application/json" } };
+        if (provider === "googlechat") return { body: buildGoogleChatBody(event, { event, ts: Date.now(), payload }), headers: { "Content-Type": "application/json" } };
+        if (provider === "teams") return { body: buildTeamsBody(event, { event, ts: Date.now(), payload }), headers: { "Content-Type": "application/json" } };
+        const body = buildGenericBody(event, payload);
+        const headers = { "Content-Type": "application/json" };
+        if (hook.secret) {
+            const sig = signGenericBody(hook.secret, body);
+            headers["X-Webhook-Timestamp"] = sig.ts;
+            headers["X-Webhook-Signature"] = sig.sig;
+        }
+        return { body, headers };
+    }
+
     async deliver(hook, event, payload) {
-        const body = {event, ts: Date.now(), payload};
-        const headers = {"Content-Type": "application/json"};
-        if (hook.secret) headers["X-Webhook-Signature"] = stableHash({body, secret: hook.secret});
+        const { body, headers } = this.buildBodyAndHeaders(hook, event, payload);
         const maxRetries = Math.max(0, parseInt(process.env.WEBHOOK_MAX_RETRIES || "3", 10));
         let attempt = 0;
         let lastErr = null;

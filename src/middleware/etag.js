@@ -5,6 +5,10 @@ function withETag(handler) {
         try {
             const result = await handler(req, res, next);
             if (res.headersSent) return;
+            if (typeof result === "undefined") {
+                res.status(204).end();
+                return;
+            }
             const body = JSON.stringify(result);
             const hash = crypto.createHash("sha1").update(body).digest("hex");
             const tag = `W/"${body.length.toString(16)}-${hash.slice(0, 16)}"`;

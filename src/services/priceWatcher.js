@@ -51,15 +51,13 @@ function computeBestPrices(storeItems) {
             const id = it?.Item?.Id || it?.ItemId;
             if (!id) continue;
             const amounts = (it?.Price?.Prices || []).flatMap(p => (p.Amounts || []).map(a => ({
-                currencyId: a.CurrencyId,
-                amount: a.Amount
+                currencyId: a.CurrencyId, amount: a.Amount
             })));
             if (!amounts.length) continue;
             const sig = priceSignature(amounts);
             const prev = best.get(id);
             if (!prev) best.set(id, {sig, samples: 1}); else if (prev.sig !== sig) best.set(id, {
-                sig,
-                samples: prev.samples + 1
+                sig, samples: prev.samples + 1
             });
         }
     }
@@ -71,6 +69,7 @@ class PriceWatcher {
         this.running = false;
         this.timer = null;
         this.prev = new Map();
+        this.lastRunTs = 0;
     }
 
     start(eventBus) {
@@ -82,12 +81,16 @@ class PriceWatcher {
         const run = async () => {
             const titleId = getTitleId();
             const stores = await fetchStores(titleId, os);
-            if (!stores.length) return;
+            if (!stores.length) {
+                this.lastRunTs = Date.now();
+                return;
+            }
             const limited = stores.slice(0, Math.max(1, parseInt(process.env.PRICE_WATCH_MAX_STORES || "50", 10)));
             const batches = await fetchStoreItemsBatched(titleId, limited, os, concurrency);
             const best = computeBestPrices(batches);
             if (this.prev.size === 0) {
                 this.prev = best;
+                this.lastRunTs = Date.now();
                 return;
             }
             const changes = [];
@@ -98,6 +101,7 @@ class PriceWatcher {
             }
             if (changes.length) eventBus.emit("price.changed", {ts: Date.now(), changes});
             this.prev = best;
+            this.lastRunTs = Date.now();
         };
         run().catch(() => {
         });

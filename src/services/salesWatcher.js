@@ -46,8 +46,7 @@ function snapshot(stores) {
         const s = x.Store || {};
         const sid = s.Id || s.id || "unknown";
         const refs = s.ItemReferences || (Array.isArray(x.Items) ? x.Items.map(i => ({
-            Id: i?.Item?.Id || i?.ItemId,
-            Price: i?.Price
+            Id: i?.Item?.Id || i?.ItemId, Price: i?.Price
         })) : []);
         const keyParts = refs.map(r => `${r.Id}:${JSON.stringify((r.Price?.Prices || []).flatMap(p => (p.Amounts || []).map(a => [a.CurrencyId, a.Amount])))}`).sort();
         const h = stableHash(keyParts);
@@ -63,8 +62,7 @@ function diff(prev, next) {
         const a = prev.get(k);
         const b = next.get(k);
         if (!a && b) changes.push({storeId: k, type: "created"}); else if (a && !b) changes.push({
-            storeId: k,
-            type: "deleted"
+            storeId: k, type: "deleted"
         }); else if (a && b && a.hash !== b.hash) changes.push({storeId: k, type: "updated"});
     }
     return changes;
@@ -75,6 +73,7 @@ class SalesWatcher {
         this.running = false;
         this.timer = null;
         this.prev = new Map();
+        this.lastRunTs = 0;
     }
 
     start(eventBus) {
@@ -90,16 +89,22 @@ class SalesWatcher {
                 const snap = snapshot(storesWithItems);
                 if (!this.prev.size) {
                     this.prev = snap;
+                    this.lastRunTs = Date.now();
                     eventBus.emit("sale.snapshot", {ts: Date.now(), stores: snap.size});
                     return;
                 }
                 const changes = diff(this.prev, snap);
                 if (changes.length) {
                     this.prev = snap;
+                    this.lastRunTs = Date.now();
                     eventBus.emit("sale.update", {ts: Date.now(), changes});
+                    return;
                 }
+                this.prev = snap;
+                this.lastRunTs = Date.now();
             } catch (e) {
                 logger.debug(`[SalesWatcher] error ${e.message || "err"}`);
+                this.lastRunTs = Date.now();
             }
         };
         run();

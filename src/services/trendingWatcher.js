@@ -48,6 +48,7 @@ class TrendingWatcher {
         this.running = false;
         this.timer = null;
         this.lastPayload = null;
+        this.lastRunTs = 0;
     }
 
     start(eventBus) {
@@ -65,6 +66,7 @@ class TrendingWatcher {
             const leaders = scoreCreators(items).slice(0, limit);
             const payload = {ts: Date.now(), periodHours: hours, leaders};
             this.lastPayload = payload;
+            this.lastRunTs = Date.now();
             eventBus.emit("creator.trending", payload);
         };
         run().catch(() => {

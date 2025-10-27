@@ -24,11 +24,14 @@ const mpCompare = require("./routes/marketplace/compare");
 const mpFeaturedServers = require("./routes/marketplace/featured-servers");
 const mpSales = require("./routes/marketplace/sales");
 const mpSearchAdvanced = require("./routes/marketplace/search-advanced");
+const mpRecommendations = require("./routes/marketplace/recommendations");
+const mpStats = require("./routes/marketplace/stats");
 const eventsSales = require("./routes/events/sales");
 const eventsItems = require("./routes/events/items");
 const eventsPrices = require("./routes/events/prices");
 const eventsTrending = require("./routes/events/trending");
 const adminWebhooks = require("./routes/admin/webhooks");
+const healthRoutes = require("./routes/health");
 const chalkImport = require("chalk");
 const chalk = chalkImport.default || chalkImport;
 const swaggerUi = require("swagger-ui-express");
@@ -87,7 +90,7 @@ if ((process.env.LOG_LEVEL || "info").toLowerCase() === "debug" || (logger.level
 const openapi = getOpenApiSpec();
 app.get("/openapi.json", (_, res) => res.json(openapi));
 if (process.env.ENABLE_DOCS === "true") {
-    app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, {explorer: true}));
+    app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, {explorer: true})).get("/docs", (_req, res) => res.end());
 }
 
 app.get("/", (_req, res) => res.json({ok: true, name: "View Marketplace API"}));
@@ -217,6 +220,8 @@ app.use("/marketplace/compare", enforceAuth, cacheHeaders(60, 300), mpCompare);
 app.use("/marketplace/featured-servers", enforceAuth, cacheHeaders(300, 1200), mpFeaturedServers);
 app.use("/marketplace/sales", enforceAuth, cacheHeaders(60, 300), mpSales);
 app.use("/marketplace/search/advanced", enforceAuth, mpSearchAdvanced);
+app.use("/marketplace/recommendations", enforceAuth, cacheHeaders(60, 300), mpRecommendations);
+app.use("/marketplace", enforceAuth, cacheHeaders(60, 300), mpStats);
 
 app.use("/events/sales", enforceAuth, eventsSales);
 app.use("/events/items", enforceAuth, eventsItems);
@@ -224,6 +229,8 @@ app.use("/events/prices", enforceAuth, eventsPrices);
 app.use("/events/trending", enforceAuth, eventsTrending);
 
 app.use("/admin/webhooks", enforceAuth, requireRole("admin"), adminWebhooks);
+
+app.use("/health", enforceAuth, cacheHeaders(5, 5), healthRoutes);
 
 app.use((req, res) => {
     res.status(404).json({error: "Route not found."});

@@ -49,6 +49,7 @@ class ItemWatcher {
         this.running = false;
         this.timer = null;
         this.state = new Map();
+        this.lastRunTs = 0;
     }
 
     start(eventBus) {
@@ -73,12 +74,14 @@ class ItemWatcher {
             }
             if (this.state.size === 0) {
                 this.state = next;
+                this.lastRunTs = Date.now();
                 eventBus.emit("item.snapshot", {ts: Date.now(), count: next.size});
                 return;
             }
             if (created.length) eventBus.emit("item.created", {ts: Date.now(), items: created});
             if (updated.length) eventBus.emit("item.updated", {ts: Date.now(), items: updated});
             this.state = next;
+            this.lastRunTs = Date.now();
         };
         run().catch(() => {
         });

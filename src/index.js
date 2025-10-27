@@ -64,7 +64,11 @@ const app = express();
 const port = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET || JWT_SECRET.length < 32) {
-    console.error("JWT_SECRET must be set and >=32 chars");
+    console.error("");
+    console.error(chalk.bgRed.white.bold(" SETUP REQUIRED "));
+    console.error(chalk.red("JWT_SECRET is missing or too short."));
+    console.error(chalk.red("Run `npm run setup` to generate a valid .env and initial data files."));
+    console.error("");
     process.exit(1);
 }
 

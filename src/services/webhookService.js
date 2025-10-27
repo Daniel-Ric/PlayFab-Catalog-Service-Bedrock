@@ -53,19 +53,17 @@ function buildDiscordBody(event, payload) {
     const ts = new Date(payload.ts || Date.now()).toISOString();
     const description = toPlainText(event, payload);
     const embed = {
-        title: event,
-        description,
-        timestamp: ts
+        title: event, description, timestamp: ts
     };
-    return { content, embeds: [embed] };
+    return {content, embeds: [embed]};
 }
 
 function buildSlackBody(event, payload) {
-    return { text: toPlainText(event, payload) };
+    return {text: toPlainText(event, payload)};
 }
 
 function buildGoogleChatBody(event, payload) {
-    return { text: toPlainText(event, payload) };
+    return {text: toPlainText(event, payload)};
 }
 
 function buildTeamsBody(event, payload) {
@@ -81,14 +79,14 @@ function buildTeamsBody(event, payload) {
 }
 
 function buildGenericBody(event, payload) {
-    return { event, ts: Date.now(), payload };
+    return {event, ts: Date.now(), payload};
 }
 
 function signGenericBody(secret, body) {
     const payload = JSON.stringify(body);
     const ts = Date.now().toString();
     const h = crypto.createHmac("sha256", secret).update(payload, "utf8").digest("hex");
-    return { ts, sig: `sha256=${h}` };
+    return {ts, sig: `sha256=${h}`};
 }
 
 class WebhookService {
@@ -97,6 +95,7 @@ class WebhookService {
         this.inflight = new Map();
         this.load();
         eventBus.on("sale.update", p => this.dispatch("sale.update", p));
+        eventBus.on("sale.snapshot", p => this.dispatch("sale.snapshot", p));
         eventBus.on("item.snapshot", p => this.dispatch("item.snapshot", p));
         eventBus.on("item.created", p => this.dispatch("item.created", p));
         eventBus.on("item.updated", p => this.dispatch("item.updated", p));
@@ -115,7 +114,8 @@ class WebhookService {
     persist() {
         try {
             writeJsonAtomic(file, this.hooks);
-        } catch {}
+        } catch {
+        }
     }
 
     async register({event, url, secret, provider}) {
@@ -173,22 +173,32 @@ class WebhookService {
 
     buildBodyAndHeaders(hook, event, payload) {
         const provider = hook.provider || detectProvider(hook.url);
-        if (provider === "discord") return { body: buildDiscordBody(event, { event, ts: Date.now(), payload }), headers: { "Content-Type": "application/json" } };
-        if (provider === "slack") return { body: buildSlackBody(event, { event, ts: Date.now(), payload }), headers: { "Content-Type": "application/json" } };
-        if (provider === "googlechat") return { body: buildGoogleChatBody(event, { event, ts: Date.now(), payload }), headers: { "Content-Type": "application/json" } };
-        if (provider === "teams") return { body: buildTeamsBody(event, { event, ts: Date.now(), payload }), headers: { "Content-Type": "application/json" } };
+        if (provider === "discord") return {
+            body: buildDiscordBody(event, {event, ts: Date.now(), payload}),
+            headers: {"Content-Type": "application/json"}
+        };
+        if (provider === "slack") return {
+            body: buildSlackBody(event, {event, ts: Date.now(), payload}), headers: {"Content-Type": "application/json"}
+        };
+        if (provider === "googlechat") return {
+            body: buildGoogleChatBody(event, {event, ts: Date.now(), payload}),
+            headers: {"Content-Type": "application/json"}
+        };
+        if (provider === "teams") return {
+            body: buildTeamsBody(event, {event, ts: Date.now(), payload}), headers: {"Content-Type": "application/json"}
+        };
         const body = buildGenericBody(event, payload);
-        const headers = { "Content-Type": "application/json" };
+        const headers = {"Content-Type": "application/json"};
         if (hook.secret) {
             const sig = signGenericBody(hook.secret, body);
             headers["X-Webhook-Timestamp"] = sig.ts;
             headers["X-Webhook-Signature"] = sig.sig;
         }
-        return { body, headers };
+        return {body, headers};
     }
 
     async deliver(hook, event, payload) {
-        const { body, headers } = this.buildBodyAndHeaders(hook, event, payload);
+        const {body, headers} = this.buildBodyAndHeaders(hook, event, payload);
         const maxRetries = Math.max(0, parseInt(process.env.WEBHOOK_MAX_RETRIES || "3", 10));
         let attempt = 0;
         let lastErr = null;

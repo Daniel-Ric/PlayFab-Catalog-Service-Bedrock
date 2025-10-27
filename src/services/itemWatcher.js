@@ -1,6 +1,7 @@
 const {sendPlayFabRequest, buildSearchPayload, isValidItem} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
+const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
 
 function getTitleId() {
     const alias = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || "").trim();
@@ -22,7 +23,9 @@ function hashItemCore(it) {
         ContentType: it.ContentType || it.contentType,
         Platforms: it.Platforms,
         Images: Array.isArray(it.Images) ? it.Images.map(i => [i.Tag || i.tag, i.Url || i.url]) : [],
-        DisplayProperties: it.DisplayProperties
+        DisplayProperties: it.DisplayProperties,
+        ETag: it.ETag,
+        LastModifiedDate: it.LastModifiedDate
     };
     return stableHash(core);
 }
@@ -44,6 +47,24 @@ async function fetchRecentItems(titleId, os, top, pages) {
     return out;
 }
 
+function diffItems(prevMap, currItems) {
+    const nextMap = new Map();
+    const created = [];
+    const updated = [];
+    for (const it of currItems) {
+        const id = it.Id || it.id;
+        const h = hashItemCore(it);
+        nextMap.set(id, {hash: h, raw: it});
+        const prev = prevMap.get(id);
+        if (!prev) {
+            created.push(it);
+        } else if (prev.hash !== h) {
+            updated.push({before: prev.raw, after: it});
+        }
+    }
+    return {nextMap, created, updated};
+}
+
 class ItemWatcher {
     constructor() {
         this.running = false;
@@ -62,25 +83,36 @@ class ItemWatcher {
         const run = async () => {
             const titleId = getTitleId();
             const recent = await fetchRecentItems(titleId, os, pageTop, pages);
-            const next = new Map();
-            const created = [];
-            const updated = [];
-            for (const it of recent) {
-                const id = it.Id || it.id;
-                const h = hashItemCore(it);
-                const prev = this.state.get(id);
-                next.set(id, h);
-                if (!prev) created.push({id, ts: Date.now()}); else if (prev !== h) updated.push({id, ts: Date.now()});
-            }
             if (this.state.size === 0) {
-                this.state = next;
+                const bootstrapMap = new Map();
+                for (const it of recent) {
+                    const id = it.Id || it.id;
+                    bootstrapMap.set(id, {hash: hashItemCore(it), raw: it});
+                }
+                this.state = bootstrapMap;
                 this.lastRunTs = Date.now();
-                eventBus.emit("item.snapshot", {ts: Date.now(), count: next.size});
+                const snapshotPayload = {
+                    ts: Date.now(), count: bootstrapMap.size, items: projectCatalogItems(recent)
+                };
+                eventBus.emit("item.snapshot", snapshotPayload);
                 return;
             }
-            if (created.length) eventBus.emit("item.created", {ts: Date.now(), items: created});
-            if (updated.length) eventBus.emit("item.updated", {ts: Date.now(), items: updated});
-            this.state = next;
+            const {nextMap, created, updated} = diffItems(this.state, recent);
+            if (created.length > 0) {
+                const createdPayload = {
+                    ts: Date.now(), count: created.length, items: projectCatalogItems(created)
+                };
+                eventBus.emit("item.created", createdPayload);
+            }
+            if (updated.length > 0) {
+                const updatedPayload = {
+                    ts: Date.now(), count: updated.length, items: updated.map(pair => ({
+                        before: projectCatalogItem(pair.before), after: projectCatalogItem(pair.after)
+                    }))
+                };
+                eventBus.emit("item.updated", updatedPayload);
+            }
+            this.state = nextMap;
             this.lastRunTs = Date.now();
         };
         run().catch(() => {

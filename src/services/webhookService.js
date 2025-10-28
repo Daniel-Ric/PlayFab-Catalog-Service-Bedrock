@@ -49,13 +49,113 @@ function toPlainText(event, payload) {
 }
 
 function buildDiscordBody(event, payload) {
-    const content = `Webhook: ${event}`;
     const ts = new Date(payload.ts || Date.now()).toISOString();
-    const description = toPlainText(event, payload);
+    const p = payload && payload.payload ? payload.payload : {};
+    let firstItem = null;
+
+    if (event === "item.created" && Array.isArray(p.items) && p.items.length > 0) {
+        firstItem = p.items[0];
+    } else if (event === "item.updated" && Array.isArray(p.items) && p.items.length > 0) {
+        if (p.items[0].after) firstItem = p.items[0].after;
+        else firstItem = p.items[0];
+    }
+
+    let titleText = event;
+    let creatorName = "";
+    let priceText = "";
+    let createdAt = "";
+    let updatedAt = ts;
+    let availableAt = "";
+    let thumbUrl = null;
+    let heroUrl = null;
+    let shortDescLines = [];
+
+    if (firstItem) {
+        titleText = firstItem.title || firstItem.id || titleText;
+        creatorName = firstItem.creatorName || "";
+        priceText = typeof firstItem.price === "number" ? `${firstItem.price} Minecoins` : "N/A";
+        createdAt = firstItem.createdAt || "";
+        availableAt = firstItem.startDate || firstItem.createdAt || "";
+
+        if (firstItem.thumbnail) thumbUrl = firstItem.thumbnail;
+
+        if (Array.isArray(firstItem.images)) {
+            const big = firstItem.images.find(i => i && i.url);
+            if (big && big.url) heroUrl = big.url;
+        }
+        if (!heroUrl && p.items && p.items[0] && p.items[0].thumbnail) {
+            heroUrl = p.items[0].thumbnail;
+        }
+
+        if (firstItem.description) {
+            shortDescLines = String(firstItem.description)
+                .split(/\r?\n/)
+                .slice(0, 2)
+                .map(l => l.trim())
+                .filter(Boolean);
+        } else {
+            shortDescLines = [
+                "» New marketplace content detected",
+                "» Auto-ingested from PlayFab watcher"
+            ];
+        }
+    } else {
+        shortDescLines = [
+            "» Automated event payload",
+            "» See details below"
+        ];
+    }
+
+    const headlineParts = [];
+    if (titleText) headlineParts.push(titleText);
+    if (creatorName) headlineParts.push(`by ${creatorName}`);
+    const headline = headlineParts.join(" ");
+
+    const detailsBlock = [
+        "Details",
+        "```",
+        `Price:          ${priceText}`,
+        "```"
+    ].join("\n");
+
+    function fmtLabelDate(label, value) {
+        if (!value) return "";
+        return `**${label}**\n${value}\n`;
+    }
+
+    const descSections = [
+        `**${headline}**`,
+        shortDescLines.map(l => `» ${l}`).join("\n"),
+        detailsBlock,
+        fmtLabelDate("Public Marketplace Upload", createdAt),
+        fmtLabelDate("Last updated", updatedAt),
+        fmtLabelDate("Public Marketplace Availability", availableAt)
+    ].filter(Boolean);
+
+    const description = descSections.join("\n\n");
+
     const embed = {
-        title: event, description, timestamp: ts
+        title: headline,
+        description,
+        timestamp: ts,
+        footer: {
+            text: "PlayFab Catalog API | By SpindexGFX"
+        },
+        fields: []
     };
-    return {content, embeds: [embed]};
+
+    if (heroUrl) {
+        embed.image = { url: heroUrl };
+    }
+
+    if (thumbUrl) {
+        embed.thumbnail = { url: thumbUrl };
+    }
+
+    return {
+        content: `Webhook: ${event}`,
+        embeds: [embed]
+    };
 }
 
 function buildSlackBody(event, payload) {

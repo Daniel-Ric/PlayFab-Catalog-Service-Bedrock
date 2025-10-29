@@ -3,7 +3,7 @@
     tags:
       - Marketplace
     summary: Get free items
-    security: []
+    security: [ ]
     parameters:
       - in: path
         name: alias

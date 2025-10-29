@@ -1,6 +1,8 @@
 WebhookRegistration:
   type: object
-  required: [ event, url ]
+  required:
+    - event
+    - url
   properties:
     event:
       type: string

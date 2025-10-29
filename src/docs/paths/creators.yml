@@ -4,7 +4,7 @@
       - Creators
     summary: Get all creators
     description: Returns creatorName and displayName for known creators.
-    security: []
+    security: [ ]
     responses:
       "200":
         description: OK

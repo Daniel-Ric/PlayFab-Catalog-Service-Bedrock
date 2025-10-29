@@ -2,7 +2,8 @@
   get:
     summary: Sales events stream
     operationId: salesEventsStream
-    tags: [ events ]
+    tags:
+      - Events
     security:
       - BearerAuth: [ ]
     responses:

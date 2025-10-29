@@ -3,7 +3,7 @@
     tags:
       - Marketplace
     summary: Search items by creator and keyword
-    security: []
+    security: [ ]
     parameters:
       - in: path
         name: alias

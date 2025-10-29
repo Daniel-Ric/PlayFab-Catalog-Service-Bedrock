@@ -3,7 +3,7 @@
     tags:
       - Marketplace
     summary: Get item details by id
-    security: []
+    security: [ ]
     parameters:
       - in: path
         name: alias

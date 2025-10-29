@@ -3,7 +3,7 @@
     tags:
       - Marketplace
     summary: Get latest marketplace items
-    security: []
+    security: [ ]
     parameters:
       - in: path
         name: alias

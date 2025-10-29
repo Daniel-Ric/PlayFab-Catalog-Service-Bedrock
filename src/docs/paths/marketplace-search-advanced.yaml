@@ -2,20 +2,27 @@
   post:
     summary: Advanced search
     operationId: searchAdvanced
-    tags: [ marketplace ]
+    tags:
+      - Marketplace
     security:
       - BearerAuth: [ ]
     parameters:
       - in: path
         name: alias
         required: true
-        schema: { type: string }
+        schema:
+          type: string
       - in: query
         name: page
-        schema: { type: integer, minimum: 1 }
+        schema:
+          type: integer
+          minimum: 1
       - in: query
         name: pageSize
-        schema: { type: integer, minimum: 1, maximum: 100 }
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
     requestBody:
       required: false
       content:
@@ -29,5 +36,7 @@
           application/json:
             schema:
               $ref: '#/components/schemas/AdvancedSearchResponse'
-      '401': { description: Unauthorized }
-      '403': { description: Forbidden }
+      '401':
+        description: Unauthorized
+      '403':
+        description: Forbidden

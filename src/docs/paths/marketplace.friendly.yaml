@@ -3,7 +3,7 @@
     tags:
       - Marketplace
     summary: Get item by friendly id
-    security: []
+    security: [ ]
     parameters:
       - in: path
         name: alias

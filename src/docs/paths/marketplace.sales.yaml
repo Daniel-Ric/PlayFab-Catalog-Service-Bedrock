@@ -4,7 +4,7 @@
       - Marketplace
     summary: Get current sales
     description: Returns active sales and included items. Optional filter by creator display name.
-    security: []
+    security: [ ]
     parameters:
       - in: query
         name: creator

@@ -42,4 +42,6 @@ AdvancedSearchRequest:
             type: string
           dir:
             type: string
-            enum: [ asc, desc ]
+            enum:
+              - asc
+              - desc

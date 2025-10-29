@@ -4,7 +4,7 @@
       - Marketplace
     summary: Compare items of a creator across titles
     description: Returns a mapping from title alias to that creator’s items.
-    security: []
+    security: [ ]
     parameters:
       - in: path
         name: creatorName

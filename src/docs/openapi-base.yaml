@@ -12,12 +12,446 @@ tags:
   - name: Creators
   - name: Session
   - name: Marketplace
+  - name: Admin
+  - name: Events
 components:
   securitySchemes:
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-  schemas: {}
-paths: {}
-security: []
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            type:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            traceId:
+              type: string
+          required:
+            - type
+            - message
+      required:
+        - error
+    Creator:
+      type: object
+      properties:
+        creatorName:
+          type: string
+        displayName:
+          type: string
+      required:
+        - creatorName
+        - displayName
+    Image:
+      type: object
+      properties:
+        Id:
+          type: string
+        Tag:
+          type: string
+        Type:
+          type: string
+          enum:
+            - thumbnail
+            - screenshot
+        Url:
+          type: string
+          format: uri
+      required:
+        - Id
+        - Url
+    Item:
+      type: object
+      properties:
+        Id:
+          type: string
+        Title:
+          type: object
+          additionalProperties: true
+        StartDate:
+          type: string
+          format: date-time
+        Images:
+          type: array
+          items:
+            $ref: '#/components/schemas/Image'
+        DisplayProperties:
+          type: object
+          additionalProperties: true
+      required:
+        - Id
+        - Images
+    Title:
+      type: object
+      properties:
+        alias:
+          type: string
+        id:
+          type: string
+        notes:
+          type: string
+      required:
+        - alias
+        - id
+    WebhookRegistration:
+      type: object
+      required:
+        - event
+        - url
+      properties:
+        event:
+          type: string
+        url:
+          type: string
+          format: uri
+        secret:
+          type: string
+          nullable: true
+    WebhookResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        webhook:
+          type: object
+          properties:
+            id:
+              type: string
+            event:
+              type: string
+            url:
+              type: string
+              format: uri
+            secret:
+              type: string
+              nullable: true
+            createdAt:
+              type: integer
+            updatedAt:
+              type: integer
+            failures:
+              type: integer
+            lastStatus:
+              type: integer
+              nullable: true
+    SaleEvent:
+      type: object
+      properties:
+        ts:
+          type: integer
+        changes:
+          type: array
+          items:
+            type: object
+            properties:
+              storeId:
+                type: string
+              type:
+                type: string
+    PriceAmount:
+      type: object
+      properties:
+        currencyId:
+          type: string
+        amount:
+          type: number
+      required:
+        - currencyId
+        - amount
+    SaleItem:
+      type: object
+      properties:
+        id:
+          type: string
+        prices:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceAmount'
+        catalogVersion:
+          type: string
+          nullable: true
+        customData:
+          type: object
+          nullable: true
+          additionalProperties: true
+        contentType:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        platforms:
+          type: array
+          items:
+            type: string
+        keywords:
+          type: object
+          additionalProperties: true
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/Image'
+        virtualCurrencyPrices:
+          type: object
+          nullable: true
+          additionalProperties: true
+        realCurrencyPrices:
+          type: object
+          nullable: true
+          additionalProperties: true
+        rawItem:
+          type: object
+          additionalProperties: true
+      required:
+        - id
+        - prices
+    Sale:
+      type: object
+      properties:
+        id:
+          type: string
+        catalogVersion:
+          type: string
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        discountPercent:
+          type: integer
+          nullable: true
+        virtualCurrencyPrices:
+          type: object
+          nullable: true
+          additionalProperties: true
+        realCurrencyPrices:
+          type: object
+          nullable: true
+          additionalProperties: true
+        tags:
+          type: array
+          items:
+            type: string
+        platforms:
+          type: array
+          items:
+            type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleItem'
+      required:
+        - id
+        - items
+    SalesOverview:
+      type: object
+      properties:
+        totalItems:
+          type: integer
+        itemsPerCreator:
+          type: object
+          additionalProperties:
+            type: integer
+        sales:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/Sale'
+      required:
+        - totalItems
+        - itemsPerCreator
+        - sales
+    FeaturedServer:
+      type: object
+      properties:
+        name:
+          type: string
+        id:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Item'
+      required:
+        - name
+        - id
+        - items
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        skip:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+        hasNext:
+          type: boolean
+        nextPage:
+          type: integer
+          minimum: 1
+          nullable: true
+        start:
+          type: integer
+          minimum: 0
+        end:
+          type: integer
+          minimum: 0
+    PaginatedItems:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    AdvancedSearchRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          maxLength: 200
+        filters:
+          type: object
+          properties:
+            tags:
+              type: array
+              items:
+                type: string
+            creatorIds:
+              type: array
+              items:
+                type: string
+            creatorName:
+              type: string
+            priceMin:
+              type: integer
+              minimum: 0
+            priceMax:
+              type: integer
+              minimum: 0
+            createdFrom:
+              type: string
+              format: date-time
+            createdTo:
+              type: string
+              format: date-time
+            contentTypes:
+              type: array
+              items:
+                type: string
+        sort:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              dir:
+                type: string
+                enum:
+                  - asc
+                  - desc
+    AdvancedSearchResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+        meta:
+          type: object
+          properties:
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            hasNext:
+              type: boolean
+            nextPage:
+              type: integer
+              nullable: true
+            start:
+              type: integer
+            end:
+              type: integer
+        facets:
+          type: object
+          properties:
+            tags:
+              type: array
+              items:
+                type: object
+                properties:
+                  value:
+                    type: string
+                  count:
+                    type: integer
+            creators:
+              type: array
+              items:
+                type: object
+                properties:
+                  value:
+                    type: string
+                  count:
+                    type: integer
+            contentTypes:
+              type: array
+              items:
+                type: object
+                properties:
+                  value:
+                    type: string
+                  count:
+                    type: integer
+            price:
+              type: array
+              items:
+                type: object
+                properties:
+                  bucket:
+                    type: string
+                  count:
+                    type: integer
+security: [ ]
+paths: { }

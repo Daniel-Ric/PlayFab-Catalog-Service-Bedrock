@@ -4,7 +4,7 @@
       - Marketplace
     summary: Get all marketplace items
     description: Lists all items for a title alias with optional filters.
-    security: []
+    security: [ ]
     parameters:
       - in: path
         name: alias

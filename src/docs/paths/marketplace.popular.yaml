@@ -3,7 +3,7 @@
     tags:
       - Marketplace
     summary: Get popular items
-    security: []
+    security: [ ]
     parameters:
       - in: path
         name: alias

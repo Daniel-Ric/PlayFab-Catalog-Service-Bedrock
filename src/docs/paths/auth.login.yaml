@@ -4,7 +4,7 @@
       - Auth
     summary: Login to receive a JWT
     description: Returns a short-lived admin JWT if credentials match environment variables.
-    security: []
+    security: [ ]
     requestBody:
       required: true
       content:

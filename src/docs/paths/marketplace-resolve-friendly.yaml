@@ -4,7 +4,7 @@
       - Marketplace
     summary: Resolve wrapper to real item by FriendlyId
     description: Resolves an item by its FriendlyId and returns the canonical item.
-    security: []
+    security: [ ]
     parameters:
       - in: path
         name: alias

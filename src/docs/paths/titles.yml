@@ -3,7 +3,7 @@
     tags:
       - Titles
     summary: List all titles
-    security: []
+    security: [ ]
     responses:
       "200":
         description: OK
@@ -23,7 +23,7 @@
     tags:
       - Titles
     summary: Create a title
-    security: []
+    security: [ ]
     requestBody:
       required: true
       content:
@@ -48,7 +48,7 @@
     tags:
       - Titles
     summary: Delete a title
-    security: []
+    security: [ ]
     parameters:
       - in: path
         name: alias

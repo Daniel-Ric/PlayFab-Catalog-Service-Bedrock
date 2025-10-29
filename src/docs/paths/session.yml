@@ -5,7 +5,7 @@
     summary: Get a PlayFab session for a title alias
     description: Requires an admin JWT. Returns session credentials used for upstream requests.
     security:
-      - BearerAuth: []
+      - BearerAuth: [ ]
     parameters:
       - name: alias
         in: path

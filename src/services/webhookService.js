@@ -1,13 +1,23 @@
-const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
 const crypto = require("crypto");
+const http = require("http");
+const https = require("https");
 const {stableHash} = require("../utils/hash");
 const {readJson, writeJsonAtomic} = require("../utils/storage");
 const {eventBus} = require("./eventBus");
 const logger = require("../config/logger");
 
 const file = path.join(__dirname, "..", "data", "webhooks.json");
+
+const httpAgent = new http.Agent({keepAlive: true, maxSockets: 64});
+const httpsAgent = new https.Agent({keepAlive: true, maxSockets: 64});
+const httpClient = axios.create({
+    httpAgent,
+    httpsAgent,
+    timeout: Math.max(2000, parseInt(process.env.WEBHOOK_TIMEOUT_MS || "5000", 10)),
+    validateStatus: () => true
+});
 
 function detectProvider(url, override) {
     if (override && typeof override === "string") return override.toLowerCase();
@@ -49,113 +59,90 @@ function toPlainText(event, payload) {
 }
 
 function buildDiscordBody(event, payload) {
-    const ts = new Date(payload.ts || Date.now()).toISOString();
+    const tsIso = new Date(payload.ts || Date.now()).toISOString();
     const p = payload && payload.payload ? payload.payload : {};
-    let firstItem = null;
-
-    if (event === "item.created" && Array.isArray(p.items) && p.items.length > 0) {
-        firstItem = p.items[0];
-    } else if (event === "item.updated" && Array.isArray(p.items) && p.items.length > 0) {
-        if (p.items[0].after) firstItem = p.items[0].after;
-        else firstItem = p.items[0];
+    const pick = (...vals) => vals.find(v => v !== undefined && v !== null && v !== "") ?? null;
+    const fmtDate = v => (v ? new Date(v).toISOString() : null);
+    const fmtCoins = v => (typeof v === "number" ? `${v} Minecoins` : "N/A");
+    const trunc = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + "…" : s);
+    const forcedItem = p.item || null;
+    let item = forcedItem || (Array.isArray(p.items) && p.items.length && (p.items[0].after || p.items[0])) || (Array.isArray(p.changes) && p.changes.length && p.changes[0].item) || null;
+    const isItemCentric = !!item;
+    const raw = item?.rawItem || item?.raw || null;
+    const display = raw?.DisplayProperties || item?.displayProperties || {};
+    const rating = raw?.Rating || item?.rating || {};
+    const titleText = pick(item?.title, raw?.Title?.NEUTRAL, raw?.Title?.["en-US"], raw?.Title?.["en-GB"], item?.id, "Marketplace Item");
+    const creatorName = pick(display.creatorName, item?.creatorName, "Unknown");
+    const contentType = pick(raw?.ContentType, item?.contentType, "");
+    const price = pick(display.price, item?.price, null);
+    const priceText = fmtCoins(price);
+    const friendlyId = (raw?.AlternateIds || []).find(a => a.Type === "FriendlyId")?.Value || null;
+    const packIdentity = Array.isArray(display.packIdentity) ? display.packIdentity[0] : display.packIdentity || null;
+    const languages = raw?.Title ? Object.keys(raw.Title).length : (item?.languages || null);
+    const tags = raw?.Tags || item?.tags || [];
+    const platforms = raw?.Platforms || item?.platforms || [];
+    const images = raw?.Images || item?.images || [];
+    const thumbnail = pick(images?.find(i => (i.Type || i.type) === "Thumbnail")?.Url, item?.thumbnail, images?.[0]?.Url);
+    const hero = pick(images?.find(i => (i.Tag || i.tag) === "screenshot" || (i.Type || i.type) === "Screenshot")?.Url, images?.[0]?.Url, thumbnail);
+    const description = pick(item?.description, raw?.Description?.NEUTRAL, raw?.Description?.["en-US"], "");
+    const createdAt = pick(item?.createdAt, raw?.CreationDate, raw?.creationDate, null);
+    const availableAt = pick(item?.startDate, raw?.StartDate, raw?.startDate, null);
+    const lastModified = pick(raw?.LastModifiedDate, null);
+    const etag = pick(raw?.ETag, null);
+    const ratingAvg = pick(rating.Average, rating.average, null);
+    const ratingCount = pick(rating.TotalCount, rating.totalcount, rating.count, null);
+    const headline = creatorName && titleText ? `${titleText} — by ${creatorName}` : titleText || creatorName || "Marketplace Item";
+    const descLines = [];
+    if (description) descLines.push(trunc(String(description).replace(/\s+/g, " "), 350));
+    if (contentType) descLines.push(`*Type:* ${contentType}`);
+    if (friendlyId) descLines.push(`*FriendlyId:* \`${friendlyId}\``);
+    if (packIdentity?.uuid) {
+        const ver = packIdentity.version ? ` @ ${packIdentity.version}` : "";
+        descLines.push(`*Pack:* \`${packIdentity.uuid}\`${ver}`);
     }
-
-    let titleText = event;
-    let creatorName = "";
-    let priceText = "";
-    let createdAt = "";
-    let updatedAt = ts;
-    let availableAt = "";
-    let thumbUrl = null;
-    let heroUrl = null;
-    let shortDescLines = [];
-
-    if (firstItem) {
-        titleText = firstItem.title || firstItem.id || titleText;
-        creatorName = firstItem.creatorName || "";
-        priceText = typeof firstItem.price === "number" ? `${firstItem.price} Minecoins` : "N/A";
-        createdAt = firstItem.createdAt || "";
-        availableAt = firstItem.startDate || firstItem.createdAt || "";
-
-        if (firstItem.thumbnail) thumbUrl = firstItem.thumbnail;
-
-        if (Array.isArray(firstItem.images)) {
-            const big = firstItem.images.find(i => i && i.url);
-            if (big && big.url) heroUrl = big.url;
-        }
-        if (!heroUrl && p.items && p.items[0] && p.items[0].thumbnail) {
-            heroUrl = p.items[0].thumbnail;
-        }
-
-        if (firstItem.description) {
-            shortDescLines = String(firstItem.description)
-                .split(/\r?\n/)
-                .slice(0, 2)
-                .map(l => l.trim())
-                .filter(Boolean);
-        } else {
-            shortDescLines = [
-                "» New marketplace content detected",
-                "» Auto-ingested from PlayFab watcher"
-            ];
-        }
-    } else {
-        shortDescLines = [
-            "» Automated event payload",
-            "» See details below"
-        ];
+    const fields = [];
+    fields.push({name: "Price", value: priceText, inline: true});
+    if (ratingAvg !== null || ratingCount !== null) {
+        const r = ratingAvg !== null ? `${ratingAvg}` : "—";
+        const c = ratingCount !== null ? `${ratingCount}` : "—";
+        fields.push({name: "Rating", value: `⭐ ${r} (${c})`, inline: true});
     }
-
-    const headlineParts = [];
-    if (titleText) headlineParts.push(titleText);
-    if (creatorName) headlineParts.push(`by ${creatorName}`);
-    const headline = headlineParts.join(" ");
-
-    const detailsBlock = [
-        "Details",
-        "```",
-        `Price:          ${priceText}`,
-        "```"
-    ].join("\n");
-
-    function fmtLabelDate(label, value) {
-        if (!value) return "";
-        return `**${label}**\n${value}\n`;
+    if (languages) fields.push({name: "Locales", value: String(languages), inline: true});
+    if (tags && tags.length) fields.push({
+        name: "Tags", value: trunc(tags.slice(0, 10).join(", "), 1024), inline: false
+    });
+    if (platforms && platforms.length) fields.push({name: "Platforms", value: platforms.join(", "), inline: false});
+    const dateBlock = [];
+    if (createdAt) dateBlock.push(`Upload: ${fmtDate(createdAt)}`);
+    if (availableAt) dateBlock.push(`Available: ${fmtDate(availableAt)}`);
+    if (lastModified) dateBlock.push(`Last Modified: ${fmtDate(lastModified)}`);
+    if (etag) dateBlock.push(`ETag: \`${etag}\``);
+    if (dateBlock.length) fields.push({name: "Meta", value: dateBlock.join("\n"), inline: false});
+    if (!isItemCentric) {
+        const quick = [];
+        if (event === "sale.update" && Array.isArray(p.changes)) quick.push(`sale buckets changed: **${p.changes.length}**`);
+        if (event === "price.changed" && Array.isArray(p.changes)) quick.push(`price signatures changed: **${p.changes.length}**`);
+        if (event === "sale.snapshot" && typeof p.stores === "number") quick.push(`sale stores snapshot: **${p.stores}**`);
+        if (event === "item.snapshot" && typeof p.count === "number") quick.push(`item snapshot: **${p.count}**`);
+        if (event === "creator.trending" && Array.isArray(p.leaders)) quick.push(`top creators (last ${payload.payload?.periodHours || "24"}h): **${p.leaders.length}**`);
+        if (quick.length) fields.push({name: "Event", value: quick.join("\n"), inline: false});
     }
-
-    const descSections = [
-        `**${headline}**`,
-        shortDescLines.map(l => `» ${l}`).join("\n"),
-        detailsBlock,
-        fmtLabelDate("Public Marketplace Upload", createdAt),
-        fmtLabelDate("Last updated", updatedAt),
-        fmtLabelDate("Public Marketplace Availability", availableAt)
-    ].filter(Boolean);
-
-    const description = descSections.join("\n\n");
-
-    const embed = {
+    const mainEmbed = {
         title: headline,
-        description,
-        timestamp: ts,
-        footer: {
-            text: "PlayFab Catalog API | By SpindexGFX"
-        },
-        fields: []
+        description: descLines.join("\n"),
+        timestamp: tsIso,
+        footer: {text: "PlayFab Catalog API | By SpindexGFX"},
+        fields
     };
-
-    if (heroUrl) {
-        embed.image = { url: heroUrl };
-    }
-
-    if (thumbUrl) {
-        embed.thumbnail = { url: thumbUrl };
-    }
-
-    return {
-        content: `Webhook: ${event}`,
-        embeds: [embed]
-    };
+    if (thumbnail) mainEmbed.thumbnail = {url: thumbnail};
+    if (hero) mainEmbed.image = {url: hero};
+    const extraScreens = (images || [])
+        .map(i => i?.Url || i?.url)
+        .filter(Boolean)
+        .filter(u => u !== hero && u !== thumbnail)
+        .slice(0, 3)
+        .map(u => ({image: {url: u}, timestamp: tsIso}));
+    return {content: `Webhook: ${event}`, embeds: [mainEmbed, ...extraScreens]};
 }
 
 function buildSlackBody(event, payload) {
@@ -187,6 +174,34 @@ function signGenericBody(secret, body) {
     const ts = Date.now().toString();
     const h = crypto.createHmac("sha256", secret).update(payload, "utf8").digest("hex");
     return {ts, sig: `sha256=${h}`};
+}
+
+function splitPayloads(event, payload) {
+    const p = payload || {};
+    if (event === "item.created" && Array.isArray(p.items)) {
+        return p.items.map(it => ({ts: Date.now(), payload: {item: it}}));
+    }
+    if (event === "item.updated" && Array.isArray(p.items)) {
+        return p.items.map(pair => ({
+            ts: Date.now(), payload: {before: pair.before, after: pair.after, item: pair.after || pair.before}
+        }));
+    }
+    if (event === "price.changed" && Array.isArray(p.changes)) {
+        return p.changes.map(ch => ({ts: Date.now(), payload: {change: ch, itemId: ch.itemId}}));
+    }
+    if (event === "sale.update" && Array.isArray(p.changes)) {
+        return p.changes.map(ch => ({ts: Date.now(), payload: {change: ch}}));
+    }
+    return [{ts: Date.now(), payload: p}];
+}
+
+function unitKey(event, unit) {
+    const u = unit || {};
+    if (u.payload && u.payload.item && u.payload.item.id) return String(u.payload.item.id);
+    if (u.payload && u.payload.after && u.payload.after.id) return String(u.payload.after.id);
+    if (u.payload && typeof u.payload.itemId !== "undefined") return String(u.payload.itemId);
+    if (u.payload && u.payload.change && u.payload.change.storeId) return `store:${u.payload.change.storeId}`;
+    return String(u.ts || Date.now());
 }
 
 class WebhookService {
@@ -256,11 +271,21 @@ class WebhookService {
     async dispatch(event, payload) {
         const list = this.hooks.filter(h => h.event === event);
         if (!list.length) return;
-        const key = stableHash({event, payload});
-        if (this.inflight.has(key)) return;
-        const p = this.sendAll(list, event, payload).finally(() => this.inflight.delete(key));
-        this.inflight.set(key, p);
-        return p;
+        const units = splitPayloads(event, payload);
+        if (!units.length) return;
+        const concurrency = Math.max(1, parseInt(process.env.WEBHOOK_CONCURRENCY || "4", 10));
+        let i = 0;
+        while (i < units.length) {
+            const slice = units.slice(i, i + concurrency);
+            await Promise.all(slice.flatMap(u => list.map(h => {
+                const key = `${h.id}:${event}:${unitKey(event, u)}`;
+                if (this.inflight.has(key)) return this.inflight.get(key);
+                const p = this.deliver(h, event, u).finally(() => this.inflight.delete(key));
+                this.inflight.set(key, p);
+                return p;
+            })));
+            i += concurrency;
+        }
     }
 
     async sendAll(list, event, payload) {
@@ -273,21 +298,24 @@ class WebhookService {
 
     buildBodyAndHeaders(hook, event, payload) {
         const provider = hook.provider || detectProvider(hook.url);
+        const core = (payload && payload.payload) ? payload.payload : payload;
         if (provider === "discord") return {
-            body: buildDiscordBody(event, {event, ts: Date.now(), payload}),
+            body: buildDiscordBody(event, {event, ts: Date.now(), payload: core}),
             headers: {"Content-Type": "application/json"}
         };
         if (provider === "slack") return {
-            body: buildSlackBody(event, {event, ts: Date.now(), payload}), headers: {"Content-Type": "application/json"}
+            body: buildSlackBody(event, {event, ts: Date.now(), payload: core}),
+            headers: {"Content-Type": "application/json"}
         };
         if (provider === "googlechat") return {
-            body: buildGoogleChatBody(event, {event, ts: Date.now(), payload}),
+            body: buildGoogleChatBody(event, {event, ts: Date.now(), payload: core}),
             headers: {"Content-Type": "application/json"}
         };
         if (provider === "teams") return {
-            body: buildTeamsBody(event, {event, ts: Date.now(), payload}), headers: {"Content-Type": "application/json"}
+            body: buildTeamsBody(event, {event, ts: Date.now(), payload: core}),
+            headers: {"Content-Type": "application/json"}
         };
-        const body = buildGenericBody(event, payload);
+        const body = buildGenericBody(event, core);
         const headers = {"Content-Type": "application/json"};
         if (hook.secret) {
             const sig = signGenericBody(hook.secret, body);
@@ -304,11 +332,7 @@ class WebhookService {
         let lastErr = null;
         while (attempt <= maxRetries) {
             try {
-                const r = await axios.post(hook.url, body, {
-                    timeout: Math.max(2000, parseInt(process.env.WEBHOOK_TIMEOUT_MS || "5000", 10)),
-                    headers,
-                    validateStatus: () => true
-                });
+                const r = await httpClient.post(hook.url, body, {headers});
                 hook.lastStatus = r.status;
                 hook.failures = r.status >= 200 && r.status < 300 ? 0 : hook.failures + 1;
                 hook.updatedAt = Date.now();

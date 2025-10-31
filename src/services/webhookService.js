@@ -109,7 +109,9 @@ function buildDiscordBody(event, payload) {
     }
     if (languages) fields.push({name: "Locales", value: String(languages), inline: true});
     if (tags && tags.length) fields.push({
-        name: "Tags", value: trunc(tags.slice(0, 10).join(", "), 1024), inline: false
+        name: "Tags",
+        value: trunc(tags.slice(0, 10).join(", "), 1024),
+        inline: false
     });
     if (platforms && platforms.length) fields.push({name: "Platforms", value: platforms.join(", "), inline: false});
     const dateBlock = [];
@@ -183,14 +185,24 @@ function splitPayloads(event, payload) {
     }
     if (event === "item.updated" && Array.isArray(p.items)) {
         return p.items.map(pair => ({
-            ts: Date.now(), payload: {before: pair.before, after: pair.after, item: pair.after || pair.before}
+            ts: Date.now(),
+            payload: {before: pair.before, after: pair.after, item: pair.after || pair.before}
         }));
+    }
+    if (event === "item.snapshot" && Array.isArray(p.items)) {
+        return p.items.map(it => ({ts: Date.now(), payload: {item: it}}));
     }
     if (event === "price.changed" && Array.isArray(p.changes)) {
         return p.changes.map(ch => ({ts: Date.now(), payload: {change: ch, itemId: ch.itemId}}));
     }
     if (event === "sale.update" && Array.isArray(p.changes)) {
         return p.changes.map(ch => ({ts: Date.now(), payload: {change: ch}}));
+    }
+    if (event === "creator.trending" && Array.isArray(p.leaders)) {
+        return p.leaders.map(l => ({
+            ts: Date.now(),
+            payload: {creator: l.creator, score: l.score, periodHours: p.periodHours}
+        }));
     }
     return [{ts: Date.now(), payload: p}];
 }
@@ -201,7 +213,18 @@ function unitKey(event, unit) {
     if (u.payload && u.payload.after && u.payload.after.id) return String(u.payload.after.id);
     if (u.payload && typeof u.payload.itemId !== "undefined") return String(u.payload.itemId);
     if (u.payload && u.payload.change && u.payload.change.storeId) return `store:${u.payload.change.storeId}`;
+    if (u.payload && typeof u.payload.creator === "string") return `creator:${u.payload.creator}`;
     return String(u.ts || Date.now());
+}
+
+function normCreator(v) {
+    return String(v || "").toLowerCase().replace(/\s+/g, "");
+}
+
+function extractCreatorFromUnit(u) {
+    const p = (u && u.payload) || {};
+    const cand = p.item?.creatorName || p.after?.creatorName || p.before?.creatorName || p.creator || p.creatorName || null;
+    return normCreator(cand);
 }
 
 class WebhookService {
@@ -233,10 +256,11 @@ class WebhookService {
         }
     }
 
-    async register({event, url, secret, provider}) {
+    async register({event, url, secret, provider, creator}) {
         if (!event || !url) throw new Error("event and url required");
         const prov = detectProvider(url, provider);
-        const id = stableHash({event, url, secret: secret || "", provider: prov});
+        const creatorNorm = creator ? normCreator(creator) : null;
+        const id = stableHash({event, url, secret: secret || "", provider: prov, creator: creatorNorm || ""});
         const now = Date.now();
         const existing = this.hooks.find(h => h.id === id);
         const hook = existing ? existing : {
@@ -248,9 +272,13 @@ class WebhookService {
             createdAt: now,
             updatedAt: now,
             failures: 0,
-            lastStatus: null
+            lastStatus: null,
+            creator: creatorNorm || null,
+            creatorDisplay: creator || null
         };
         hook.updatedAt = now;
+        hook.creator = creatorNorm || null;
+        hook.creatorDisplay = creator || null;
         if (!existing) this.hooks.push(hook);
         this.persist();
         return hook;
@@ -278,6 +306,10 @@ class WebhookService {
         while (i < units.length) {
             const slice = units.slice(i, i + concurrency);
             await Promise.all(slice.flatMap(u => list.map(h => {
+                if (h.creator) {
+                    const c = extractCreatorFromUnit(u);
+                    if (!c || c !== h.creator) return Promise.resolve();
+                }
                 const key = `${h.id}:${event}:${unitKey(event, u)}`;
                 if (this.inflight.has(key)) return this.inflight.get(key);
                 const p = this.deliver(h, event, u).finally(() => this.inflight.delete(key));

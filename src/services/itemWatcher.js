@@ -1,4 +1,4 @@
-const {sendPlayFabRequest, buildSearchPayload} = require("../utils/playfab");
+const {sendPlayFabRequest, buildSearchPayload, isValidItem} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
 const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
@@ -23,30 +23,11 @@ function hashItemCore(it) {
         ContentType: it.ContentType || it.contentType,
         Platforms: it.Platforms,
         Images: Array.isArray(it.Images) ? it.Images.map(i => [i.Tag || i.tag, i.Url || i.url]) : [],
-        DisplayProperties: it.DisplayProperties
+        DisplayProperties: it.DisplayProperties,
+        ETag: it.ETag,
+        LastModifiedDate: it.LastModifiedDate
     };
     return stableHash(core);
-}
-
-function localesCount(it) {
-    const t = it && it.Title;
-    return t && typeof t === "object" ? Object.keys(t).length : 0;
-}
-
-function unwantedByType(it) {
-    const rx = new RegExp(process.env.CONTENT_TYPE_DENY_REGEX || "^(shell_|entitlement|persona|.*Durable.*)", "i");
-    const ct = it.ContentType || it.contentType || "";
-    return rx.test(ct);
-}
-
-function passesFilter(it) {
-    if (!it || !it.DisplayProperties) return false;
-    const creator = it.DisplayProperties.creatorName || "";
-    if (!creator) return false;
-    if (unwantedByType(it)) return false;
-    const minLocales = Math.max(0, parseInt(process.env.ITEM_MIN_LOCALES || "1", 10));
-    if (localesCount(it) < minLocales) return false;
-    return true;
 }
 
 async function fetchRecentItems(titleId, os, top, pages) {
@@ -58,7 +39,7 @@ async function fetchRecentItems(titleId, os, top, pages) {
         const skip = i * top;
         const payload = buildSearchPayload({filter, search, top, skip, orderBy, expandFields: "images"});
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 2, os);
-        const items = (data.Items || []).filter(passesFilter);
+        const items = (data.Items || []).filter(isValidItem);
         if (!items.length) break;
         out.push(...items);
         if (items.length < top) break;
@@ -75,7 +56,11 @@ function diffItems(prevMap, currItems) {
         const h = hashItemCore(it);
         nextMap.set(id, {hash: h, raw: it});
         const prev = prevMap.get(id);
-        if (!prev) created.push(it); else if (prev.hash !== h) updated.push({before: prev.raw, after: it});
+        if (!prev) {
+            created.push(it);
+        } else if (prev.hash !== h) {
+            updated.push({before: prev.raw, after: it});
+        }
     }
     return {nextMap, created, updated};
 }
@@ -106,13 +91,17 @@ class ItemWatcher {
                 }
                 this.state = bootstrapMap;
                 this.lastRunTs = Date.now();
-                const snapshotPayload = {ts: Date.now(), count: bootstrapMap.size, items: projectCatalogItems(recent)};
+                const snapshotPayload = {
+                    ts: Date.now(), count: bootstrapMap.size, items: projectCatalogItems(recent)
+                };
                 eventBus.emit("item.snapshot", snapshotPayload);
                 return;
             }
             const {nextMap, created, updated} = diffItems(this.state, recent);
             if (created.length > 0) {
-                const createdPayload = {ts: Date.now(), count: created.length, items: projectCatalogItems(created)};
+                const createdPayload = {
+                    ts: Date.now(), count: created.length, items: projectCatalogItems(created)
+                };
                 eventBus.emit("item.created", createdPayload);
             }
             if (updated.length > 0) {

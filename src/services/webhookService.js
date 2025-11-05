@@ -39,21 +39,7 @@ function toPlainText(event, payload) {
     const base = [`event: ${event}`, `ts: ${ts}`];
     if (payload && payload.payload && typeof payload.payload === "object") {
         const p = payload.payload;
-        if (event === "sale.update" && Array.isArray(p.changes)) {
-            base.push(`changes: ${p.changes.length}`);
-        } else if (event === "item.created" && Array.isArray(p.items)) {
-            base.push(`created: ${p.items.length}`);
-        } else if (event === "item.updated" && Array.isArray(p.items)) {
-            base.push(`updated: ${p.items.length}`);
-        } else if (event === "price.changed" && Array.isArray(p.changes)) {
-            base.push(`priceChanges: ${p.changes.length}`);
-        } else if (event === "item.snapshot" && typeof p.count === "number") {
-            base.push(`snapshotCount: ${p.count}`);
-        } else if (event === "sale.snapshot" && typeof p.stores === "number") {
-            base.push(`saleStores: ${p.stores}`);
-        } else if (event === "creator.trending" && Array.isArray(p.leaders)) {
-            base.push(`leaders: ${p.leaders.length}`);
-        }
+        if (event === "sale.update" && Array.isArray(p.changes)) base.push(`changes: ${p.changes.length}`); else if (event === "item.created" && Array.isArray(p.items)) base.push(`created: ${p.items.length}`); else if (event === "item.updated" && Array.isArray(p.items)) base.push(`updated: ${p.items.length}`); else if (event === "price.changed" && Array.isArray(p.changes)) base.push(`priceChanges: ${p.changes.length}`); else if (event === "item.snapshot" && typeof p.count === "number") base.push(`snapshotCount: ${p.count}`); else if (event === "sale.snapshot" && typeof p.stores === "number") base.push(`saleStores: ${p.stores}`); else if (event === "creator.trending" && Array.isArray(p.leaders)) base.push(`leaders: ${p.leaders.length}`);
     }
     return base.join("\n");
 }
@@ -64,87 +50,84 @@ function buildDiscordBody(event, payload) {
     const pick = (...vals) => vals.find(v => v !== undefined && v !== null && v !== "") ?? null;
     const fmtDate = v => (v ? new Date(v).toISOString() : null);
     const fmtCoins = v => (typeof v === "number" ? `${v} Minecoins` : "N/A");
-    const trunc = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + "…" : s);
-    const forcedItem = p.item || null;
-    let item = forcedItem || (Array.isArray(p.items) && p.items.length && (p.items[0].after || p.items[0])) || (Array.isArray(p.changes) && p.changes.length && p.changes[0].item) || null;
-    const isItemCentric = !!item;
-    const raw = item?.rawItem || item?.raw || null;
-    const display = raw?.DisplayProperties || item?.displayProperties || {};
-    const rating = raw?.Rating || item?.rating || {};
-    const titleText = pick(item?.title, raw?.Title?.NEUTRAL, raw?.Title?.["en-US"], raw?.Title?.["en-GB"], item?.id, "Marketplace Item");
-    const creatorName = pick(display.creatorName, item?.creatorName, "Unknown");
-    const contentType = pick(raw?.ContentType, item?.contentType, "");
-    const price = pick(display.price, item?.price, null);
-    const priceText = fmtCoins(price);
-    const friendlyId = (raw?.AlternateIds || []).find(a => a.Type === "FriendlyId")?.Value || null;
-    const packIdentity = Array.isArray(display.packIdentity) ? display.packIdentity[0] : display.packIdentity || null;
-    const languages = raw?.Title ? Object.keys(raw.Title).length : (item?.languages || null);
-    const tags = raw?.Tags || item?.tags || [];
-    const platforms = raw?.Platforms || item?.platforms || [];
-    const images = raw?.Images || item?.images || [];
-    const thumbnail = pick(images?.find(i => (i.Type || i.type) === "Thumbnail")?.Url, item?.thumbnail, images?.[0]?.Url);
-    const hero = pick(images?.find(i => (i.Tag || i.tag) === "screenshot" || (i.Type || i.type) === "Screenshot")?.Url, images?.[0]?.Url, thumbnail);
-    const description = pick(item?.description, raw?.Description?.NEUTRAL, raw?.Description?.["en-US"], "");
-    const createdAt = pick(item?.createdAt, raw?.CreationDate, raw?.creationDate, null);
-    const availableAt = pick(item?.startDate, raw?.StartDate, raw?.startDate, null);
-    const lastModified = pick(raw?.LastModifiedDate, null);
-    const etag = pick(raw?.ETag, null);
-    const ratingAvg = pick(rating.Average, rating.average, null);
-    const ratingCount = pick(rating.TotalCount, rating.totalcount, rating.count, null);
-    const headline = creatorName && titleText ? `${titleText} — by ${creatorName}` : titleText || creatorName || "Marketplace Item";
-    const descLines = [];
-    if (description) descLines.push(trunc(String(description).replace(/\s+/g, " "), 350));
-    if (contentType) descLines.push(`*Type:* ${contentType}`);
-    if (friendlyId) descLines.push(`*FriendlyId:* \`${friendlyId}\``);
-    if (packIdentity?.uuid) {
-        const ver = packIdentity.version ? ` @ ${packIdentity.version}` : "";
-        descLines.push(`*Pack:* \`${packIdentity.uuid}\`${ver}`);
-    }
-    const fields = [];
-    fields.push({name: "Price", value: priceText, inline: true});
-    if (ratingAvg !== null || ratingCount !== null) {
-        const r = ratingAvg !== null ? `${ratingAvg}` : "—";
-        const c = ratingCount !== null ? `${ratingCount}` : "—";
-        fields.push({name: "Rating", value: `⭐ ${r} (${c})`, inline: true});
-    }
-    if (languages) fields.push({name: "Locales", value: String(languages), inline: true});
-    if (tags && tags.length) fields.push({
-        name: "Tags",
-        value: trunc(tags.slice(0, 10).join(", "), 1024),
-        inline: false
-    });
-    if (platforms && platforms.length) fields.push({name: "Platforms", value: platforms.join(", "), inline: false});
-    const dateBlock = [];
-    if (createdAt) dateBlock.push(`Upload: ${fmtDate(createdAt)}`);
-    if (availableAt) dateBlock.push(`Available: ${fmtDate(availableAt)}`);
-    if (lastModified) dateBlock.push(`Last Modified: ${fmtDate(lastModified)}`);
-    if (etag) dateBlock.push(`ETag: \`${etag}\``);
-    if (dateBlock.length) fields.push({name: "Meta", value: dateBlock.join("\n"), inline: false});
-    if (!isItemCentric) {
-        const quick = [];
-        if (event === "sale.update" && Array.isArray(p.changes)) quick.push(`sale buckets changed: **${p.changes.length}**`);
-        if (event === "price.changed" && Array.isArray(p.changes)) quick.push(`price signatures changed: **${p.changes.length}**`);
-        if (event === "sale.snapshot" && typeof p.stores === "number") quick.push(`sale stores snapshot: **${p.stores}**`);
-        if (event === "item.snapshot" && typeof p.count === "number") quick.push(`item snapshot: **${p.count}**`);
-        if (event === "creator.trending" && Array.isArray(p.leaders)) quick.push(`top creators (last ${payload.payload?.periodHours || "24"}h): **${p.leaders.length}**`);
-        if (quick.length) fields.push({name: "Event", value: quick.join("\n"), inline: false});
-    }
-    const mainEmbed = {
-        title: headline,
-        description: descLines.join("\n"),
-        timestamp: tsIso,
-        footer: {text: "PlayFab Catalog API | By SpindexGFX"},
-        fields
+    const trunc = (s, n) => {
+        const t = String(s || "");
+        return t.length > n ? t.slice(0, n - 1) + "…" : t;
     };
-    if (thumbnail) mainEmbed.thumbnail = {url: thumbnail};
-    if (hero) mainEmbed.image = {url: hero};
-    const extraScreens = (images || [])
-        .map(i => i?.Url || i?.url)
-        .filter(Boolean)
-        .filter(u => u !== hero && u !== thumbnail)
-        .slice(0, 3)
-        .map(u => ({image: {url: u}, timestamp: tsIso}));
-    return {content: `Webhook: ${event}`, embeds: [mainEmbed, ...extraScreens]};
+    const makeEmbed = (it) => {
+        const raw = it?.rawItem || it?.raw || null;
+        const display = raw?.DisplayProperties || it?.displayProperties || {};
+        const rating = raw?.Rating || it?.rating || {};
+        const titleText = pick(it?.title, raw?.Title?.NEUTRAL, raw?.Title?.["en-US"], raw?.Title?.["en-GB"], it?.id, "Marketplace Item");
+        const creatorName = pick(display.creatorName, it?.creatorName, "");
+        const contentType = pick(raw?.ContentType, it?.contentType, "");
+        const price = pick(display.price, it?.price, null);
+        const priceText = fmtCoins(price);
+        const friendlyId = (raw?.AlternateIds || []).find(a => a.Type === "FriendlyId")?.Value || null;
+        const packIdentityRaw = Array.isArray(display.packIdentity) ? display.packIdentity[0] : display.packIdentity || null;
+        const languages = raw?.Title ? Object.keys(raw.Title).length : (it?.languages || null);
+        const tags = raw?.Tags || it?.tags || [];
+        const platforms = raw?.Platforms || it?.platforms || [];
+        const images = raw?.Images || it?.images || [];
+        const thumbnail = pick(images?.find(i => (i.Type || i.type) === "thumbnail")?.Url, it?.thumbnail, images?.[0]?.Url);
+        const hero = pick(images?.find(i => (i.Tag || i.tag) === "screenshot" || (i.Type || i.type) === "Screenshot")?.Url, images?.[0]?.Url, thumbnail);
+        const description = pick(it?.description, raw?.Description?.NEUTRAL, raw?.Description?.["en-US"], "");
+        const createdAt = pick(it?.createdAt, raw?.CreationDate, raw?.creationDate, null);
+        const availableAt = pick(it?.startDate, raw?.StartDate, raw?.startDate, null);
+        const lastModified = pick(raw?.LastModifiedDate, null);
+        const etag = pick(raw?.ETag, null);
+        const ratingAvg = pick(rating.Average, rating.average, null);
+        const ratingCount = pick(rating.TotalCount, rating.totalcount, rating.count, null);
+        const headline = creatorName ? `${titleText} — by ${creatorName}` : titleText || "Marketplace Item";
+        const descLines = [];
+        if (description) descLines.push(trunc(String(description).replace(/\s+/g, " "), 350));
+        if (contentType) descLines.push(`Type: ${contentType}`);
+        if (friendlyId) descLines.push(`FriendlyId: \`${friendlyId}\``);
+        if (packIdentityRaw && (packIdentityRaw.uuid || packIdentityRaw.id)) {
+            const uuid = packIdentityRaw.uuid || packIdentityRaw.id;
+            const ver = packIdentityRaw.version ? ` @ ${packIdentityRaw.version}` : "";
+            descLines.push(`Pack: \`${uuid}\`${ver}`);
+        }
+        const fields = [];
+        fields.push({name: "Price", value: priceText, inline: true});
+        if (ratingAvg !== null || ratingCount !== null) {
+            const r = ratingAvg !== null ? `${ratingAvg}` : "—";
+            const c = ratingCount !== null ? `${ratingCount}` : "—";
+            fields.push({name: "Rating", value: `⭐ ${r} (${c})`, inline: true});
+        }
+        if (languages) fields.push({name: "Locales", value: String(languages), inline: true});
+        if (tags && tags.length) fields.push({
+            name: "Tags",
+            value: trunc(tags.slice(0, 10).join(", "), 1024),
+            inline: false
+        });
+        if (platforms && platforms.length) fields.push({name: "Platforms", value: platforms.join(", "), inline: false});
+        const dateBlock = [];
+        if (createdAt) dateBlock.push(`Upload: ${fmtDate(createdAt)}`);
+        if (availableAt) dateBlock.push(`Available: ${fmtDate(availableAt)}`);
+        if (lastModified) dateBlock.push(`Last Modified: ${fmtDate(lastModified)}`);
+        if (etag) dateBlock.push(`ETag: \`${etag}\``);
+        if (dateBlock.length) fields.push({name: "Meta", value: dateBlock.join("\n"), inline: false});
+        const embed = {
+            title: headline,
+            description: descLines.join("\n"),
+            timestamp: tsIso,
+            footer: {text: "PlayFab Catalog API | By SpindexGFX"},
+            fields
+        };
+        if (thumbnail) embed.thumbnail = {url: thumbnail};
+        if (hero) embed.image = {url: hero};
+        return embed;
+    };
+    const items = Array.isArray(p.items) ? p.items : [(p.item || p.after || p.before || null)].filter(Boolean);
+    if (items.length) {
+        const embeds = items.slice(0, 10).map(makeEmbed);
+        return {content: `Webhook: ${event}`, embeds};
+    }
+    const forcedItem = p.item || null;
+    const it = forcedItem || (Array.isArray(p.items) && p.items.length && (p.items[0].after || p.items[0])) || (Array.isArray(p.changes) && p.changes.length && p.changes[0].item) || null;
+    if (it) return {content: `Webhook: ${event}`, embeds: [makeEmbed(it)]};
+    return {content: `Webhook: ${event}`, embeds: []};
 }
 
 function buildSlackBody(event, payload) {
@@ -178,19 +161,22 @@ function signGenericBody(secret, body) {
     return {ts, sig: `sha256=${h}`};
 }
 
+function chunk(arr, size) {
+    const out = [];
+    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+}
+
 function splitPayloads(event, payload) {
     const p = payload || {};
-    if (event === "item.created" && Array.isArray(p.items)) {
-        return p.items.map(it => ({ts: Date.now(), payload: {item: it}}));
+    const N = 8;
+    if ((event === "item.created" || event === "item.snapshot") && Array.isArray(p.items)) {
+        const chunks = chunk(p.items, N);
+        return chunks.map(items => ({ts: Date.now(), payload: {items}}));
     }
     if (event === "item.updated" && Array.isArray(p.items)) {
-        return p.items.map(pair => ({
-            ts: Date.now(),
-            payload: {before: pair.before, after: pair.after, item: pair.after || pair.before}
-        }));
-    }
-    if (event === "item.snapshot" && Array.isArray(p.items)) {
-        return p.items.map(it => ({ts: Date.now(), payload: {item: it}}));
+        const chunks = chunk(p.items, N);
+        return chunks.map(items => ({ts: Date.now(), payload: {items, updated: true}}));
     }
     if (event === "price.changed" && Array.isArray(p.changes)) {
         return p.changes.map(ch => ({ts: Date.now(), payload: {change: ch, itemId: ch.itemId}}));
@@ -225,6 +211,27 @@ function extractCreatorFromUnit(u) {
     const p = (u && u.payload) || {};
     const cand = p.item?.creatorName || p.after?.creatorName || p.before?.creatorName || p.creator || p.creatorName || null;
     return normCreator(cand);
+}
+
+const perHookQueues = new Map();
+
+function enqueueForHook(hookId, job) {
+    const prev = perHookQueues.get(hookId) || Promise.resolve();
+    const next = prev.then(job).catch(() => {
+    }).finally(() => {
+    });
+    perHookQueues.set(hookId, next);
+    return next;
+}
+
+const dedupeMap = new Map();
+
+function dedupeHit(key, ttlMs) {
+    const now = Date.now();
+    const prev = dedupeMap.get(key);
+    if (prev && now - prev < ttlMs) return true;
+    dedupeMap.set(key, now);
+    return false;
 }
 
 class WebhookService {
@@ -297,10 +304,16 @@ class WebhookService {
     }
 
     async dispatch(event, payload) {
-        const list = this.hooks.filter(h => h.event === event);
+        let list = this.hooks.filter(h => h.event === event);
         if (!list.length) return;
+        if (event === "item.snapshot" || event === "sale.snapshot") {
+            list = list.filter(h => h.provider !== "discord");
+            if (!list.length) return;
+        }
         const units = splitPayloads(event, payload);
         if (!units.length) return;
+        const dropUnknown = String(process.env.WEBHOOK_DROP_UNKNOWN_CREATORS || "true").toLowerCase() === "true";
+        const ttl = Math.max(0, parseInt(process.env.WEBHOOK_DEDUPE_TTL_MS || "60000", 10));
         const concurrency = Math.max(1, parseInt(process.env.WEBHOOK_CONCURRENCY || "4", 10));
         let i = 0;
         while (i < units.length) {
@@ -309,10 +322,15 @@ class WebhookService {
                 if (h.creator) {
                     const c = extractCreatorFromUnit(u);
                     if (!c || c !== h.creator) return Promise.resolve();
+                } else if (dropUnknown) {
+                    const c = extractCreatorFromUnit(u);
+                    if (!c) return Promise.resolve();
                 }
                 const key = `${h.id}:${event}:${unitKey(event, u)}`;
+                if (dedupeHit(key, ttl)) return Promise.resolve();
                 if (this.inflight.has(key)) return this.inflight.get(key);
-                const p = this.deliver(h, event, u).finally(() => this.inflight.delete(key));
+                const job = () => this.deliver(h, event, u);
+                const p = enqueueForHook(h.id, job).finally(() => this.inflight.delete(key));
                 this.inflight.set(key, p);
                 return p;
             })));
@@ -370,12 +388,22 @@ class WebhookService {
                 hook.updatedAt = Date.now();
                 this.persist();
                 if (r.status >= 200 && r.status < 300) return;
-                lastErr = new Error(String(r.status));
+                if (r.status === 429) {
+                    let retryAfterMs = 0;
+                    const raBody = r.data && typeof r.data.retry_after !== "undefined" ? Number(r.data.retry_after) : 0;
+                    const raHdr = r.headers && typeof r.headers["retry-after"] !== "undefined" ? Number(r.headers["retry-after"]) : 0;
+                    if (Number.isFinite(raBody) && raBody > 0) retryAfterMs = raBody >= 1000 ? raBody : raBody * 1000; else if (Number.isFinite(raHdr) && raHdr > 0) retryAfterMs = raHdr * 1000;
+                    if (!retryAfterMs) retryAfterMs = 2500;
+                    await new Promise(res => setTimeout(res, Math.max(500, retryAfterMs)));
+                    attempt++;
+                    continue;
+                }
             } catch (e) {
                 lastErr = e;
             }
-            await new Promise(r => setTimeout(r, Math.min(10000, Math.pow(2, attempt) * 250 + Math.floor(Math.random() * 250))));
-            attempt += 1;
+            const wait = Math.min(15000, Math.pow(2, attempt) * 400 + Math.floor(Math.random() * 300));
+            await new Promise(res => setTimeout(res, wait));
+            attempt++;
         }
         logger.debug(`[Webhook] failure ${hook.url} ${lastErr ? (lastErr.message || "err") : "err"}`);
     }

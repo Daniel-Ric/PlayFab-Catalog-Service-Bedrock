@@ -36,10 +36,7 @@ function andFilter(a, b) {
 }
 
 async function searchLoop(titleId, {
-    filter = "",
-    orderBy = "creationDate desc",
-    batch = 300,
-    maxBatches = Number(process.env.MAX_SEARCH_BATCHES || 10)
+    filter = "", orderBy = "creationDate desc", batch = 300, maxBatches = Number(process.env.MAX_SEARCH_BATCHES || 10)
 }) {
     const out = [];
     for (let i = 0, skip = 0; i < maxBatches; i += 1, skip += batch) {
@@ -54,10 +51,7 @@ async function searchLoop(titleId, {
 }
 
 async function searchLoopAllItems(titleId, {
-    filter = "",
-    orderBy = "creationDate desc",
-    batch = 300,
-    maxBatches = Number(process.env.MAX_SEARCH_BATCHES || 10)
+    filter = "", orderBy = "creationDate desc", batch = 300, maxBatches = Number(process.env.MAX_SEARCH_BATCHES || 10)
 }) {
     const out = [];
     for (let i = 0, skip = 0; i < maxBatches; i += 1, skip += batch) {
@@ -259,8 +253,7 @@ async function enrichItemWithStorePrices(titleId, itemId) {
             const hit = items.find(si => si?.Item?.Id === itemId || si?.ItemId === itemId);
             if (!hit) return null;
             const amounts = (hit?.Price?.Prices || []).flatMap(p => (p.Amounts || []).map(a => ({
-                currencyId: a.CurrencyId,
-                amount: a.Amount
+                currencyId: a.CurrencyId, amount: a.Amount
             })));
             return {storeId: s.Id || s.id, storeTitle: s.Title || s.Name, amounts};
         }));
@@ -291,7 +284,7 @@ function creatorMetaById(cid) {
 
 function summarizeItem(it) {
     const id = it.Id || it.id || "";
-    const title = (it.Title && (it.Title.NEUTRAL || it.Title.neutral)) || "";
+    aconstitle = (it.Title && (it.Title.NEUTRAL || it.Title.neutral)) || "";
     const creatorName = (it.DisplayProperties && it.DisplayProperties.creatorName) || "";
     const startDate = it.StartDate || it.CreationDate || it.creationDate || null;
     const price = it.DisplayProperties && typeof it.DisplayProperties.price === "number" ? it.DisplayProperties.price : null;
@@ -301,7 +294,7 @@ function summarizeItem(it) {
         const th = it.Images.find(img => (img.Type || "").toLowerCase() === "thumbnail") || it.Images[0];
         if (th && th.Url) thumbnail = th.Url;
     }
-    return {id, title, creatorName, startDate, price, contentType, thumbnail};
+    return {id, title: aconstitle, creatorName, startDate, price, contentType, thumbnail};
 }
 
 function ratingCountOf(it) {
@@ -355,6 +348,117 @@ function buildRecommendationsFilter(base) {
         if (entry && entry.id) return `creatorId eq '${esc(entry.id)}'`;
     }
     return "";
+}
+
+function median(sortedNums) {
+    const n = sortedNums.length;
+    if (!n) return null;
+    const mid = Math.floor(n / 2);
+    if (n % 2) return sortedNums[mid];
+    return (sortedNums[mid - 1] + sortedNums[mid]) / 2;
+}
+
+function ymKeys(date) {
+    const y = date.getUTCFullYear();
+    const m = date.getUTCMonth() + 1;
+    return {year: String(y), month: `${y}-${String(m).padStart(2, "0")}`};
+}
+
+function inc(map, key, delta = 1) {
+    map.set(key, (map.get(key) || 0) + delta);
+}
+
+function starFromAvg(avg) {
+    if (typeof avg !== "number" || Number.isNaN(avg)) return null;
+    return Math.max(1, Math.min(5, Math.round(avg)));
+}
+
+function bucketForPrice(p) {
+    if (typeof p !== "number") return null;
+    const edges = [0, 310, 620, 990, 1990, 3990];
+    let label = `${edges[0]}-${edges[1] - 1}`;
+    for (let i = 0; i < edges.length - 1; i++) {
+        if (p >= edges[i] && p < edges[i + 1]) {
+            label = `${edges[i]}-${edges[i + 1] - 1}`;
+            return label;
+        }
+    }
+    return `${edges[edges.length - 1]}+`;
+}
+
+const EUR_PACKS = [{c: 8800, p: 49.99}, {c: 3850, p: 19.99}, {c: 1720, p: 9.99}, {c: 1020, p: 5.99}, {c: 320, p: 1.99}];
+
+const USD_PACKS = [{c: 8800, p: 49.99}, {c: 3850, p: 19.99}, {c: 1720, p: 9.99}, {c: 1020, p: 5.99}, {c: 320, p: 1.99}];
+
+function estimateCostFromCoins(coins, packs) {
+    if (!coins || coins <= 0) return 0;
+    const ps = packs.slice().sort((a, b) => b.c - a.c);
+    let bestCost = Infinity;
+    let bestCoins = Infinity;
+    const maxA = Math.ceil(coins / ps[0].c) + 1;
+    for (let a = 0; a <= maxA; a++) {
+        const gotA = a * ps[0].c;
+        const costA = a * ps[0].p;
+        const remA = Math.max(0, coins - gotA);
+        const baseB = Math.floor(remA / ps[1].c);
+        for (let b = Math.max(0, baseB - 1); b <= baseB + 1; b++) {
+            let got = gotA + b * ps[1].c;
+            let cost = costA + b * ps[1].p;
+            let rem = Math.max(0, coins - got);
+            for (let i = 2; i < ps.length; i++) {
+                const isLast = i === ps.length - 1;
+                const cnt = isLast ? Math.ceil(rem / ps[i].c) : Math.floor(rem / ps[i].c);
+                got += cnt * ps[i].c;
+                cost += cnt * ps[i].p;
+                rem = Math.max(0, coins - got);
+            }
+            if (got >= coins && (cost < bestCost || (cost === bestCost && got < bestCoins))) {
+                bestCost = cost;
+                bestCoins = got;
+            }
+        }
+    }
+    return Number(bestCost.toFixed(2));
+}
+
+function getItemCoinPrice(it) {
+    const dp = it?.DisplayProperties || {};
+    if (typeof dp.price === "number") return dp.price;
+
+    const vc = it?.VirtualCurrencyPrices || it?.virtualCurrencyPrices || null;
+    if (vc && typeof vc === "object") {
+        for (const k of Object.keys(vc)) {
+            const v = vc[k];
+            if (typeof v === "number") return v;
+            if (v && typeof v.Amount === "number") return v.Amount;
+        }
+    }
+
+    const refs = Array.isArray(it?.ItemReferences) ? it.ItemReferences : [];
+    for (const r of refs) {
+        if (r?.Price?.Prices) {
+            const amounts = (r.Price.Prices || []).flatMap(p => (p.Amounts || []).map(a => a));
+            const hit = amounts.find(a => typeof a?.Amount === "number");
+            if (hit) return hit.Amount;
+        }
+    }
+    return 0;
+}
+
+function getRealMoneyFromItem(it) {
+    const coins = getItemCoinPrice(it);
+    const eur = estimateCostFromCoins(coins, EUR_PACKS);
+    const fx = parseFloat(process.env.FX_USD_PER_EUR || "");
+    const usd = Number.isFinite(fx) ? Number((eur * fx).toFixed(2)) : estimateCostFromCoins(coins, USD_PACKS);
+    return {USD: usd, EUR: eur};
+}
+
+function isPurchasable(it) {
+    const dp = it.DisplayProperties || {};
+    if (typeof dp.purchasable === "boolean") return dp.purchasable;
+    const hasVC = typeof dp.price === "number";
+    const hasReal = !!(it.RealCurrencyPrices && (it.RealCurrencyPrices.USD || it.RealCurrencyPrices.EUR));
+    return !!(hasVC || hasReal);
 }
 
 module.exports = {
@@ -592,8 +696,7 @@ module.exports = {
                 const items = (res[j].Items || res[j].items || []).map(it => ({
                     itemId: it?.Item?.Id || it?.ItemId,
                     prices: (it?.Price?.Prices || []).flatMap(p => (p.Amounts || []).map(a => ({
-                        currencyId: a.CurrencyId,
-                        amount: a.Amount
+                        currencyId: a.CurrencyId, amount: a.Amount
                     })))
                 }));
                 out[sid] = items;
@@ -602,35 +705,220 @@ module.exports = {
         return out;
     },
 
-    async getCreatorStats(creatorName) {
+    async getCreatorStats(creatorName, opts = {}) {
+        const latestLimit = Math.max(0, Math.min(parseInt(opts.latestLimit || 5, 10), 50));
+        const topRatedLimit = Math.max(0, Math.min(parseInt(opts.topRatedLimit || 5, 10), 50));
+        const months = Math.max(1, Math.min(parseInt(opts.months || 12, 10), 36));
+        const includeLists = opts.includeLists !== false;
+
         const cid = resolveCreatorId(creatorsArr, creatorName);
         const meta = creatorMetaById(cid);
         const titleId = PROD_TITLE_ID;
         const filter = `creatorId eq '${esc(cid)}'`;
 
         const allItemsRaw = await searchLoopAllItems(titleId, {filter, orderBy: "creationDate desc", batch: 300});
-        const totalItems = allItemsRaw.length;
+        const allItems = await enrichWithFullItems(titleId, allItemsRaw);
+        const totalItems = allItems.length;
 
-        const latestSorted = allItemsRaw
-            .slice()
-            .sort((a, b) => {
-                const da = new Date(a.StartDate || a.startDate || a.CreationDate || a.creationDate || 0).getTime();
-                const db = new Date(b.StartDate || b.startDate || b.CreationDate || b.creationDate || 0).getTime();
-                return db - da;
-            });
+        const byDateDesc = allItems.slice().sort((a, b) => {
+            const da = new Date(a.StartDate || a.CreationDate || 0).getTime();
+            const db = new Date(b.StartDate || b.CreationDate || 0).getTime();
+            return db - da;
+        });
+        const lastItemFull = byDateDesc[0] || null;
+        const last10ItemsFull = byDateDesc.slice(0, 10);
 
-        const latestItems = latestSorted.slice(0, 5).map(summarizeItem);
+        const latestItems = includeLists ? byDateDesc.slice(0, latestLimit).map(summarizeItem) : [];
+        const topRatedSorted = includeLists ? allItems.slice().sort((a, b) => ratingCountOf(b) - ratingCountOf(a)) : [];
+        const topRatedItems = includeLists ? topRatedSorted.slice(0, topRatedLimit).map(summarizeItem) : [];
 
-        const topRatedSorted = allItemsRaw.slice().sort((a, b) => ratingCountOf(b) - ratingCountOf(a));
-        const topRatedItems = topRatedSorted.slice(0, 5).map(summarizeItem);
+        const prices = [];
+        let totalValue = 0;
+        let highestPrice = null;
 
-        const priceDistribution = buildPriceBuckets(allItemsRaw);
-        const contentTypes = buildTypeCounts(allItemsRaw);
+        let realUSDTotal = 0;
+        let realEURTotal = 0;
+
+        let totalRatingCount = 0;
+        let sumAvgRatings = 0;
+
+        let purchTrue = 0;
+        let purchFalse = 0;
+
+        const priceDistributionGlobal = new Map();
+        const ratingsDistributionGlobal = new Map([[1, 0], [2, 0], [3, 0], [4, 0], [5, 0]]);
+
+        const itemsPerYear = new Map();
+        const itemsPerYearMonth = new Map();
+
+        const ratingsPerYear = new Map();
+        const ratingsPerYearMonth = new Map();
+
+        const purchPerYear = new Map();
+        const purchPerYearMonth = new Map();
+
+        const priceRangePerYear = new Map();
+        const priceRangePerYearMonth = new Map();
+
+        const now = Date.now();
+        const monthlyWindow = new Map();
+        const monthsBackStart = new Date();
+        monthsBackStart.setUTCMonth(monthsBackStart.getUTCMonth() - (months - 1));
+        monthsBackStart.setUTCDate(1);
+        monthsBackStart.setUTCHours(0, 0, 0, 0);
+
+        let firstDate = null;
+        let lastDate = null;
+        let ageDaysSum = 0;
+        let newestAgeDays = null;
+
+        for (const it of allItems) {
+            const dp = it.DisplayProperties || {};
+            if (typeof dp.price === "number") {
+                const p = dp.price;
+                prices.push(p);
+                totalValue += p;
+                highestPrice = (highestPrice === null) ? p : Math.max(highestPrice, p);
+                const br = bucketForPrice(p);
+                if (br) inc(priceDistributionGlobal, br);
+            }
+
+            const real = getRealMoneyFromItem(it);
+            realUSDTotal += real.USD || 0;
+            realEURTotal += real.EUR || 0;
+
+            const r = it.Rating || {};
+            const avg = (typeof r.Average === "number") ? r.Average : null;
+            const cnt = (typeof r.TotalCount === "number") ? r.TotalCount : (typeof r.Count === "number" ? r.Count : 0);
+            totalRatingCount += cnt;
+            if (avg !== null) sumAvgRatings += avg;
+
+            const rounded = starFromAvg(avg);
+            if (rounded && cnt > 0) {
+                ratingsDistributionGlobal.set(rounded, (ratingsDistributionGlobal.get(rounded) || 0) + cnt);
+            }
+
+            const dRaw = it.StartDate || it.CreationDate || null;
+            const d = dRaw ? new Date(dRaw) : null;
+            if (d && !Number.isNaN(d.getTime())) {
+                if (!firstDate || d.getTime() < firstDate.getTime()) firstDate = d;
+                if (!lastDate || d.getTime() > lastDate.getTime()) lastDate = d;
+                const ageDays = Math.floor((now - d.getTime()) / 86400000);
+                ageDaysSum += ageDays;
+                if (newestAgeDays === null || ageDays < newestAgeDays) newestAgeDays = ageDays;
+
+                const {year, month} = ymKeys(d);
+
+                inc(itemsPerYear, year, 1);
+                if (!itemsPerYearMonth.has(year)) itemsPerYearMonth.set(year, new Map());
+                inc(itemsPerYearMonth.get(year), month, 1);
+
+                if (!ratingsPerYear.has(year)) ratingsPerYear.set(year, new Map([[1, 0], [2, 0], [3, 0], [4, 0], [5, 0]]));
+                if (rounded && cnt > 0) {
+                    ratingsPerYear.get(year).set(rounded, (ratingsPerYear.get(year).get(rounded) || 0) + cnt);
+                }
+                if (!ratingsPerYearMonth.has(year)) ratingsPerYearMonth.set(year, new Map());
+                if (!ratingsPerYearMonth.get(year).has(month)) ratingsPerYearMonth.get(year).set(month, new Map([[1, 0], [2, 0], [3, 0], [4, 0], [5, 0]]));
+                if (rounded && cnt > 0) {
+                    const mm = ratingsPerYearMonth.get(year).get(month);
+                    mm.set(rounded, (mm.get(rounded) || 0) + cnt);
+                }
+
+                const purch = isPurchasable(it);
+                if (!purchPerYear.has(year)) purchPerYear.set(year, {true: 0, false: 0});
+                purchPerYear.get(year)[purch ? "true" : "false"] += 1;
+                if (!purchPerYearMonth.has(year)) purchPerYearMonth.set(year, new Map());
+                if (!purchPerYearMonth.get(year).has(month)) purchPerYearMonth.get(year).set(month, {
+                    true: 0, false: 0
+                });
+                purchPerYearMonth.get(year).get(month)[purch ? "true" : "false"] += 1;
+
+                const prBucket = bucketForPrice(dp.price);
+                if (prBucket) {
+                    if (!priceRangePerYear.has(year)) priceRangePerYear.set(year, new Map());
+                    inc(priceRangePerYear.get(year), prBucket, 1);
+                    if (!priceRangePerYearMonth.has(year)) priceRangePerYearMonth.set(year, new Map());
+                    if (!priceRangePerYearMonth.get(year).has(month)) priceRangePerYearMonth.get(year).set(month, new Map());
+                    inc(priceRangePerYearMonth.get(year).get(month), prBucket, 1);
+                }
+
+                if (d >= monthsBackStart) {
+                    inc(monthlyWindow, month, 1);
+                }
+            }
+
+            if (isPurchasable(it)) purchTrue++; else purchFalse++;
+        }
+
+        prices.sort((a, b) => a - b);
+        const avgPrice = prices.length ? prices.reduce((a, b) => a + b, 0) / prices.length : null;
+        const medPrice = median(prices);
+        const minPrice = prices.length ? prices[0] : null;
+        const maxPrice = prices.length ? prices[prices.length - 1] : null;
+
+        const itemsPerMonthWindow = [];
+        for (let i = months - 1; i >= 0; i--) {
+            const d = new Date();
+            d.setUTCDate(1);
+            d.setUTCHours(0, 0, 0, 0);
+            d.setUTCMonth(d.getUTCMonth() - i);
+            const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+            itemsPerMonthWindow.push({month: key, count: monthlyWindow.get(key) || 0});
+        }
+
+        const objFromMap = (m) => Object.fromEntries(m);
+        const objNestedMap = (m) => Object.fromEntries(Array.from(m.entries()).map(([k, v]) => [k, Object.fromEntries(v)]));
+        const ratingMapToPlain = (m) => {
+            const out = {};
+            for (const s of [1, 2, 3, 4, 5]) out[s] = m.get(s) || 0;
+            return out;
+        };
+        const nestedRatingsYear = Object.fromEntries(Array.from(ratingsPerYear.entries()).map(([y, map]) => [y, ratingMapToPlain(map)]));
+        const nestedRatingsYearMonth = Object.fromEntries(Array.from(ratingsPerYearMonth.entries()).map(([y, inner]) => [y, Object.fromEntries(Array.from(inner.entries()).map(([m, mm]) => [m, ratingMapToPlain(mm)]))]));
+        const priceDistGlobalArr = Array.from(priceDistributionGlobal.entries())
+            .map(([bucket, count]) => ({bucket, count}))
+            .sort((a, b) => a.bucket.localeCompare(b.bucket));
+
+        const priceRangeYear = Object.fromEntries(Array.from(priceRangePerYear.entries()).map(([y, map]) => [y, Object.fromEntries(Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0])))]));
+        const priceRangeYearMonth = Object.fromEntries(Array.from(priceRangePerYearMonth.entries()).map(([y, inner]) => [y, Object.fromEntries(Array.from(inner.entries()).map(([m, mm]) => [m, Object.fromEntries(Array.from(mm.entries()).sort((a, b) => a[0].localeCompare(b[0])))]))]));
+
+        const availabilityYear = Object.fromEntries(Array.from(purchPerYear.entries()).map(([y, v]) => [y, {
+            true: v.true || 0, false: v.false || 0
+        }]));
+        const availabilityYearMonth = Object.fromEntries(Array.from(purchPerYearMonth.entries()).map(([y, inner]) => [y, Object.fromEntries(Array.from(inner.entries()).map(([m, v]) => [m, {
+            true: v.true || 0, false: v.false || 0
+        }]))]));
 
         return {
-            creator: {
-                id: meta.id, displayName: meta.displayName, totalItems
-            }, latestItems, topRatedItems, priceDistribution, contentTypes
+            creator: {id: meta.id, displayName: meta.displayName, totalItems},
+            latestItems,
+            topRatedItems,
+            totalItems,
+            lastItem: lastItemFull || null,
+            totalValue: totalValue || 0,
+            highestPrice: highestPrice ?? 0,
+            avgRating: totalItems ? Math.round(sumAvgRatings / totalItems) : 0,
+            realMoneyValue: {USD: realUSDTotal, EUR: realEURTotal},
+            itemsPerYear: objFromMap(itemsPerYear),
+            itemsPerYearMonthly: objNestedMap(itemsPerYearMonth),
+            ratingsDistribution: ratingMapToPlain(ratingsDistributionGlobal),
+            ratingsDistributionPerYear: nestedRatingsYear,
+            ratingsDistributionPerYearMonthly: nestedRatingsYearMonth,
+            availability: {purchasable: purchTrue, notPurchasable: purchFalse},
+            availabilityPerYear: availabilityYear,
+            availabilityPerYearMonthly: availabilityYearMonth,
+            priceRange: priceDistGlobalArr,
+            priceRangePerYear: priceRangeYear,
+            priceRangePerYearMonthly: priceRangeYearMonth,
+            last10Items: last10ItemsFull,
+            priceStats: {average: avgPrice, median: medPrice, min: minPrice, max: maxPrice},
+            cadence: {
+                firstItemDate: firstDate ? firstDate.toISOString() : null,
+                lastItemDate: lastDate ? lastDate.toISOString() : null,
+                itemsPerMonthWindow
+            },
+            ratingStats: {totalCount: totalRatingCount},
+            ageStats: {averageAgeDays: totalItems ? ageDaysSum / totalItems : null, newestItemAgeDays: newestAgeDays}
         };
     },
 

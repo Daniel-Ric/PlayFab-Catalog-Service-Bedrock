@@ -282,6 +282,12 @@ function getConfigInfo() {
         .map(s => s.trim())
         .filter(Boolean);
 
+    const rateLimitEnvEnabled = String(process.env.RATE_LIMIT_ENABLE || process.env.RATE_LIMIT_ENABLED || "").toLowerCase() === "true";
+    const loginWindowDefault = 15 * 60 * 1000;
+    const loginMaxDefault = 20;
+    const loginWindowMs = rateLimitEnvEnabled ? readIntEnv("RATE_LIMIT_LOGIN_WINDOW_MS", readIntEnv("RATE_LIMIT_WINDOW_MS", loginWindowDefault)) : loginWindowDefault;
+    const loginMax = rateLimitEnvEnabled ? readIntEnv("RATE_LIMIT_LOGIN_MAX", readIntEnv("RATE_LIMIT_MAX", loginMaxDefault)) : loginMaxDefault;
+
     return {
         service: {
             port: process.env.PORT || 3000,
@@ -303,7 +309,7 @@ function getConfigInfo() {
         }, paginationDefaults: {
             pageDefault: 1, pageSizeDefault: 24, pageSizeMax: 100, limitMax: 1000
         }, rateLimits: {
-            loginWindowMs: 15 * 60 * 1000, loginMax: 20
+            loginWindowMs, loginMax
         }, watchersEnabled: {
             sales: readBoolEnv("ENABLE_SALES_WATCHER"),
             item: readBoolEnv("ENABLE_ITEM_WATCHER"),

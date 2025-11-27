@@ -14,6 +14,14 @@ function getTitleId() {
     return process.env.TITLE_ID || "20CA2";
 }
 
+function startDateOf(it) {
+    return it.StartDate || it.startDate || it.DisplayProperties?.startDate || it.CreationDate || it.creationDate || null;
+}
+
+function creationDateOf(it) {
+    return it.CreationDate || it.creationDate || null;
+}
+
 function hashItemCore(it) {
     const core = {
         Id: it.Id || it.id,
@@ -25,19 +33,29 @@ function hashItemCore(it) {
         Images: Array.isArray(it.Images) ? it.Images.map(i => [i.Tag || i.tag, i.Url || i.url]) : [],
         DisplayProperties: it.DisplayProperties,
         ETag: it.ETag,
-        LastModifiedDate: it.LastModifiedDate
+        LastModifiedDate: it.LastModifiedDate,
+        StartDate: startDateOf(it),
+        CreationDate: creationDateOf(it)
     };
     return stableHash(core);
 }
 
 async function fetchRecentItems(titleId, os, top, pages) {
     const out = [];
-    const orderBy = "creationDate desc";
+    const orderBy = "startDate desc,creationDate desc";
     const search = "";
     const filter = "";
     for (let i = 0; i < pages; i++) {
         const skip = i * top;
-        const payload = buildSearchPayload({filter, search, top, skip, orderBy, expandFields: "images"});
+        const payload = buildSearchPayload({
+            filter,
+            search,
+            top,
+            skip,
+            orderBy,
+            expandFields: "images",
+            selectFields: "images,startDate,creationDate,displayProperties"
+        });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 2, os);
         const items = (data.Items || []).filter(isValidItem);
         if (!items.length) break;
@@ -53,16 +71,32 @@ function diffItems(prevMap, currItems) {
     const updated = [];
     for (const it of currItems) {
         const id = it.Id || it.id;
+        if (!id) continue;
         const h = hashItemCore(it);
-        nextMap.set(id, {hash: h, raw: it});
+        nextMap.set(id, {
+            hash: h, raw: it, startDate: startDateOf(it), creationDate: creationDateOf(it)
+        });
         const prev = prevMap.get(id);
         if (!prev) {
             created.push(it);
         } else if (prev.hash !== h) {
-            updated.push({before: prev.raw, after: it});
+            updated.push({
+                id, before: prev.raw, after: it
+            });
         }
     }
     return {nextMap, created, updated};
+}
+
+function filterCreatedByStartDate(created, sinceTs) {
+    if (!sinceTs) return created;
+    return created.filter(it => {
+        const d = startDateOf(it);
+        if (!d) return false;
+        const ts = new Date(d).getTime();
+        if (!Number.isFinite(ts)) return false;
+        return ts >= sinceTs;
+    });
 }
 
 class ItemWatcher {
@@ -71,6 +105,7 @@ class ItemWatcher {
         this.timer = null;
         this.state = new Map();
         this.lastRunTs = 0;
+        this.lastStartDateTs = 0;
     }
 
     start(eventBus) {
@@ -85,12 +120,19 @@ class ItemWatcher {
             const recent = await fetchRecentItems(titleId, os, pageTop, pages);
             if (this.state.size === 0) {
                 const bootstrapMap = new Map();
+                let maxStartTs = this.lastStartDateTs || 0;
                 for (const it of recent) {
                     const id = it.Id || it.id;
-                    bootstrapMap.set(id, {hash: hashItemCore(it), raw: it});
+                    const start = startDateOf(it);
+                    const ts = start ? new Date(start).getTime() : 0;
+                    if (ts && ts > maxStartTs) maxStartTs = ts;
+                    bootstrapMap.set(id, {
+                        hash: hashItemCore(it), raw: it, startDate: start, creationDate: creationDateOf(it)
+                    });
                 }
                 this.state = bootstrapMap;
                 this.lastRunTs = Date.now();
+                this.lastStartDateTs = maxStartTs || Date.now();
                 const snapshotPayload = {
                     ts: Date.now(), count: bootstrapMap.size, items: projectCatalogItems(recent)
                 };
@@ -98,16 +140,24 @@ class ItemWatcher {
                 return;
             }
             const {nextMap, created, updated} = diffItems(this.state, recent);
-            if (created.length > 0) {
+            const filteredCreated = filterCreatedByStartDate(created, this.lastStartDateTs);
+            if (filteredCreated.length > 0) {
                 const createdPayload = {
-                    ts: Date.now(), count: created.length, items: projectCatalogItems(created)
+                    ts: Date.now(), count: filteredCreated.length, items: projectCatalogItems(filteredCreated)
                 };
                 eventBus.emit("item.created", createdPayload);
+                let maxStartTs = this.lastStartDateTs || 0;
+                for (const it of filteredCreated) {
+                    const d = startDateOf(it);
+                    const ts = d ? new Date(d).getTime() : 0;
+                    if (ts && ts > maxStartTs) maxStartTs = ts;
+                }
+                if (maxStartTs) this.lastStartDateTs = maxStartTs;
             }
             if (updated.length > 0) {
                 const updatedPayload = {
                     ts: Date.now(), count: updated.length, items: updated.map(pair => ({
-                        before: projectCatalogItem(pair.before), after: projectCatalogItem(pair.after)
+                        id: pair.id, before: projectCatalogItem(pair.before), after: projectCatalogItem(pair.after)
                     }))
                 };
                 eventBus.emit("item.updated", updatedPayload);

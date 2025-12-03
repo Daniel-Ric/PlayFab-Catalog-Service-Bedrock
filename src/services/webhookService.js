@@ -82,8 +82,8 @@ function buildDiscordBody(event, payload) {
     const tags = raw?.Tags || item?.tags || [];
     const platforms = raw?.Platforms || item?.platforms || [];
     const images = raw?.Images || item?.images || [];
-    const thumbnail = pick(images?.find(i => (i.Type || i.type) === "thumbnail")?.Url, item?.thumbnail, images?.[0]?.Url);
-    const hero = pick(images?.find(i => (i.Tag || i.tag) === "screenshot" || (i.Type || i.type) === "screenshot")?.Url, images?.[0]?.Url, thumbnail);
+    const thumbnail = pick(images?.find(i => (i.Type || i.type) === "Thumbnail")?.Url, item?.thumbnail, images?.[0]?.Url);
+    const hero = pick(images?.find(i => (i.Tag || i.tag) === "screenshot" || (i.Type || i.type) === "Screenshot")?.Url, images?.[0]?.Url, thumbnail);
     const description = pick(item?.description, raw?.Description?.NEUTRAL, raw?.Description?.["en-US"], "");
     const createdAt = pick(item?.createdAt, raw?.CreationDate, raw?.creationDate, null);
     const availableAt = pick(item?.startDate, raw?.StartDate, raw?.startDate, null);
@@ -109,7 +109,9 @@ function buildDiscordBody(event, payload) {
     }
     if (languages) fields.push({name: "Locales", value: String(languages), inline: true});
     if (tags && tags.length) fields.push({
-        name: "Tags", value: trunc(tags.slice(0, 10).join(", "), 1024), inline: false
+        name: "Tags",
+        value: trunc(tags.slice(0, 10).join(", "), 1024),
+        inline: false
     });
     if (platforms && platforms.length) fields.push({name: "Platforms", value: platforms.join(", "), inline: false});
     const dateBlock = [];
@@ -179,55 +181,30 @@ function signGenericBody(secret, body) {
 function splitPayloads(event, payload) {
     const p = payload || {};
     if (event === "item.created" && Array.isArray(p.items)) {
-        return p.items.map(it => ({
-            ts: Date.now(), payload: {item: it}
-        }));
+        return p.items.map(it => ({ts: Date.now(), payload: {item: it}}));
     }
     if (event === "item.updated" && Array.isArray(p.items)) {
         return p.items.map(pair => ({
-            ts: Date.now(), payload: {
-                before: pair.before, after: pair.after, item: pair.after || pair.before
-            }
+            ts: Date.now(),
+            payload: {before: pair.before, after: pair.after, item: pair.after || pair.before}
         }));
     }
-    if (event === "item.snapshot" && typeof p.count === "number") {
-        return [{
-            ts: Date.now(), payload: {
-                count: p.count
-            }
-        }];
+    if (event === "item.snapshot" && Array.isArray(p.items)) {
+        return p.items.map(it => ({ts: Date.now(), payload: {item: it}}));
     }
     if (event === "price.changed" && Array.isArray(p.changes)) {
-        return p.changes.map(ch => ({
-            ts: Date.now(), payload: {
-                change: ch, itemId: ch.itemId
-            }
-        }));
+        return p.changes.map(ch => ({ts: Date.now(), payload: {change: ch, itemId: ch.itemId}}));
     }
     if (event === "sale.update" && Array.isArray(p.changes)) {
-        return p.changes.map(ch => ({
-            ts: Date.now(), payload: {
-                change: ch, storeId: ch.storeId, type: ch.type
-            }
-        }));
-    }
-    if (event === "sale.snapshot" && typeof p.stores === "number") {
-        return [{
-            ts: Date.now(), payload: {
-                stores: p.stores
-            }
-        }];
+        return p.changes.map(ch => ({ts: Date.now(), payload: {change: ch}}));
     }
     if (event === "creator.trending" && Array.isArray(p.leaders)) {
         return p.leaders.map(l => ({
-            ts: Date.now(), payload: {
-                creator: l.creator, score: l.score, periodHours: p.periodHours
-            }
+            ts: Date.now(),
+            payload: {creator: l.creator, score: l.score, periodHours: p.periodHours}
         }));
     }
-    return [{
-        ts: Date.now(), payload: p
-    }];
+    return [{ts: Date.now(), payload: p}];
 }
 
 function unitKey(event, unit) {

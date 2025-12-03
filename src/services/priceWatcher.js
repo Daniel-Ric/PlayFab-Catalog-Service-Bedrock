@@ -51,16 +51,14 @@ function computeBestPrices(storeItems) {
             const id = it?.Item?.Id || it?.ItemId;
             if (!id) continue;
             const amounts = (it?.Price?.Prices || []).flatMap(p => (p.Amounts || []).map(a => ({
-                CurrencyId: a.CurrencyId, Amount: a.Amount
+                currencyId: a.CurrencyId, amount: a.Amount
             })));
             if (!amounts.length) continue;
             const sig = priceSignature(amounts);
             const prev = best.get(id);
-            if (!prev) {
-                best.set(id, {sig, samples: 1});
-            } else if (prev.sig !== sig) {
-                best.set(id, {sig, samples: prev.samples + 1});
-            }
+            if (!prev) best.set(id, {sig, samples: 1}); else if (prev.sig !== sig) best.set(id, {
+                sig, samples: prev.samples + 1
+            });
         }
     }
     return best;
@@ -99,18 +97,9 @@ class PriceWatcher {
             for (const [id, info] of best.entries()) {
                 const prev = this.prev.get(id);
                 if (!prev) continue;
-                if (prev.sig !== info.sig) {
-                    changes.push({
-                        itemId: id, ts: Date.now(), from: prev.sig, to: info.sig
-                    });
-                }
+                if (prev.sig !== info.sig) changes.push({itemId: id, ts: Date.now(), from: prev.sig, to: info.sig});
             }
-            if (changes.length) {
-                const payload = {
-                    ts: Date.now(), changes
-                };
-                eventBus.emit("price.changed", payload);
-            }
+            if (changes.length) eventBus.emit("price.changed", {ts: Date.now(), changes});
             this.prev = best;
             this.lastRunTs = Date.now();
         };

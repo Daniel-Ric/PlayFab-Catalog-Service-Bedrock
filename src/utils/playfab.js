@@ -1,23 +1,22 @@
 const axios = require("axios");
 const http = require("http");
 const https = require("https");
-const { Mutex } = require("async-mutex");
-const { sessionCache } = require("../config/cache");
+const {Mutex} = require("async-mutex");
+const {sessionCache} = require("../config/cache");
 const logger = require("../config/logger");
 
-const httpAgent = new http.Agent({ keepAlive: true, maxSockets: Number(process.env.HTTP_MAX_SOCKETS || 512), keepAliveMsecs: 60000, scheduling: "lifo" });
-const httpsAgent = new https.Agent({ keepAlive: true, maxSockets: Number(process.env.HTTPS_MAX_SOCKETS || 512), keepAliveMsecs: 60000, scheduling: "lifo" });
+const httpAgent = new http.Agent({
+    keepAlive: true, maxSockets: Number(process.env.HTTP_MAX_SOCKETS || 512), keepAliveMsecs: 60000, scheduling: "lifo"
+});
+
+const httpsAgent = new https.Agent({
+    keepAlive: true, maxSockets: Number(process.env.HTTPS_MAX_SOCKETS || 512), keepAliveMsecs: 60000, scheduling: "lifo"
+});
 
 const api = axios.create({
-    timeout: Number(process.env.UPSTREAM_TIMEOUT_MS || 20000),
-    httpAgent,
-    httpsAgent,
-    headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": "ViewMarketplace/optimized"
-    },
-    validateStatus: () => true
+    timeout: Number(process.env.UPSTREAM_TIMEOUT_MS || 20000), httpAgent, httpsAgent, headers: {
+        "Content-Type": "application/json", "Accept": "application/json", "User-Agent": "ViewMarketplace/optimized"
+    }, validateStatus: () => true
 });
 
 const mutex = new Mutex();
@@ -42,10 +41,7 @@ function jitter(base, attempt, max) {
 async function loginWithIOSDeviceID(titleId, os) {
     const deviceId = `ios-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
     const r = await api.post(`https://${titleId}.playfabapi.com/Client/LoginWithIOSDeviceID`, {
-        CreateAccount: true,
-        TitleId: titleId,
-        DeviceId: deviceId,
-        OS: os
+        CreateAccount: true, TitleId: titleId, DeviceId: deviceId, OS: os
     });
     if (r.status >= 200 && r.status < 300) return r.data.data;
     const e = new Error("Login failed");
@@ -55,9 +51,9 @@ async function loginWithIOSDeviceID(titleId, os) {
 
 async function getEntityToken(titleId, ticket, pfId) {
     const r = await api.post(`https://${titleId}.playfabapi.com/Authentication/GetEntityToken`, {
-        Entity: { Id: pfId, Type: "master_player_account" }
+        Entity: {Id: pfId, Type: "master_player_account"}
     }, {
-        headers: { "X-Authorization": ticket }
+        headers: {"X-Authorization": ticket}
     });
     if (r.status >= 200 && r.status < 300) return r.data.data.EntityToken;
     const e = new Error("GetEntityToken failed");
@@ -72,9 +68,11 @@ async function getSession(titleId, os) {
     return mutex.runExclusive(async () => {
         const again = sessionCache.get(key);
         if (again && (!again.expiresAt || again.expiresAt > Date.now())) return again;
-        const { SessionTicket, PlayFabId } = await loginWithIOSDeviceID(titleId, os);
+        const {SessionTicket, PlayFabId} = await loginWithIOSDeviceID(titleId, os);
         const EntityToken = await getEntityToken(titleId, SessionTicket, PlayFabId);
-        const session = { SessionTicket, PlayFabId, EntityToken, expiresAt: Date.now() + SESSION_SOFT_TTL_MS };
+        const session = {
+            SessionTicket, PlayFabId, EntityToken, expiresAt: Date.now() + SESSION_SOFT_TTL_MS
+        };
         sessionCache.set(key, session);
         return session;
     });
@@ -90,7 +88,7 @@ async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-Ent
             const headers = {
                 [auth]: auth === "X-EntityToken" ? ses.EntityToken : ses.SessionTicket
             };
-            const r = await api.post(`https://${titleId}.playfabapi.com/${endpoint}`, payload, { headers });
+            const r = await api.post(`https://${titleId}.playfabapi.com/${endpoint}`, payload, {headers});
             if (r.status >= 200 && r.status < 300) {
                 return r.data.data ?? r.data;
             }
@@ -106,11 +104,14 @@ async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-Ent
                 throw e;
             }
             let waitMs;
-            if (status === 429) waitMs = parseRetryAfter(r.headers["retry-after"]) ?? jitter(200, attempt, 10000);
-            else waitMs = jitter(200, attempt, 10000);
+            if (status === 429) {
+                waitMs = parseRetryAfter(r.headers["retry-after"]) ?? jitter(200, attempt, 10000);
+            } else {
+                waitMs = jitter(200, attempt, 10000);
+            }
             await sleep(waitMs);
             attempt++;
-            continue;
+
         } catch (err) {
             lastErr = err;
             if (attempt >= budget) throw err;
@@ -121,8 +122,18 @@ async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-Ent
     throw lastErr || new Error("sendPlayFabRequest failed");
 }
 
-function buildSearchPayload({ filter = "", search = "", top = 100, skip = 0, orderBy = "creationDate desc", selectFields = "images,startDate", expandFields = "images" }) {
-    const p = { Search: search || "", Top: top, Skip: skip, OrderBy: orderBy || "creationDate desc" };
+function buildSearchPayload({
+                                filter = "",
+                                search = "",
+                                top = 100,
+                                skip = 0,
+                                orderBy = "startDate desc",
+                                selectFields = "images,startDate",
+                                expandFields = "images"
+                            }) {
+    const p = {
+        Search: search || "", Top: top, Skip: skip, OrderBy: orderBy || "startDate desc"
+    };
     const f = (filter || "").trim();
     if (f) p.Filter = f;
     const sel = (selectFields || "").trim();
@@ -133,17 +144,21 @@ function buildSearchPayload({ filter = "", search = "", top = 100, skip = 0, ord
 }
 
 function isValidItem(item) {
-    return item.DisplayProperties && (item.Title?.NEUTRAL || item.Title?.neutral) && Array.isArray(item.Images) && item.Images.length > 0;
+    return (item.DisplayProperties && (item.Title?.NEUTRAL || item.Title?.neutral) && Array.isArray(item.Images) && item.Images.length > 0);
 }
 
 function transformItem(item) {
     const images = (item.Images || []).map(img => {
         const tag = (img.Tag || "").toLowerCase();
-        return { Id: img.Id, Tag: img.Tag, Type: tag === "thumbnail" ? "thumbnail" : "screenshot", Url: img.Url };
+        return {
+            Id: img.Id, Tag: img.Tag, Type: tag === "thumbnail" ? "thumbnail" : "screenshot", Url: img.Url
+        };
     });
     const thumbs = images.filter(i => i.Type === "thumbnail");
     const shots = images.filter(i => i.Type !== "thumbnail");
-    return { ...item, StartDate: item.startDate || item.StartDate || item.CreationDate, Images: [...thumbs, ...shots] };
+    return {
+        ...item, StartDate: item.startDate || item.StartDate || item.CreationDate, Images: [...thumbs, ...shots]
+    };
 }
 
 async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSize = 300, concurrency = 5, maxBatches = Number(process.env.MAX_FETCH_BATCHES || 20)) {
@@ -153,13 +168,18 @@ async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSiz
     for (let i = 0; i < skips.length; i += concurrency) {
         const chunk = skips.slice(i, i + concurrency);
         const res = await Promise.all(chunk.map(async skip => {
-            const payload = buildSearchPayload({ filter, search: "", top: batchSize, skip, orderBy: "creationDate desc" });
+            const payload = buildSearchPayload({
+                filter, search: "", top: batchSize, skip, orderBy: "startDate desc"
+            });
             const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, os);
             return data.Items || [];
         }));
         let stop = false;
         for (const arr of res) {
-            if (!arr.length) { stop = true; break; }
+            if (!arr.length) {
+                stop = true;
+                break;
+            }
             all.push(...arr.filter(isValidItem).map(transformItem));
         }
         if (stop || res[res.length - 1].length < batchSize) break;
@@ -174,9 +194,14 @@ async function getItemsByIds(titleId, ids, os, batchSize = 100, concurrency = 5)
     for (let i = 0; i < list.length; i += batchSize * concurrency) {
         const window = list.slice(i, i + batchSize * concurrency);
         const groups = [];
-        for (let j = 0; j < window.length; j += batchSize) groups.push(window.slice(j, j + batchSize));
+        for (let j = 0; j < window.length; j += batchSize) {
+            groups.push(window.slice(j, j + batchSize));
+        }
         const res = await Promise.all(groups.map(async g => {
-            const r = await sendPlayFabRequest(titleId, "Catalog/GetItems", { Ids: g, Expand: "Images" }, "X-EntityToken", 3, os);
+            const r = await sendPlayFabRequest(titleId, "Catalog/GetItems", {
+                Ids: g,
+                Expand: "Images"
+            }, "X-EntityToken", 3, os);
             return r.Items || r.items || [];
         }));
         for (const arr of res) out.push(...arr);
@@ -187,7 +212,7 @@ async function getItemsByIds(titleId, ids, os, batchSize = 100, concurrency = 5)
 async function getStoreItems(titleId, storeId, os) {
     logger.debug(`[PF] GetStoreItems titleId=${titleId} storeId=${storeId}`);
     try {
-        const r = await sendPlayFabRequest(titleId, "Catalog/GetStoreItems", { StoreId: storeId }, "X-EntityToken", 3, os);
+        const r = await sendPlayFabRequest(titleId, "Catalog/GetStoreItems", {StoreId: storeId}, "X-EntityToken", 3, os);
         const items = r?.Items || r?.items || [];
         logger.debug(`[PF] GetStoreItems result storeId=${storeId} items=${items.length}`);
         return r;
@@ -197,17 +222,21 @@ async function getStoreItems(titleId, storeId, os) {
         const isTransient = [429, 500, 502, 503, 504].includes(status);
         const level = isTransient ? "warn" : "debug";
         logger[level](`[PF] GetStoreItems error storeId=${storeId} status=${status || "ERR"} msg=${msg}`);
-        return { Items: [] };
+        return {Items: []};
     }
 }
 
 async function getItemReviewSummary(titleId, itemId, os) {
-    const r = await sendPlayFabRequest(titleId, "Catalog/GetItemReviewSummary", { Id: itemId }, "X-EntityToken", 3, os);
+    const r = await sendPlayFabRequest(titleId, "Catalog/GetItemReviewSummary", {Id: itemId}, "X-EntityToken", 3, os);
     return r;
 }
 
 async function getItemReviews(titleId, itemId, count = 10, skip = 0, os) {
-    const r = await sendPlayFabRequest(titleId, "Catalog/GetItemReviews", { Id: itemId, Count: count, Skip: skip }, "X-EntityToken", 3, os);
+    const r = await sendPlayFabRequest(titleId, "Catalog/GetItemReviews", {
+        Id: itemId,
+        Count: count,
+        Skip: skip
+    }, "X-EntityToken", 3, os);
     return r;
 }
 

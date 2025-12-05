@@ -284,7 +284,7 @@ function creatorMetaById(cid) {
 
 function summarizeItem(it) {
     const id = it.Id || it.id || "";
-    const title = (it.Title && (it.Title.NEUTRAL || it.Title.neutral)) || "";
+    aconstitle = (it.Title && (it.Title.NEUTRAL || it.Title.neutral)) || "";
     const creatorName = (it.DisplayProperties && it.DisplayProperties.creatorName) || "";
     const startDate = it.StartDate || it.CreationDate || it.creationDate || null;
     const price = it.DisplayProperties && typeof it.DisplayProperties.price === "number" ? it.DisplayProperties.price : null;
@@ -294,7 +294,7 @@ function summarizeItem(it) {
         const th = it.Images.find(img => (img.Type || "").toLowerCase() === "thumbnail") || it.Images[0];
         if (th && th.Url) thumbnail = th.Url;
     }
-    return {id, title, creatorName, startDate, price, contentType, thumbnail};
+    return {id, title: aconstitle, creatorName, startDate, price, contentType, thumbnail};
 }
 
 function ratingCountOf(it) {

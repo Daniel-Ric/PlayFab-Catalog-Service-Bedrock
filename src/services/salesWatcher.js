@@ -40,17 +40,28 @@ async function fetchStoresWithItems(titleId, os, concurrency) {
     return out;
 }
 
-function snapshot(stores) {
+function normalizeStoreSnapshotEntry(store, items) {
+    const s = store || {};
+    const sid = s.Id || s.id || "unknown";
+    const rawRefs = Array.isArray(s.ItemReferences) && s.ItemReferences.length ? s.ItemReferences : Array.isArray(items) ? items.map(i => ({
+        Id: i?.Item?.Id || i?.ItemId, Price: i?.Price
+    })).filter(r => r.Id) : [];
+    const keyParts = rawRefs.map(r => {
+        const prices = (r.Price?.Prices || []).flatMap(p => (p.Amounts || []).map(a => [a.CurrencyId, a.Amount]));
+        prices.sort((a, b) => a[0] === b[0] ? a[1] - b[1] : a[0].localeCompare(b[0]));
+        return `${r.Id}:${JSON.stringify(prices)}`;
+    }).sort();
+    const hash = stableHash(keyParts);
+    return {
+        id: sid, hash, count: rawRefs.length
+    };
+}
+
+function snapshot(storesWithItems) {
     const map = new Map();
-    for (const x of stores) {
-        const s = x.Store || {};
-        const sid = s.Id || s.id || "unknown";
-        const refs = s.ItemReferences || (Array.isArray(x.Items) ? x.Items.map(i => ({
-            Id: i?.Item?.Id || i?.ItemId, Price: i?.Price
-        })) : []);
-        const keyParts = refs.map(r => `${r.Id}:${JSON.stringify((r.Price?.Prices || []).flatMap(p => (p.Amounts || []).map(a => [a.CurrencyId, a.Amount])))}`).sort();
-        const h = stableHash(keyParts);
-        map.set(sid, {id: sid, hash: h, count: refs.length});
+    for (const x of storesWithItems) {
+        const entry = normalizeStoreSnapshotEntry(x.Store, x.Items);
+        map.set(entry.id, entry);
     }
     return map;
 }
@@ -61,9 +72,13 @@ function diff(prev, next) {
     for (const k of allKeys) {
         const a = prev.get(k);
         const b = next.get(k);
-        if (!a && b) changes.push({storeId: k, type: "created"}); else if (a && !b) changes.push({
-            storeId: k, type: "deleted"
-        }); else if (a && b && a.hash !== b.hash) changes.push({storeId: k, type: "updated"});
+        if (!a && b) {
+            changes.push({storeId: k, type: "created"});
+        } else if (a && !b) {
+            changes.push({storeId: k, type: "deleted"});
+        } else if (a && b && a.hash !== b.hash) {
+            changes.push({storeId: k, type: "updated"});
+        }
     }
     return changes;
 }
@@ -90,18 +105,19 @@ class SalesWatcher {
                 if (!this.prev.size) {
                     this.prev = snap;
                     this.lastRunTs = Date.now();
-                    eventBus.emit("sale.snapshot", {ts: Date.now(), stores: snap.size});
+                    eventBus.emit("sale.snapshot", {
+                        ts: Date.now(), stores: snap.size
+                    });
                     return;
                 }
                 const changes = diff(this.prev, snap);
-                if (changes.length) {
-                    this.prev = snap;
-                    this.lastRunTs = Date.now();
-                    eventBus.emit("sale.update", {ts: Date.now(), changes});
-                    return;
-                }
                 this.prev = snap;
                 this.lastRunTs = Date.now();
+                if (changes.length) {
+                    eventBus.emit("sale.update", {
+                        ts: Date.now(), changes
+                    });
+                }
             } catch (e) {
                 logger.debug(`[SalesWatcher] error ${e.message || "err"}`);
                 this.lastRunTs = Date.now();

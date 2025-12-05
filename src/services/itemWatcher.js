@@ -2,6 +2,7 @@ const {sendPlayFabRequest, buildSearchPayload, isValidItem} = require("../utils/
 const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
 const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
+const logger = require("../config/logger");
 
 function getTitleId() {
     const alias = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || "").trim();
@@ -80,45 +81,54 @@ class ItemWatcher {
         const intervalMs = Math.max(10000, parseInt(process.env.ITEM_WATCH_INTERVAL_MS || "30000", 10));
         const pageTop = Math.max(50, parseInt(process.env.ITEM_WATCH_TOP || "150", 10));
         const pages = Math.max(1, parseInt(process.env.ITEM_WATCH_PAGES || "3", 10));
+
         const run = async () => {
-            const titleId = getTitleId();
-            const recent = await fetchRecentItems(titleId, os, pageTop, pages);
-            if (this.state.size === 0) {
-                const bootstrapMap = new Map();
-                for (const it of recent) {
-                    const id = it.Id || it.id;
-                    bootstrapMap.set(id, {hash: hashItemCore(it), raw: it});
+            try {
+                const titleId = getTitleId();
+                const recent = await fetchRecentItems(titleId, os, pageTop, pages);
+                if (this.state.size === 0) {
+                    const bootstrapMap = new Map();
+                    for (const it of recent) {
+                        const id = it.Id || it.id;
+                        bootstrapMap.set(id, {hash: hashItemCore(it), raw: it});
+                    }
+                    this.state = bootstrapMap;
+                    const now = Date.now();
+                    const snapshotPayload = {
+                        ts: now, count: bootstrapMap.size, items: projectCatalogItems(recent)
+                    };
+                    eventBus.emit("item.snapshot", snapshotPayload);
+                    return;
                 }
-                this.state = bootstrapMap;
+                const {nextMap, created, updated} = diffItems(this.state, recent);
+                if (created.length > 0) {
+                    const now = Date.now();
+                    const createdPayload = {
+                        ts: now, count: created.length, items: projectCatalogItems(created)
+                    };
+                    eventBus.emit("item.created", createdPayload);
+                }
+                if (updated.length > 0) {
+                    const now = Date.now();
+                    const updatedPayload = {
+                        ts: now, count: updated.length, items: updated.map(pair => ({
+                            before: projectCatalogItem(pair.before), after: projectCatalogItem(pair.after)
+                        }))
+                    };
+                    eventBus.emit("item.updated", updatedPayload);
+                }
+                this.state = nextMap;
+            } catch (e) {
+                logger.debug(`[ItemWatcher] error ${e.message || "err"}`);
+            } finally {
                 this.lastRunTs = Date.now();
-                const snapshotPayload = {
-                    ts: Date.now(), count: bootstrapMap.size, items: projectCatalogItems(recent)
-                };
-                eventBus.emit("item.snapshot", snapshotPayload);
-                return;
             }
-            const {nextMap, created, updated} = diffItems(this.state, recent);
-            if (created.length > 0) {
-                const createdPayload = {
-                    ts: Date.now(), count: created.length, items: projectCatalogItems(created)
-                };
-                eventBus.emit("item.created", createdPayload);
-            }
-            if (updated.length > 0) {
-                const updatedPayload = {
-                    ts: Date.now(), count: updated.length, items: updated.map(pair => ({
-                        before: projectCatalogItem(pair.before), after: projectCatalogItem(pair.after)
-                    }))
-                };
-                eventBus.emit("item.updated", updatedPayload);
-            }
-            this.state = nextMap;
-            this.lastRunTs = Date.now();
         };
-        run().catch(() => {
-        });
-        this.timer = setInterval(() => run().catch(() => {
-        }), intervalMs);
+
+        run();
+        this.timer = setInterval(() => {
+            run();
+        }, intervalMs);
     }
 
     stop() {

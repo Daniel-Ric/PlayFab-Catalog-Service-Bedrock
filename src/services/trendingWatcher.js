@@ -1,5 +1,6 @@
 const {sendPlayFabRequest, buildSearchPayload, isValidItem} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
+const logger = require("../config/logger");
 
 function getTitleId() {
     const alias = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || "").trim();
@@ -60,19 +61,26 @@ class TrendingWatcher {
         const top = Math.max(50, parseInt(process.env.TRENDING_PAGE_TOP || "200", 10));
         const pages = Math.max(1, parseInt(process.env.TRENDING_PAGES || "3", 10));
         const limit = Math.max(5, parseInt(process.env.TRENDING_TOP_N || "20", 10));
+
         const run = async () => {
-            const titleId = getTitleId();
-            const items = await fetchWindow(titleId, os, hours, top, pages);
-            const leaders = scoreCreators(items).slice(0, limit);
-            const payload = {ts: Date.now(), periodHours: hours, leaders};
-            this.lastPayload = payload;
-            this.lastRunTs = Date.now();
-            eventBus.emit("creator.trending", payload);
+            try {
+                const titleId = getTitleId();
+                const items = await fetchWindow(titleId, os, hours, top, pages);
+                const leaders = scoreCreators(items).slice(0, limit);
+                const payload = {ts: Date.now(), periodHours: hours, leaders};
+                this.lastPayload = payload;
+                eventBus.emit("creator.trending", payload);
+            } catch (e) {
+                logger.debug(`[TrendingWatcher] error ${e.message || "err"}`);
+            } finally {
+                this.lastRunTs = Date.now();
+            }
         };
-        run().catch(() => {
-        });
-        this.timer = setInterval(() => run().catch(() => {
-        }), intervalMs);
+
+        run();
+        this.timer = setInterval(() => {
+            run();
+        }, intervalMs);
     }
 
     stop() {

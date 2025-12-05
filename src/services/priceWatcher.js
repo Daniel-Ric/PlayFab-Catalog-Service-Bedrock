@@ -1,6 +1,7 @@
 const {sendPlayFabRequest, getStoreItems} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
+const logger = require("../config/logger");
 
 function getTitleId() {
     const alias = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || "").trim();
@@ -78,35 +79,40 @@ class PriceWatcher {
         const os = process.env.OS || "iOS";
         const intervalMs = Math.max(10000, parseInt(process.env.PRICE_WATCH_INTERVAL_MS || "30000", 10));
         const concurrency = Math.max(1, parseInt(process.env.STORE_CONCURRENCY || "4", 10));
+
         const run = async () => {
-            const titleId = getTitleId();
-            const stores = await fetchStores(titleId, os);
-            if (!stores.length) {
-                this.lastRunTs = Date.now();
-                return;
-            }
-            const limited = stores.slice(0, Math.max(1, parseInt(process.env.PRICE_WATCH_MAX_STORES || "50", 10)));
-            const batches = await fetchStoreItemsBatched(titleId, limited, os, concurrency);
-            const best = computeBestPrices(batches);
-            if (this.prev.size === 0) {
+            try {
+                const titleId = getTitleId();
+                const stores = await fetchStores(titleId, os);
+                if (!stores.length) {
+                    return;
+                }
+                const limited = stores.slice(0, Math.max(1, parseInt(process.env.PRICE_WATCH_MAX_STORES || "50", 10)));
+                const batches = await fetchStoreItemsBatched(titleId, limited, os, concurrency);
+                const best = computeBestPrices(batches);
+                if (this.prev.size === 0) {
+                    this.prev = best;
+                    return;
+                }
+                const changes = [];
+                for (const [id, info] of best.entries()) {
+                    const prev = this.prev.get(id);
+                    if (!prev) continue;
+                    if (prev.sig !== info.sig) changes.push({itemId: id, ts: Date.now(), from: prev.sig, to: info.sig});
+                }
+                if (changes.length) eventBus.emit("price.changed", {ts: Date.now(), changes});
                 this.prev = best;
+            } catch (e) {
+                logger.debug(`[PriceWatcher] error ${e.message || "err"}`);
+            } finally {
                 this.lastRunTs = Date.now();
-                return;
             }
-            const changes = [];
-            for (const [id, info] of best.entries()) {
-                const prev = this.prev.get(id);
-                if (!prev) continue;
-                if (prev.sig !== info.sig) changes.push({itemId: id, ts: Date.now(), from: prev.sig, to: info.sig});
-            }
-            if (changes.length) eventBus.emit("price.changed", {ts: Date.now(), changes});
-            this.prev = best;
-            this.lastRunTs = Date.now();
         };
-        run().catch(() => {
-        });
-        this.timer = setInterval(() => run().catch(() => {
-        }), intervalMs);
+
+        run();
+        this.timer = setInterval(() => {
+            run();
+        }, intervalMs);
     }
 
     stop() {

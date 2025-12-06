@@ -20,13 +20,52 @@ function resolveConfig(name, defaults) {
     return {windowMs, max};
 }
 
+const hardLoginWindowMs = readIntEnv("RATE_LIMIT_LOGIN_BURST_WINDOW_MS", 10 * 1000);
+const hardLoginMax = readIntEnv("RATE_LIMIT_LOGIN_BURST_MAX", 50);
+
+const hardLoginLimiter = rateLimit({
+    windowMs: hardLoginWindowMs,
+    max: hardLoginMax,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many requests – please try again later."
+});
+
 function createRateLimiter(nameOrDefaults, maybeDefaults) {
-    let cfg;
+    let cfgName = "DEFAULT";
+    let defaults = {};
     if (typeof nameOrDefaults === "string") {
-        cfg = resolveConfig(nameOrDefaults, maybeDefaults || {});
+        cfgName = nameOrDefaults;
+        defaults = maybeDefaults || {};
     } else {
-        cfg = resolveConfig("DEFAULT", nameOrDefaults || {});
+        defaults = nameOrDefaults || {};
     }
+
+    if (String(cfgName).toUpperCase() === "LOGIN") {
+        const cfg = resolveConfig("LOGIN", defaults);
+        if (!rateLimitEnabled) {
+            return hardLoginLimiter;
+        }
+        const loginLimiter = rateLimit({
+            windowMs: cfg.windowMs,
+            max: cfg.max,
+            standardHeaders: true,
+            legacyHeaders: false,
+            message: "Too many requests – please try again later."
+        });
+        return (req, res, next) => {
+            loginLimiter(req, res, err => {
+                if (err) return next(err);
+                hardLoginLimiter(req, res, next);
+            });
+        };
+    }
+
+    if (!rateLimitEnabled) {
+        return (_req, _res, next) => next();
+    }
+
+    const cfg = resolveConfig(cfgName, defaults);
     return rateLimit({
         windowMs: cfg.windowMs,
         max: cfg.max,

@@ -26,11 +26,6 @@ const mpSales = require("./routes/marketplace/sales");
 const mpSearchAdvanced = require("./routes/marketplace/search-advanced");
 const mpRecommendations = require("./routes/marketplace/recommendations");
 const mpStats = require("./routes/marketplace/stats");
-const eventsSales = require("./routes/events/sales");
-const eventsItems = require("./routes/events/items");
-const eventsPrices = require("./routes/events/prices");
-const eventsTrending = require("./routes/events/trending");
-const adminWebhooks = require("./routes/admin/webhooks");
 const healthRoutes = require("./routes/health");
 const chalkImport = require("chalk");
 const chalk = chalkImport.default || chalkImport;
@@ -95,14 +90,15 @@ if ((process.env.LOG_LEVEL || "info").toLowerCase() === "debug" || (logger.level
 const openapi = getOpenApiSpec();
 app.get("/openapi.json", (_, res) => res.json(openapi));
 if (process.env.ENABLE_DOCS === "true") {
-    app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, {explorer: true})).get("/docs", (_req, res) => res.end());
+    app
+        .use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, {explorer: true}))
+        .get("/docs", (_req, res) => res.end());
 }
 
 app.get("/", (_req, res) => res.json({ok: true, name: "View Marketplace API"}));
 
 const loginLimiter = createRateLimiter("LOGIN", {windowMs: 15 * 60 * 1000, max: 20});
 const marketplaceLimiter = createOptionalRateLimiter("MARKETPLACE", {windowMs: 60 * 60 * 1000, max: 2000});
-const eventsLimiter = createOptionalRateLimiter("EVENTS", {windowMs: 60 * 60 * 1000, max: 2000});
 const adminLimiter = createOptionalRateLimiter("ADMIN", {windowMs: 60 * 60 * 1000, max: 1000});
 const healthLimiter = createOptionalRateLimiter("HEALTH", {windowMs: 5 * 60 * 1000, max: 500});
 
@@ -122,11 +118,13 @@ function enforceAuth(req, res, next) {
     if (req.method === "OPTIONS") return next();
     if (req.path === "/openapi.json" && req.method === "GET") return next();
     if (isDocs(req.path)) return next();
-    if ((pathIs(req.path, "/login")) && req.method === "POST") return next();
+    if (pathIs(req.path, "/login") && req.method === "POST") return next();
     const header = req.headers["authorization"];
     if (!header || !header.startsWith("Bearer ")) {
         return res.status(401).json({
-            error: {type: "unauthorized", message: "Unauthorized", traceId: req.headers["x-request-id"] || req.id}
+            error: {
+                type: "unauthorized", message: "Unauthorized", traceId: req.headers["x-request-id"] || req.id
+            }
         });
     }
     const token = header.slice(7);
@@ -144,7 +142,9 @@ function enforceAuth(req, res, next) {
         return next();
     } catch {
         return res.status(403).json({
-            error: {type: "forbidden", message: "Invalid token", traceId: req.headers["x-request-id"] || req.id}
+            error: {
+                type: "forbidden", message: "Invalid token", traceId: req.headers["x-request-id"] || req.id
+            }
         });
     }
 }
@@ -233,13 +233,6 @@ app.use("/marketplace/search/advanced", enforceAuth, marketplaceLimiter, mpSearc
 app.use("/marketplace/recommendations", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpRecommendations);
 app.use("/marketplace", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpStats);
 
-app.use("/events/sales", enforceAuth, eventsLimiter, eventsSales);
-app.use("/events/items", enforceAuth, eventsLimiter, eventsItems);
-app.use("/events/prices", enforceAuth, eventsLimiter, eventsPrices);
-app.use("/events/trending", enforceAuth, eventsLimiter, eventsTrending);
-
-app.use("/admin/webhooks", enforceAuth, requireRole("admin"), adminLimiter, adminWebhooks);
-
 app.use("/health", enforceAuth, healthLimiter, cacheHeaders(5, 5), healthRoutes);
 
 app.use((req, res) => {
@@ -266,30 +259,22 @@ app.listen(port, () => {
     logger.info(`API running at http://localhost:${port}`);
     if (process.env.ENABLE_SALES_WATCHER === "true") {
         const {eventBus} = require("./services/eventBus");
-        const {webhookService} = require("./services/webhookService");
         salesWatcher.start(eventBus);
         logger.info("Sales watcher started");
-        void webhookService;
     }
     if (process.env.ENABLE_ITEM_WATCHER === "true") {
         const {eventBus} = require("./services/eventBus");
-        const {webhookService} = require("./services/webhookService");
         itemWatcher.start(eventBus);
         logger.info("Item watcher started");
-        void webhookService;
     }
     if (process.env.ENABLE_PRICE_WATCHER === "true") {
         const {eventBus} = require("./services/eventBus");
-        const {webhookService} = require("./services/webhookService");
         priceWatcher.start(eventBus);
         logger.info("Price watcher started");
-        void webhookService;
     }
     if (process.env.ENABLE_TRENDING_WATCHER === "true") {
         const {eventBus} = require("./services/eventBus");
-        const {webhookService} = require("./services/webhookService");
         trendingWatcher.start(eventBus);
         logger.info("Trending watcher started");
-        void webhookService;
     }
 });

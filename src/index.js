@@ -27,6 +27,8 @@ const mpSearchAdvanced = require("./routes/marketplace/search-advanced");
 const mpRecommendations = require("./routes/marketplace/recommendations");
 const mpStats = require("./routes/marketplace/stats");
 const healthRoutes = require("./routes/health");
+const eventsRoutes = require("./routes/events");
+const webhookRoutes = require("./routes/webhooks");
 const chalkImport = require("chalk");
 const chalk = chalkImport.default || chalkImport;
 const swaggerUi = require("swagger-ui-express");
@@ -37,6 +39,9 @@ const {salesWatcher} = require("./services/salesWatcher");
 const {itemWatcher} = require("./services/itemWatcher");
 const {priceWatcher} = require("./services/priceWatcher");
 const {trendingWatcher} = require("./services/trendingWatcher");
+const {initSseHub} = require("./services/sseHub");
+const {initWebhookDispatcher} = require("./services/webhookDispatcher");
+const {eventBus} = require("./services/eventBus");
 const {createRateLimiter, createOptionalRateLimiter} = require("./config/rateLimiter");
 
 const art = `
@@ -233,6 +238,9 @@ app.use("/marketplace/search/advanced", enforceAuth, marketplaceLimiter, mpSearc
 app.use("/marketplace/recommendations", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpRecommendations);
 app.use("/marketplace", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpStats);
 
+app.use("/events", enforceAuth, marketplaceLimiter, eventsRoutes);
+app.use("/webhooks", enforceAuth, requireRole("admin"), adminLimiter, webhookRoutes);
+
 app.use("/health", enforceAuth, healthLimiter, cacheHeaders(5, 5), healthRoutes);
 
 app.use((req, res) => {
@@ -257,23 +265,21 @@ app.use((err, req, res, _next) => {
 app.listen(port, () => {
     console.log(chalk.cyan(art));
     logger.info(`API running at http://localhost:${port}`);
+    initSseHub(eventBus);
+    initWebhookDispatcher(eventBus);
     if (process.env.ENABLE_SALES_WATCHER === "true") {
-        const {eventBus} = require("./services/eventBus");
         salesWatcher.start(eventBus);
         logger.info("Sales watcher started");
     }
     if (process.env.ENABLE_ITEM_WATCHER === "true") {
-        const {eventBus} = require("./services/eventBus");
         itemWatcher.start(eventBus);
         logger.info("Item watcher started");
     }
     if (process.env.ENABLE_PRICE_WATCHER === "true") {
-        const {eventBus} = require("./services/eventBus");
         priceWatcher.start(eventBus);
         logger.info("Price watcher started");
     }
     if (process.env.ENABLE_TRENDING_WATCHER === "true") {
-        const {eventBus} = require("./services/eventBus");
         trendingWatcher.start(eventBus);
         logger.info("Trending watcher started");
     }

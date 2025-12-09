@@ -237,10 +237,16 @@ function getSecretsInfo() {
 function getRoutesInfo() {
     return {
         auth: {
-            login: "/login", openapi: "/openapi.json", docsEnabled: readBoolEnv("ENABLE_DOCS")
-        }, core: {
-            titles: "/titles", creators: "/creators", session: "/session/:alias"
-        }, marketplace: {
+            login: "/login",
+            openapi: "/openapi.json",
+            docsEnabled: readBoolEnv("ENABLE_DOCS")
+        },
+        core: {
+            titles: "/titles",
+            creators: "/creators",
+            session: "/session/:alias"
+        },
+        marketplace: {
             base: "/marketplace",
             all: "/marketplace/all/:alias",
             latest: "/marketplace/latest/:alias",
@@ -259,7 +265,14 @@ function getRoutesInfo() {
             stats: "/marketplace/:creatorName/stats",
             featuredServers: "/marketplace/featured-servers",
             sales: "/marketplace/sales[/::alias]"
-        }, health: "/health"
+        },
+        events: {
+            stream: "/events/stream"
+        },
+        webhooks: {
+            base: "/webhooks"
+        },
+        health: "/health"
     };
 }
 

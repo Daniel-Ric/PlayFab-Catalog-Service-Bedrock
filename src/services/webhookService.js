@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const path = require("path");
-const {readJson, writeJsonAtomic} = require("./utils/storage");
+const { readJson, writeJsonAtomic } = require("../utils/storage");
 
 const filePath = path.join(__dirname, "./data/webhooks.json");
 

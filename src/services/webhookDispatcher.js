@@ -1,6 +1,6 @@
 const axios = require("axios");
 const crypto = require("crypto");
-const logger = require("./config/logger");
+const logger = require("../config/logger");
 const {findMatchingWebhooks} = require("./webhookService");
 
 let initialized = false;

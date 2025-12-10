@@ -49,7 +49,7 @@ function loadEnvFile(envPath) {
 }
 
 function writeEnvFile(envPath, cfg) {
-    const lines = [`PORT=${cfg.PORT}`, `NODE_ENV=${cfg.NODE_ENV}`, `DEFAULT_ALIAS=${cfg.DEFAULT_ALIAS}`, `FEATURED_PRIMARY_ALIAS=${cfg.FEATURED_PRIMARY_ALIAS}`, `TITLE_ID=${cfg.TITLE_ID}`, `OS=${cfg.OS}`, `TRUST_PROXY=${cfg.TRUST_PROXY}`, `LOG_LEVEL=${cfg.LOG_LEVEL}`, `JWT_SECRET=${cfg.JWT_SECRET}`, `ADMIN_USER=${cfg.ADMIN_USER}`, `ADMIN_PASS=${cfg.ADMIN_PASS}`, `CORS_ORIGINS=${cfg.CORS_ORIGINS}`, `HTTP_MAX_SOCKETS=${cfg.HTTP_MAX_SOCKETS}`, `HTTPS_MAX_SOCKETS=${cfg.HTTPS_MAX_SOCKETS}`, `UPSTREAM_TIMEOUT_MS=${cfg.UPSTREAM_TIMEOUT_MS}`, `RETRY_BUDGET=${cfg.RETRY_BUDGET}`, `SESSION_TTL_MS=${cfg.SESSION_TTL_MS}`, `SESSION_CACHE_MAX=${cfg.SESSION_CACHE_MAX}`, `DATA_CACHE_MAX=${cfg.DATA_CACHE_MAX}`, `DATA_TTL_MS=${cfg.DATA_TTL_MS}`, `MULTILANG_ALL=${cfg.MULTILANG_ALL}`, `MULTILANG_ENRICH_BATCH=${cfg.MULTILANG_ENRICH_BATCH}`, `MULTILANG_ENRICH_CONCURRENCY=${cfg.MULTILANG_ENRICH_CONCURRENCY}`, `STORE_CONCURRENCY=${cfg.STORE_CONCURRENCY}`, `STORE_MAX_FOR_PRICE_ENRICH=${cfg.STORE_MAX_FOR_PRICE_ENRICH}`, `VALIDATE_REQUESTS=${cfg.VALIDATE_REQUESTS}`, `VALIDATE_RESPONSES=${cfg.VALIDATE_RESPONSES}`, `ENABLE_DOCS=${cfg.ENABLE_DOCS}`, `PAGE_SIZE=${cfg.PAGE_SIZE}`, `REVIEWS_ENABLED=${cfg.REVIEWS_ENABLED}`, `REVIEWS_FETCH_COUNT=${cfg.REVIEWS_FETCH_COUNT}`, `ENABLE_SALES_WATCHER=${cfg.ENABLE_SALES_WATCHER}`, `SALES_WATCH_INTERVAL_MS=${cfg.SALES_WATCH_INTERVAL_MS}`, `ENABLE_ITEM_WATCHER=${cfg.ENABLE_ITEM_WATCHER}`, `ITEM_WATCH_INTERVAL_MS=${cfg.ITEM_WATCH_INTERVAL_MS}`, `ITEM_WATCH_TOP=${cfg.ITEM_WATCH_TOP}`, `ITEM_WATCH_PAGES=${cfg.ITEM_WATCH_PAGES}`, `ENABLE_PRICE_WATCHER=${cfg.ENABLE_PRICE_WATCHER}`, `PRICE_WATCH_INTERVAL_MS=${cfg.PRICE_WATCH_INTERVAL_MS}`, `PRICE_WATCH_MAX_STORES=${cfg.PRICE_WATCH_MAX_STORES}`, `ENABLE_TRENDING_WATCHER=${cfg.ENABLE_TRENDING_WATCHER}`, `TRENDING_INTERVAL_MS=${cfg.TRENDING_INTERVAL_MS}`, `TRENDING_WINDOW_HOURS=${cfg.TRENDING_WINDOW_HOURS}`, `TRENDING_PAGE_TOP=${cfg.TRENDING_PAGE_TOP}`, `TRENDING_PAGES=${cfg.TRENDING_PAGES}`, `TRENDING_TOP_N=${cfg.TRENDING_TOP_N}`, `SSE_HEARTBEAT_MS=${cfg.SSE_HEARTBEAT_MS}`, `ADV_SEARCH_TTL_MS=${cfg.ADV_SEARCH_TTL_MS}`, `ADV_SEARCH_BATCH=${cfg.ADV_SEARCH_BATCH}`, `ADV_SEARCH_MAX_BATCHES=${cfg.ADV_SEARCH_MAX_BATCHES}`, `WEBHOOK_TIMEOUT_MS=${cfg.WEBHOOK_TIMEOUT_MS}`, `WEBHOOK_MAX_RETRIES=${cfg.WEBHOOK_MAX_RETRIES}`, `WEBHOOK_CONCURRENCY=${cfg.WEBHOOK_CONCURRENCY}`, `MAX_SEARCH_BATCHES=${cfg.MAX_SEARCH_BATCHES}`, `MAX_FETCH_BATCHES=${cfg.MAX_FETCH_BATCHES}`, `PLAYFAB_CONCURRENCY=${cfg.PLAYFAB_CONCURRENCY}`, `PLAYFAB_BATCH=${cfg.PLAYFAB_BATCH}`];
+    const lines = [`PORT=${cfg.PORT}`, `NODE_ENV=${cfg.NODE_ENV}`, `DEFAULT_ALIAS=${cfg.DEFAULT_ALIAS}`, `FEATURED_PRIMARY_ALIAS=${cfg.FEATURED_PRIMARY_ALIAS}`, `TITLE_ID=${cfg.TITLE_ID}`, `OS=${cfg.OS}`, `TRUST_PROXY=${cfg.TRUST_PROXY}`, `LOG_LEVEL=${cfg.LOG_LEVEL}`, `JWT_SECRET=${cfg.JWT_SECRET}`, `ADMIN_USER=${cfg.ADMIN_USER}`, `ADMIN_PASS=${cfg.ADMIN_PASS}`, `CORS_ORIGINS=${cfg.CORS_ORIGINS}`, `HTTP_MAX_SOCKETS=${cfg.HTTP_MAX_SOCKETS}`, `HTTPS_MAX_SOCKETS=${cfg.HTTPS_MAX_SOCKETS}`, `UPSTREAM_TIMEOUT_MS=${cfg.UPSTREAM_TIMEOUT_MS}`, `RETRY_BUDGET=${cfg.RETRY_BUDGET}`, `SESSION_TTL_MS=${cfg.SESSION_TTL_MS}`, `SESSION_CACHE_MAX=${cfg.SESSION_CACHE_MAX}`, `DATA_CACHE_MAX=${cfg.DATA_CACHE_MAX}`, `DATA_TTL_MS=${cfg.DATA_TTL_MS}`, `MULTILANG_ALL=${cfg.MULTILANG_ALL}`, `MULTILANG_ENRICH_BATCH=${cfg.MULTILANG_ENRICH_BATCH}`, `MULTILANG_ENRICH_CONCURRENCY=${cfg.MULTILANG_ENRICH_CONCURRENCY}`, `STORE_CONCURRENCY=${cfg.STORE_CONCURRENCY}`, `STORE_MAX_FOR_PRICE_ENRICH=${cfg.STORE_MAX_FOR_PRICE_ENRICH}`, `VALIDATE_REQUESTS=${cfg.VALIDATE_REQUESTS}`, `VALIDATE_RESPONSES=${cfg.VALIDATE_RESPONSES}`, `ENABLE_DOCS=${cfg.ENABLE_DOCS}`, `PAGE_SIZE=${cfg.PAGE_SIZE}`, `REVIEWS_ENABLED=${cfg.REVIEWS_ENABLED}`, `REVIEWS_FETCH_COUNT=${cfg.REVIEWS_FETCH_COUNT}`, `ENABLE_SALES_WATCHER=${cfg.ENABLE_SALES_WATCHER}`, `SALES_WATCH_INTERVAL_MS=${cfg.SALES_WATCH_INTERVAL_MS}`, `ENABLE_ITEM_WATCHER=${cfg.ENABLE_ITEM_WATCHER}`, `ITEM_WATCH_INTERVAL_MS=${cfg.ITEM_WATCH_INTERVAL_MS}`, `ITEM_WATCH_TOP=${cfg.ITEM_WATCH_TOP}`, `ITEM_WATCH_PAGES=${cfg.ITEM_WATCH_PAGES}`, `ENABLE_PRICE_WATCHER=${cfg.ENABLE_PRICE_WATCHER}`, `PRICE_WATCH_INTERVAL_MS=${cfg.PRICE_WATCH_INTERVAL_MS}`, `PRICE_WATCH_MAX_STORES=${cfg.PRICE_WATCH_MAX_STORES}`, `ENABLE_TRENDING_WATCHER=${cfg.ENABLE_TRENDING_WATCHER}`, `TRENDING_INTERVAL_MS=${cfg.TRENDING_INTERVAL_MS}`, `TRENDING_WINDOW_HOURS=${cfg.TRENDING_WINDOW_HOURS}`, `TRENDING_PAGE_TOP=${cfg.TRENDING_PAGE_TOP}`, `TRENDING_PAGES=${cfg.TRENDING_PAGES}`, `TRENDING_TOP_N=${cfg.TRENDING_TOP_N}`, `ADV_SEARCH_TTL_MS=${cfg.ADV_SEARCH_TTL_MS}`, `ADV_SEARCH_BATCH=${cfg.ADV_SEARCH_BATCH}`, `ADV_SEARCH_MAX_BATCHES=${cfg.ADV_SEARCH_MAX_BATCHES}`, `MAX_SEARCH_BATCHES=${cfg.MAX_SEARCH_BATCHES}`, `MAX_FETCH_BATCHES=${cfg.MAX_FETCH_BATCHES}`, `PLAYFAB_CONCURRENCY=${cfg.PLAYFAB_CONCURRENCY}`, `PLAYFAB_BATCH=${cfg.PLAYFAB_BATCH}`];
     fs.writeFileSync(envPath, lines.join("\n") + "\n", "utf8");
 }
 
@@ -69,11 +69,6 @@ function ensureDataFiles(rootDir, cfg) {
     const creatorsPath = path.join(dataDir, "creators.json");
     if (!fileExists(creatorsPath)) {
         fs.writeFileSync(creatorsPath, "[]\n", "utf8");
-    }
-
-    const webhooksPath = path.join(dataDir, "webhooks.json");
-    if (!fileExists(webhooksPath)) {
-        fs.writeFileSync(webhooksPath, "[]\n", "utf8");
     }
 }
 
@@ -115,7 +110,7 @@ function frameBox(title, subtitleLines) {
     const top = "┌" + "─".repeat(boxWidth - 2) + "┐";
     const bottom = "└" + "─".repeat(boxWidth - 2) + "┘";
 
-    const padLine = (txt) => {
+    const padLine = txt => {
         const rawLen = stripAnsiLen(txt);
         const pad = boxWidth - 2 - rawLen;
         return "│ " + txt + " ".repeat(Math.max(0, pad - 1)) + "│";
@@ -159,7 +154,7 @@ async function pageSecurity(baseCfg) {
         name: "ADMIN_USER",
         message: BRAND_TEXT("Admin username"),
         initial: baseCfg.ADMIN_USER || "admin",
-        validate: v => v && v.trim().length > 0 ? true : "Required"
+        validate: v => (v && v.trim().length > 0 ? true : "Required")
     }, {
         type: "password",
         name: "ADMIN_PASS",
@@ -190,15 +185,14 @@ async function pageRuntime(baseCfg) {
         name: "PORT",
         message: BRAND_TEXT("HTTP port the API will listen on"),
         initial: baseCfg.PORT || "3000",
-        validate: v => /^\d+$/.test(v) ? true : "Must be a number"
+        validate: v => (/^\d+$/.test(v) ? true : "Must be a number")
     }, {
         type: "select",
         name: "NODE_ENV",
         message: BRAND_TEXT("Node environment"),
         initial: (baseCfg.NODE_ENV || "production") === "production" ? 0 : 1,
         choices: [{
-            title: BRAND_TEXT("production (recommended)"),
-            value: "production"
+            title: BRAND_TEXT("production (recommended)"), value: "production"
         }, {title: BRAND_TEXT("development (verbose, not hardened)"), value: "development"}]
     }, {
         type: "select",
@@ -212,8 +206,7 @@ async function pageRuntime(baseCfg) {
         message: BRAND_TEXT("Log level"),
         initial: (baseCfg.LOG_LEVEL || "info") === "info" ? 0 : 1,
         choices: [{title: BRAND_TEXT("info  (normal)"), value: "info"}, {
-            title: BRAND_TEXT("debug (very noisy)"),
-            value: "debug"
+            title: BRAND_TEXT("debug (very noisy)"), value: "debug"
         }]
     }, {
         type: "text",
@@ -277,7 +270,7 @@ async function pageWatchers(baseCfg) {
 
     screenHeader("Background Watchers", "These background tasks continuously poll PlayFab and generate market intel.");
 
-    screenLines(["If enabled, watchers can also drive outbound webhook events for automation or dashboards."]);
+    screenLines(["Watchers periodically poll PlayFab in the background to keep marketplace data fresh."]);
 
     const qWatchers = await prompts([{
         type: "toggle",
@@ -348,7 +341,7 @@ function askConfig(baseCfg) {
 
         const adminUserInput = typeof qAdminRaw.ADMIN_USER === "string" ? qAdminRaw.ADMIN_USER.trim() : "";
 
-        const finalAdminUser = adminUserInput.length ? adminUserInput : (baseCfg.ADMIN_USER && baseCfg.ADMIN_USER.trim().length ? baseCfg.ADMIN_USER.trim() : "admin");
+        const finalAdminUser = adminUserInput.length ? adminUserInput : baseCfg.ADMIN_USER && baseCfg.ADMIN_USER.trim().length ? baseCfg.ADMIN_USER.trim() : "admin";
 
         const finalAdminPass = genSecret(12);
 
@@ -401,13 +394,9 @@ function askConfig(baseCfg) {
             TRENDING_PAGE_TOP: baseCfg.TRENDING_PAGE_TOP || "200",
             TRENDING_PAGES: baseCfg.TRENDING_PAGES || "3",
             TRENDING_TOP_N: baseCfg.TRENDING_TOP_N || "20",
-            SSE_HEARTBEAT_MS: baseCfg.SSE_HEARTBEAT_MS || "15000",
             ADV_SEARCH_TTL_MS: baseCfg.ADV_SEARCH_TTL_MS || "60000",
             ADV_SEARCH_BATCH: baseCfg.ADV_SEARCH_BATCH || "300",
             ADV_SEARCH_MAX_BATCHES: baseCfg.ADV_SEARCH_MAX_BATCHES || "10",
-            WEBHOOK_TIMEOUT_MS: baseCfg.WEBHOOK_TIMEOUT_MS || "5000",
-            WEBHOOK_MAX_RETRIES: baseCfg.WEBHOOK_MAX_RETRIES || "3",
-            WEBHOOK_CONCURRENCY: baseCfg.WEBHOOK_CONCURRENCY || "4",
             MAX_SEARCH_BATCHES: baseCfg.MAX_SEARCH_BATCHES || "10",
             MAX_FETCH_BATCHES: baseCfg.MAX_FETCH_BATCHES || "20",
             PLAYFAB_CONCURRENCY: baseCfg.PLAYFAB_CONCURRENCY || "12",
@@ -438,7 +427,7 @@ async function run() {
     ensureDirForFile(envPath);
     writeEnvFile(envPath, cfg);
     ensureDataFiles(rootDir, cfg);
-    ensureGitignoreEntries(gitignorePath, [".env", "src/data/webhooks.json"]);
+    ensureGitignoreEntries(gitignorePath, [".env"]);
 
     console.clear();
     frameBox(BRAND_NAME + " Setup", ["Done", "Your instance is ready."]);
@@ -460,6 +449,6 @@ async function run() {
 }
 
 run().catch(err => {
-    console.error(BRAND_ERROR("Setup failed:"), err && err.stack ? err.stack : err);
+    console.error(BRAND_ERROR("Setup failed:"), (err && err.stack) ? err.stack : err);
     process.exit(1);
 });

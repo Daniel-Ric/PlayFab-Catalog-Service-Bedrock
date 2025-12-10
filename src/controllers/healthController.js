@@ -91,7 +91,7 @@ async function checkSession() {
             hasSessionTicket: !!session.SessionTicket,
             hasEntityToken: !!session.EntityToken,
             expiresAt: session.expiresAt || null,
-            msUntilExpire: session.expiresAt ? (session.expiresAt - Date.now()) : null
+            msUntilExpire: session.expiresAt ? session.expiresAt - Date.now() : null
         };
     } catch (err) {
         return {
@@ -140,7 +140,7 @@ function watcherDetails(w, envPrefix, enabledBool) {
 
     const running = !!w.running;
     const lastRunTs = w.lastRunTs || 0;
-    const msSinceLastRun = lastRunTs ? (Date.now() - lastRunTs) : null;
+    const msSinceLastRun = lastRunTs ? Date.now() - lastRunTs : null;
 
     let status = "disabled";
     if (!enabledBool) {
@@ -234,24 +234,19 @@ function getSecretsInfo() {
     };
 }
 
-function getSseInfo() {
-    return {
-        heartbeatMs: readIntEnv("SSE_HEARTBEAT_MS", 15000), streams: {
-            sales: "/events/sales/stream",
-            items: "/events/items/stream",
-            prices: "/events/prices/stream",
-            trending: "/events/trending/stream"
-        }
-    };
-}
-
 function getRoutesInfo() {
     return {
         auth: {
-            login: "/login", openapi: "/openapi.json", docsEnabled: readBoolEnv("ENABLE_DOCS")
-        }, core: {
-            titles: "/titles", creators: "/creators", session: "/session/:alias"
-        }, marketplace: {
+            login: "/login",
+            openapi: "/openapi.json",
+            docsEnabled: readBoolEnv("ENABLE_DOCS")
+        },
+        core: {
+            titles: "/titles",
+            creators: "/creators",
+            session: "/session/:alias"
+        },
+        marketplace: {
             base: "/marketplace",
             all: "/marketplace/all/:alias",
             latest: "/marketplace/latest/:alias",
@@ -270,9 +265,14 @@ function getRoutesInfo() {
             stats: "/marketplace/:creatorName/stats",
             featuredServers: "/marketplace/featured-servers",
             sales: "/marketplace/sales[/::alias]"
-        }, admin: {
-            webhooks: "/admin/webhooks"
-        }, health: "/health"
+        },
+        events: {
+            stream: "/events/stream"
+        },
+        webhooks: {
+            base: "/webhooks"
+        },
+        health: "/health"
     };
 }
 
@@ -353,7 +353,7 @@ function getSynthesisWatchers(watchers) {
     let notRunning = 0;
     let total = 0;
 
-    for (const [key, val] of Object.entries(watchers)) {
+    for (const [, val] of Object.entries(watchers)) {
         total += 1;
         if (!val.enabled) {
             disabled += 1;
@@ -419,7 +419,6 @@ exports.getHealth = async (_req, res, next) => {
         const runtime = getRuntimeInfo();
         const cacheInfo = getCacheInfo();
         const secretsInfo = getSecretsInfo();
-        const sseInfo = getSseInfo();
         const routesInfo = getRoutesInfo();
         const flags = buildStatusFlags({upstream, session: sessionInfo});
 
@@ -444,7 +443,6 @@ exports.getHealth = async (_req, res, next) => {
             runtime,
             config: configInfo,
             secretsMeta: secretsInfo,
-            sse: sseInfo,
             routes: routesInfo
         };
 

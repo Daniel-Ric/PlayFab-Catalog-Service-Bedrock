@@ -1,0 +1,141 @@
+const axios = require("axios");
+const crypto = require("crypto");
+const logger = require("./config/logger");
+const {findMatchingWebhooks} = require("./webhookService");
+
+let initialized = false;
+const queue = [];
+let active = 0;
+
+const maxConcurrency = Math.max(1, parseInt(process.env.WEBHOOK_CONCURRENCY || "5", 10));
+const maxRetries = Math.max(0, parseInt(process.env.WEBHOOK_MAX_RETRIES || "5", 10));
+const timeoutMs = Math.max(1000, parseInt(process.env.WEBHOOK_TIMEOUT_MS || "6000", 10));
+const DISCORD_MAX_CONTENT = 1800;
+
+function isDiscordWebhook(webhook) {
+    if (!webhook) return false;
+    const vendor = String(webhook.vendor || "").toLowerCase();
+    if (vendor === "discord") return true;
+    const url = String(webhook.url || "").toLowerCase();
+    if (!url) return false;
+    if (url.indexOf("discord.com/api/webhooks") !== -1) return true;
+    if (url.indexOf("discordapp.com/api/webhooks") !== -1) return true;
+    return false;
+}
+
+function buildDiscordPayload(job) {
+    const body = job.body || {};
+    const lines = [];
+    const eventName = body.event || job.eventName || "event";
+    lines.push(`Event: ${eventName}`);
+    if (body.timestamp) lines.push(`Timestamp: ${body.timestamp}`);
+    if (body.id) lines.push(`Delivery: ${body.id}`);
+    if (body.data) {
+        let dataStr;
+        try {
+            dataStr = JSON.stringify(body.data, null, 2);
+        } catch {
+            dataStr = "[unserializable payload]";
+        }
+        const baseText = lines.join("\n") + "\n";
+        const remaining = DISCORD_MAX_CONTENT - baseText.length - "```json\n\n```".length;
+        if (remaining > 0) {
+            if (dataStr.length > remaining) dataStr = dataStr.slice(0, remaining - 3) + "...";
+            lines.push("```json");
+            lines.push(dataStr);
+            lines.push("```");
+        }
+    }
+    let content = lines.join("\n");
+    if (content.length > DISCORD_MAX_CONTENT) {
+        content = content.slice(0, DISCORD_MAX_CONTENT - 3) + "...";
+    }
+    const username = "PlayFab Catalog API";
+    return {username, content};
+}
+
+function scheduleRetry(job) {
+    const nextAttempt = job.attempt + 1;
+    const delayBase = 500;
+    const delay = Math.min(30000, delayBase * Math.pow(2, nextAttempt));
+    setTimeout(() => {
+        queue.push({...job, attempt: nextAttempt});
+        processQueue();
+    }, delay);
+}
+
+async function deliver(job) {
+    const payload = isDiscordWebhook(job.webhook) ? buildDiscordPayload(job) : job.body;
+    const json = JSON.stringify(payload);
+    const headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "ViewMarketplace/Webhook",
+        "X-View-Event": job.eventName,
+        "X-View-Delivery": job.deliveryId
+    };
+    if (job.webhook.secret) {
+        const sig = crypto.createHmac("sha256", job.webhook.secret).update(json).digest("hex");
+        headers["X-View-Signature"] = "sha256=" + sig;
+    }
+    try {
+        const res = await axios.post(job.webhook.url, json, {
+            headers, timeout: timeoutMs, validateStatus: () => true
+        });
+        if (res.status >= 200 && res.status < 300) {
+            logger.debug(`[Webhook] delivery ok id=${job.deliveryId} url=${job.webhook.url} status=${res.status}`);
+            return;
+        }
+        const status = res.status;
+        logger.debug(`[Webhook] delivery status=${status} id=${job.deliveryId} url=${job.webhook.url}`);
+        if (job.attempt >= maxRetries) return;
+        if (status >= 500 || status === 429) {
+            scheduleRetry(job);
+        }
+    } catch {
+        logger.debug(`[Webhook] delivery error id=${job.deliveryId} url=${job.webhook.url} attempt=${job.attempt}`);
+        if (job.attempt >= maxRetries) return;
+        scheduleRetry(job);
+    }
+}
+
+function processQueue() {
+    while (active < maxConcurrency && queue.length) {
+        const job = queue.shift();
+        active += 1;
+        deliver(job).finally(() => {
+            active -= 1;
+            processQueue();
+        });
+    }
+}
+
+function enqueueDeliveries(eventName, payload) {
+    const webhooks = findMatchingWebhooks(eventName, payload);
+    if (!webhooks.length) return;
+    for (const w of webhooks) {
+        const deliveryId = crypto.randomBytes(16).toString("hex");
+        const body = {
+            id: deliveryId, timestamp: new Date().toISOString(), event: eventName, data: payload
+        };
+        queue.push({
+            webhook: w, eventName, body, deliveryId, attempt: 0
+        });
+    }
+    processQueue();
+}
+
+function initWebhookDispatcher(eventBus) {
+    if (initialized) return;
+    initialized = true;
+    const events = ["item.snapshot", "item.created", "item.updated", "sale.snapshot", "sale.update", "price.changed", "creator.trending"];
+    for (const ev of events) {
+        eventBus.on(ev, payload => {
+            try {
+                enqueueDeliveries(ev, payload);
+            } catch {
+            }
+        });
+    }
+}
+
+module.exports = {initWebhookDispatcher};

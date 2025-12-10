@@ -1,8 +1,8 @@
 const crypto = require("crypto");
 const path = require("path");
-const {readJson, writeJsonAtomic} = require("../utils/storage");
+const {readJson, writeJsonAtomic} = require("./utils/storage");
 
-const filePath = path.join(__dirname, "../data/webhooks.json");
+const filePath = path.join(__dirname, "./data/webhooks.json");
 
 let cache = null;
 
@@ -90,7 +90,7 @@ function updateWebhook(id, patch) {
     if (typeof patch.active === "boolean") next.active = patch.active;
     if (typeof patch.vendor === "string" && patch.vendor.trim()) next.vendor = patch.vendor.trim();
     if (patch.filters && typeof patch.filters === "object") {
-        const f = {...next.filters, ...patch.filters};
+        const f = {...(next.filters || {}), ...patch.filters};
         if (Array.isArray(f.creators)) {
             f.creators = Array.from(new Set(f.creators.map(c => String(c))));
         }
@@ -110,13 +110,45 @@ function deleteWebhook(id) {
     return existed;
 }
 
-function matchesCreatorFilter(filters, payload) {
+function getCreatorNamesFromPayload(eventName, payload) {
+    if (!payload) return [];
+    const names = new Set();
+    const ev = String(eventName || "");
+    if (Array.isArray(payload.items)) {
+        if (ev === "item.updated") {
+            for (const it of payload.items) {
+                if (!it) continue;
+                const before = it.before || it.previous || null;
+                const after = it.after || it.current || null;
+                if (before && before.creatorName) names.add(String(before.creatorName).toLowerCase());
+                if (after && after.creatorName) names.add(String(after.creatorName).toLowerCase());
+                if (it.creatorName) names.add(String(it.creatorName).toLowerCase());
+            }
+        } else if (ev === "item.created" || ev === "item.snapshot") {
+            for (const it of payload.items) {
+                if (it && it.creatorName) {
+                    names.add(String(it.creatorName).toLowerCase());
+                }
+            }
+        }
+    }
+    if (ev === "creator.trending" && Array.isArray(payload.leaders)) {
+        for (const leader of payload.leaders) {
+            if (leader && leader.creator) {
+                names.add(String(leader.creator).toLowerCase());
+            }
+        }
+    }
+    return Array.from(names);
+}
+
+function matchesCreatorFilter(filters, eventName, payload) {
     if (!filters || !Array.isArray(filters.creators) || !filters.creators.length) return true;
     const set = new Set(filters.creators.map(c => String(c).toLowerCase()));
-    if (!payload || !Array.isArray(payload.items)) return true;
-    for (const it of payload.items) {
-        const n = it && it.creatorName ? String(it.creatorName).toLowerCase() : null;
-        if (n && set.has(n)) return true;
+    const names = getCreatorNamesFromPayload(eventName, payload);
+    if (!names.length) return true;
+    for (const n of names) {
+        if (set.has(n)) return true;
     }
     return false;
 }
@@ -129,7 +161,7 @@ function findMatchingWebhooks(eventName, payload) {
         if (!w.active) continue;
         const ev = Array.isArray(w.events) ? w.events : [];
         if (!ev.includes(name) && !ev.includes("*")) continue;
-        if (!matchesCreatorFilter(w.filters, payload)) continue;
+        if (!matchesCreatorFilter(w.filters, name, payload)) continue;
         out.push(w);
     }
     return out;

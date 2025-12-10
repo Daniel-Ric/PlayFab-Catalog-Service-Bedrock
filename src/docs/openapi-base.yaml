@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: PlayFab Service | VMC API
-  version: "1.0.0"
+  version: "1.1.0"
   description: Public HTTP API for marketplace browsing.
 servers:
   - url: http://localhost:3000
@@ -14,6 +14,7 @@ tags:
   - name: Marketplace
   - name: Admin
   - name: Events
+  - name: Health
 components:
   securitySchemes:
     BearerAuth:
@@ -107,44 +108,85 @@ components:
     WebhookRegistration:
       type: object
       required:
-        - event
         - url
       properties:
-        event:
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        secret:
+          type: string
+          nullable: true
+        vendor:
+          type: string
+        active:
+          type: boolean
+        filters:
+          type: object
+          nullable: true
+          properties:
+            creators:
+              type: array
+              items:
+                type: string
+    Webhook:
+      type: object
+      properties:
+        id:
           type: string
         url:
           type: string
           format: uri
+        events:
+          type: array
+          items:
+            type: string
         secret:
           type: string
           nullable: true
+        active:
+          type: boolean
+        vendor:
+          type: string
+        filters:
+          type: object
+          nullable: true
+          properties:
+            creators:
+              type: array
+              items:
+                type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - url
+        - events
+        - active
+        - vendor
     WebhookResult:
       type: object
       properties:
+        id:
+          type: string
+        status:
+          type: integer
         ok:
           type: boolean
-        webhook:
-          type: object
-          properties:
-            id:
-              type: string
-            event:
-              type: string
-            url:
-              type: string
-              format: uri
-            secret:
-              type: string
-              nullable: true
-            createdAt:
-              type: integer
-            updatedAt:
-              type: integer
-            failures:
-              type: integer
-            lastStatus:
-              type: integer
-              nullable: true
+        event:
+          type: string
+      required:
+        - id
+        - status
+        - ok
+        - event
     SaleEvent:
       type: object
       properties:

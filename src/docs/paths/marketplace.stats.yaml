@@ -1,29 +1,42 @@
-/marketplace/resolve/{alias}/{itemId}:
+/marketplace/{creatorName}/stats:
   get:
     tags:
       - Marketplace
-    summary: Resolve wrapper to real item by itemId
-    description: Resolves an item by its itemId and returns the canonical item.
+    summary: Get statistics for a creator
     security:
       - BearerAuth: [ ]
     parameters:
       - in: path
-        name: alias
-        required: true
-        schema:
-          type: string
-      - in: path
-        name: itemId
+        name: creatorName
         required: true
         schema:
           type: string
       - in: query
-        name: depth
+        name: latestLimit
         required: false
         schema:
           type: integer
           minimum: 0
-          default: 1
+          maximum: 50
+      - in: query
+        name: topRatedLimit
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 50
+      - in: query
+        name: months
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 36
+      - in: query
+        name: includeLists
+        required: false
+        schema:
+          type: boolean
     responses:
       "200":
         description: OK
@@ -34,7 +47,7 @@
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/Item"
+              type: object
       "400":
         description: Bad request
         content:
@@ -55,6 +68,12 @@
               $ref: "#/components/schemas/Error"
       "404":
         description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "500":
+        description: Server error
         content:
           application/json:
             schema:

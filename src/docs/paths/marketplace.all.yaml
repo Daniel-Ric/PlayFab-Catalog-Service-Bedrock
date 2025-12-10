@@ -4,7 +4,8 @@
       - Marketplace
     summary: Get all marketplace items
     description: Lists all items for a title alias with optional filters.
-    security: [ ]
+    security:
+      - BearerAuth: [ ]
     parameters:
       - in: path
         name: alias
@@ -21,6 +22,32 @@
         required: false
         schema:
           type: string
+      - in: query
+        name: page
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: pageSize
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      - in: query
+        name: skip
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+      - in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
     responses:
       "200":
         description: OK
@@ -36,6 +63,18 @@
                 $ref: "#/components/schemas/Item"
       "400":
         description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
         content:
           application/json:
             schema:

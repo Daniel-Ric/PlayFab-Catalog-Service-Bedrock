@@ -4,7 +4,8 @@
       - Marketplace
     summary: Compare items of a creator across titles
     description: Returns a mapping from title alias to that creator’s items.
-    security: [ ]
+    security:
+      - BearerAuth: [ ]
     parameters:
       - in: path
         name: creatorName
@@ -26,6 +27,24 @@
                 type: array
                 items:
                   $ref: "#/components/schemas/Item"
+      "400":
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
       "404":
         description: Creator not found
         content:

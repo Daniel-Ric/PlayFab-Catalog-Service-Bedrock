@@ -4,7 +4,8 @@
       - Marketplace
     summary: Get featured servers
     description: Returns a list of curated servers and, if available, their associated item.
-    security: [ ]
+    security:
+      - BearerAuth: [ ]
     responses:
       "200":
         description: OK
@@ -18,6 +19,18 @@
               type: array
               items:
                 $ref: "#/components/schemas/FeaturedServer"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
       "500":
         description: Server error
         content:

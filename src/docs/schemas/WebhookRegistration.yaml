@@ -1,14 +1,27 @@
 WebhookRegistration:
   type: object
   required:
-    - event
     - url
   properties:
-    event:
-      type: string
     url:
       type: string
       format: uri
+    events:
+      type: array
+      items:
+        type: string
     secret:
       type: string
       nullable: true
+    vendor:
+      type: string
+    active:
+      type: boolean
+    filters:
+      type: object
+      nullable: true
+      properties:
+        creators:
+          type: array
+          items:
+            type: string

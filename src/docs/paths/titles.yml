@@ -3,7 +3,8 @@
     tags:
       - Titles
     summary: List all titles
-    security: [ ]
+    security:
+      - BearerAuth: [ ]
     responses:
       "200":
         description: OK
@@ -13,6 +14,18 @@
               type: array
               items:
                 $ref: "#/components/schemas/Title"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
       "500":
         description: Server error
         content:
@@ -23,7 +36,8 @@
     tags:
       - Titles
     summary: Create a title
-    security: [ ]
+    security:
+      - BearerAuth: [ ]
     requestBody:
       required: true
       content:
@@ -43,12 +57,25 @@
           application/json:
             schema:
               $ref: "#/components/schemas/Error"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
 /titles/{alias}:
   delete:
     tags:
       - Titles
     summary: Delete a title
-    security: [ ]
+    security:
+      - BearerAuth: [ ]
     parameters:
       - in: path
         name: alias
@@ -65,6 +92,18 @@
               properties:
                 deleted:
                   type: string
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
       "404":
         description: Not found
         content:

@@ -1,6 +1,6 @@
 const axios = require("axios");
 const crypto = require("crypto");
-const logger = require("../config/logger");
+const logger = require("./config/logger");
 const {findMatchingWebhooks} = require("./webhookService");
 
 let initialized = false;
@@ -10,6 +10,49 @@ let active = 0;
 const maxConcurrency = Math.max(1, parseInt(process.env.WEBHOOK_CONCURRENCY || "5", 10));
 const maxRetries = Math.max(0, parseInt(process.env.WEBHOOK_MAX_RETRIES || "5", 10));
 const timeoutMs = Math.max(1000, parseInt(process.env.WEBHOOK_TIMEOUT_MS || "6000", 10));
+const DISCORD_MAX_CONTENT = 1800;
+
+function isDiscordWebhook(webhook) {
+    if (!webhook) return false;
+    const vendor = String(webhook.vendor || "").toLowerCase();
+    if (vendor === "discord") return true;
+    const url = String(webhook.url || "").toLowerCase();
+    if (!url) return false;
+    if (url.indexOf("discord.com/api/webhooks") !== -1) return true;
+    if (url.indexOf("discordapp.com/api/webhooks") !== -1) return true;
+    return false;
+}
+
+function buildDiscordPayload(job) {
+    const body = job.body || {};
+    const lines = [];
+    const eventName = body.event || job.eventName || "event";
+    lines.push(`Event: ${eventName}`);
+    if (body.timestamp) lines.push(`Timestamp: ${body.timestamp}`);
+    if (body.id) lines.push(`Delivery: ${body.id}`);
+    if (body.data) {
+        let dataStr;
+        try {
+            dataStr = JSON.stringify(body.data, null, 2);
+        } catch {
+            dataStr = "[unserializable payload]";
+        }
+        const baseText = lines.join("\n") + "\n";
+        const remaining = DISCORD_MAX_CONTENT - baseText.length - "```json\n\n```".length;
+        if (remaining > 0) {
+            if (dataStr.length > remaining) dataStr = dataStr.slice(0, remaining - 3) + "...";
+            lines.push("```json");
+            lines.push(dataStr);
+            lines.push("```");
+        }
+    }
+    let content = lines.join("\n");
+    if (content.length > DISCORD_MAX_CONTENT) {
+        content = content.slice(0, DISCORD_MAX_CONTENT - 3) + "...";
+    }
+    const username = "PlayFab Catalog API";
+    return {username, content};
+}
 
 function scheduleRetry(job) {
     const nextAttempt = job.attempt + 1;
@@ -22,7 +65,8 @@ function scheduleRetry(job) {
 }
 
 async function deliver(job) {
-    const json = JSON.stringify(job.body);
+    const payload = isDiscordWebhook(job.webhook) ? buildDiscordPayload(job) : job.body;
+    const json = JSON.stringify(payload);
     const headers = {
         "Content-Type": "application/json",
         "User-Agent": "ViewMarketplace/Webhook",

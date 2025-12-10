@@ -1,0 +1,64 @@
+/events/stream:
+  get:
+    tags:
+      - Events
+    summary: Events stream (SSE)
+    description: >
+      Server-Sent Events stream for marketplace and creator events.
+      Optionally filter by event types and/or creator name.
+    security:
+      - BearerAuth: [ ]
+    parameters:
+      - in: query
+        name: events
+        required: false
+        description: Comma-separated list of event names to receive.
+        schema:
+          type: string
+          maxLength: 200
+      - in: query
+        name: creatorName
+        required: false
+        description: Filter events to a specific creator (case-insensitive).
+        schema:
+          type: string
+          maxLength: 100
+      - in: query
+        name: heartbeatMs
+        required: false
+        description: Interval for heartbeat messages in milliseconds.
+        schema:
+          type: integer
+          minimum: 5000
+          maximum: 600000
+    responses:
+      "200":
+        description: Server-Sent Events stream
+        content:
+          text/event-stream:
+            schema:
+              type: string
+      "400":
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "500":
+        description: Server error
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"

@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const path = require("path");
-const { readJson, writeJsonAtomic } = require("../utils/storage");
+const {readJson, writeJsonAtomic} = require("../utils/storage");
+const {getCreatorNamesFromPayload} = require("../utils/eventPayload");
 
 const filePath = path.join(__dirname, "./data/webhooks.json");
 
@@ -20,8 +21,7 @@ function loadAll() {
 
 function saveAll() {
     if (!cache) return;
-    const arr = Array.from(cache.values());
-    writeJsonAtomic(filePath, arr);
+    writeJsonAtomic(filePath, Array.from(cache.values()));
 }
 
 function generateId() {
@@ -32,19 +32,26 @@ function generateId() {
 function normalizeInput(input) {
     const now = new Date().toISOString();
     const url = String(input.url || "").trim();
+
     const rawEvents = Array.isArray(input.events) ? input.events : [];
-    const events = rawEvents.length ? Array.from(new Set(rawEvents.map(e => String(e)))) : ["item.created"];
+    const cleanedEvents = rawEvents.map(e => String(e).trim()).filter(Boolean);
+    const events = cleanedEvents.length ? Array.from(new Set(cleanedEvents)) : ["item.created"];
+
     const filters = input.filters && typeof input.filters === "object" ? {...input.filters} : {};
     if (Array.isArray(filters.creators)) {
-        filters.creators = Array.from(new Set(filters.creators.map(c => String(c))));
+        const creators = filters.creators.map(c => String(c).trim()).filter(Boolean);
+        filters.creators = Array.from(new Set(creators));
     }
+
+    const vendor = input.vendor ? String(input.vendor).trim() : "generic";
+
     return {
         id: generateId(),
         url,
         events,
         secret: input.secret ? String(input.secret) : null,
         active: input.active !== false,
-        vendor: input.vendor ? String(input.vendor) : "generic",
+        vendor: vendor || "generic",
         filters,
         createdAt: now,
         updatedAt: now
@@ -52,13 +59,11 @@ function normalizeInput(input) {
 }
 
 function listWebhooks() {
-    const map = loadAll();
-    return Array.from(map.values());
+    return Array.from(loadAll().values());
 }
 
 function getWebhook(id) {
-    const map = loadAll();
-    return map.get(String(id)) || null;
+    return loadAll().get(String(id)) || null;
 }
 
 function createWebhook(input) {
@@ -78,24 +83,30 @@ function updateWebhook(id, patch) {
         e.status = 404;
         throw e;
     }
+
     const now = new Date().toISOString();
     const next = {...existing};
+
     if (typeof patch.url === "string" && patch.url.trim()) next.url = patch.url.trim();
+
     if (Array.isArray(patch.events) && patch.events.length) {
-        next.events = Array.from(new Set(patch.events.map(e => String(e))));
+        const ev = patch.events.map(e => String(e).trim()).filter(Boolean);
+        if (ev.length) next.events = Array.from(new Set(ev));
     }
-    if (typeof patch.secret === "string") {
-        next.secret = patch.secret.length ? patch.secret : null;
-    }
+
+    if (typeof patch.secret === "string") next.secret = patch.secret.length ? patch.secret : null;
     if (typeof patch.active === "boolean") next.active = patch.active;
     if (typeof patch.vendor === "string" && patch.vendor.trim()) next.vendor = patch.vendor.trim();
+
     if (patch.filters && typeof patch.filters === "object") {
         const f = {...(next.filters || {}), ...patch.filters};
         if (Array.isArray(f.creators)) {
-            f.creators = Array.from(new Set(f.creators.map(c => String(c))));
+            const creators = f.creators.map(c => String(c).trim()).filter(Boolean);
+            f.creators = Array.from(new Set(creators));
         }
         next.filters = f;
     }
+
     next.updatedAt = now;
     map.set(key, next);
     saveAll();
@@ -108,38 +119,6 @@ function deleteWebhook(id) {
     const existed = map.delete(key);
     saveAll();
     return existed;
-}
-
-function getCreatorNamesFromPayload(eventName, payload) {
-    if (!payload) return [];
-    const names = new Set();
-    const ev = String(eventName || "");
-    if (Array.isArray(payload.items)) {
-        if (ev === "item.updated") {
-            for (const it of payload.items) {
-                if (!it) continue;
-                const before = it.before || it.previous || null;
-                const after = it.after || it.current || null;
-                if (before && before.creatorName) names.add(String(before.creatorName).toLowerCase());
-                if (after && after.creatorName) names.add(String(after.creatorName).toLowerCase());
-                if (it.creatorName) names.add(String(it.creatorName).toLowerCase());
-            }
-        } else if (ev === "item.created" || ev === "item.snapshot") {
-            for (const it of payload.items) {
-                if (it && it.creatorName) {
-                    names.add(String(it.creatorName).toLowerCase());
-                }
-            }
-        }
-    }
-    if (ev === "creator.trending" && Array.isArray(payload.leaders)) {
-        for (const leader of payload.leaders) {
-            if (leader && leader.creator) {
-                names.add(String(leader.creator).toLowerCase());
-            }
-        }
-    }
-    return Array.from(names);
 }
 
 function matchesCreatorFilter(filters, eventName, payload) {
@@ -157,13 +136,15 @@ function findMatchingWebhooks(eventName, payload) {
     const map = loadAll();
     const out = [];
     const name = String(eventName);
+
     for (const w of map.values()) {
-        if (!w.active) continue;
+        if (!w || !w.active) continue;
         const ev = Array.isArray(w.events) ? w.events : [];
         if (!ev.includes(name) && !ev.includes("*")) continue;
         if (!matchesCreatorFilter(w.filters, name, payload)) continue;
         out.push(w);
     }
+
     return out;
 }
 

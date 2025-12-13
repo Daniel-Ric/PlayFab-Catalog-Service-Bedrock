@@ -10,15 +10,12 @@ function isDiscordWebhook(webhook) {
     if (vendor === "discord") return true;
     const url = String(webhook.url || "").toLowerCase();
     if (!url) return false;
-    if (url.indexOf("discord.com/api/webhooks") !== -1) return true;
-    if (url.indexOf("discordapp.com/api/webhooks") !== -1) return true;
-    return false;
+    return url.includes("discord.com/api/webhooks") || url.includes("discordapp.com/api/webhooks");
 }
 
 exports.list = (req, res, next) => {
     try {
-        const items = service.listWebhooks();
-        res.json(items);
+        res.json(service.listWebhooks());
     } catch (e) {
         next(e);
     }
@@ -27,10 +24,7 @@ exports.list = (req, res, next) => {
 exports.getOne = (req, res, next) => {
     try {
         const w = service.getWebhook(req.params.id);
-        if (!w) {
-            res.status(404).json({error: "Webhook not found"});
-            return;
-        }
+        if (!w) return res.status(404).json({error: "Webhook not found"});
         res.json(w);
     } catch (e) {
         next(e);
@@ -58,10 +52,7 @@ exports.update = (req, res, next) => {
 exports.remove = (req, res, next) => {
     try {
         const ok = service.deleteWebhook(req.params.id);
-        if (!ok) {
-            res.status(404).json({error: "Webhook not found"});
-            return;
-        }
+        if (!ok) return res.status(404).json({error: "Webhook not found"});
         res.json({deleted: true});
     } catch (e) {
         next(e);
@@ -71,13 +62,12 @@ exports.remove = (req, res, next) => {
 exports.test = async (req, res, next) => {
     try {
         const w = service.getWebhook(req.params.id);
-        if (!w) {
-            res.status(404).json({error: "Webhook not found"});
-            return;
-        }
+        if (!w) return res.status(404).json({error: "Webhook not found"});
+
         const deliveryId = crypto.randomBytes(16).toString("hex");
         const eventName = "webhook.test";
         const timestamp = new Date().toISOString();
+
         let payload;
         if (isDiscordWebhook(w)) {
             const lines = [];
@@ -88,11 +78,13 @@ exports.test = async (req, res, next) => {
             payload = {content: lines.join("\n")};
         } else {
             payload = {
-                id: deliveryId, timestamp, event: eventName, data: {
-                    type: "test", message: "Test webhook delivery", webhookId: w.id, url: w.url
-                }
+                id: deliveryId,
+                timestamp,
+                event: eventName,
+                data: {type: "test", message: "Test webhook delivery", webhookId: w.id, url: w.url}
             };
         }
+
         const json = JSON.stringify(payload);
         const headers = {
             "Content-Type": "application/json",
@@ -100,13 +92,20 @@ exports.test = async (req, res, next) => {
             "X-View-Event": eventName,
             "X-View-Delivery": deliveryId
         };
+
         if (w.secret) {
             const sig = crypto.createHmac("sha256", w.secret).update(json).digest("hex");
             headers["X-View-Signature"] = "sha256=" + sig;
         }
+
         const response = await axios.post(w.url, json, {
-            headers, timeout: timeoutMs, validateStatus: () => true
+            headers,
+            timeout: timeoutMs,
+            maxBodyLength: 2 * 1024 * 1024,
+            maxContentLength: 2 * 1024 * 1024,
+            validateStatus: () => true
         });
+
         res.json({
             id: deliveryId,
             status: response.status,

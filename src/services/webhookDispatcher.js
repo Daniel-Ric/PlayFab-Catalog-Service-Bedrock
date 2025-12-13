@@ -4,12 +4,18 @@ const logger = require("../config/logger");
 const {findMatchingWebhooks} = require("./webhookService");
 
 let initialized = false;
+
 const queue = [];
 let active = 0;
 
 const maxConcurrency = Math.max(1, parseInt(process.env.WEBHOOK_CONCURRENCY || "5", 10));
 const maxRetries = Math.max(0, parseInt(process.env.WEBHOOK_MAX_RETRIES || "5", 10));
 const timeoutMs = Math.max(1000, parseInt(process.env.WEBHOOK_TIMEOUT_MS || "6000", 10));
+const queueMax = Math.max(100, parseInt(process.env.WEBHOOK_QUEUE_MAX || "10000", 10));
+
+const retryBaseMs = Math.max(50, parseInt(process.env.WEBHOOK_RETRY_BASE_MS || "500", 10));
+const retryMaxMs = Math.max(1000, parseInt(process.env.WEBHOOK_RETRY_MAX_MS || "30000", 10));
+
 const DISCORD_MAX_CONTENT = 1800;
 
 function isDiscordWebhook(webhook) {
@@ -18,9 +24,7 @@ function isDiscordWebhook(webhook) {
     if (vendor === "discord") return true;
     const url = String(webhook.url || "").toLowerCase();
     if (!url) return false;
-    if (url.indexOf("discord.com/api/webhooks") !== -1) return true;
-    if (url.indexOf("discordapp.com/api/webhooks") !== -1) return true;
-    return false;
+    return url.includes("discord.com/api/webhooks") || url.includes("discordapp.com/api/webhooks");
 }
 
 function buildDiscordPayload(job) {
@@ -30,6 +34,7 @@ function buildDiscordPayload(job) {
     lines.push(`Event: ${eventName}`);
     if (body.timestamp) lines.push(`Timestamp: ${body.timestamp}`);
     if (body.id) lines.push(`Delivery: ${body.id}`);
+
     if (body.data) {
         let dataStr;
         try {
@@ -37,6 +42,7 @@ function buildDiscordPayload(job) {
         } catch {
             dataStr = "[unserializable payload]";
         }
+
         const baseText = lines.join("\n") + "\n";
         const remaining = DISCORD_MAX_CONTENT - baseText.length - "```json\n\n```".length;
         if (remaining > 0) {
@@ -46,20 +52,43 @@ function buildDiscordPayload(job) {
             lines.push("```");
         }
     }
+
     let content = lines.join("\n");
-    if (content.length > DISCORD_MAX_CONTENT) {
-        content = content.slice(0, DISCORD_MAX_CONTENT - 3) + "...";
-    }
-    const username = "PlayFab Catalog API";
-    return {username, content};
+    if (content.length > DISCORD_MAX_CONTENT) content = content.slice(0, DISCORD_MAX_CONTENT - 3) + "...";
+    return {username: "PlayFab Catalog API", content};
 }
 
-function scheduleRetry(job) {
+function clampQueue() {
+    while (queue.length > queueMax) queue.shift();
+}
+
+function parseRetryAfterMs(headers) {
+    if (!headers) return 0;
+    const v = headers["retry-after"] || headers["Retry-After"];
+    if (!v) return 0;
+    const s = String(v).trim();
+    const sec = parseInt(s, 10);
+    if (Number.isFinite(sec) && sec >= 0) return sec * 1000;
+    const ts = Date.parse(s);
+    if (Number.isFinite(ts)) {
+        const d = ts - Date.now();
+        return d > 0 ? d : 0;
+    }
+    return 0;
+}
+
+function computeBackoffMs(attempt) {
+    const exp = Math.min(retryMaxMs, retryBaseMs * Math.pow(2, Math.max(0, attempt)));
+    const jitter = Math.floor(Math.random() * Math.max(10, Math.floor(exp * 0.2)));
+    return Math.min(retryMaxMs, exp + jitter);
+}
+
+function scheduleRetry(job, retryAfterMs) {
     const nextAttempt = job.attempt + 1;
-    const delayBase = 500;
-    const delay = Math.min(30000, delayBase * Math.pow(2, nextAttempt));
+    const delay = Math.min(retryMaxMs, Math.max(retryAfterMs || 0, computeBackoffMs(nextAttempt)));
     setTimeout(() => {
         queue.push({...job, attempt: nextAttempt});
+        clampQueue();
         processQueue();
     }, delay);
 }
@@ -67,34 +96,46 @@ function scheduleRetry(job) {
 async function deliver(job) {
     const payload = isDiscordWebhook(job.webhook) ? buildDiscordPayload(job) : job.body;
     const json = JSON.stringify(payload);
+
     const headers = {
         "Content-Type": "application/json",
         "User-Agent": "ViewMarketplace/Webhook",
         "X-View-Event": job.eventName,
         "X-View-Delivery": job.deliveryId
     };
+
     if (job.webhook.secret) {
         const sig = crypto.createHmac("sha256", job.webhook.secret).update(json).digest("hex");
         headers["X-View-Signature"] = "sha256=" + sig;
     }
+
     try {
         const res = await axios.post(job.webhook.url, json, {
-            headers, timeout: timeoutMs, validateStatus: () => true
+            headers,
+            timeout: timeoutMs,
+            maxBodyLength: 2 * 1024 * 1024,
+            maxContentLength: 2 * 1024 * 1024,
+            validateStatus: () => true
         });
-        if (res.status >= 200 && res.status < 300) {
-            logger.debug(`[Webhook] delivery ok id=${job.deliveryId} url=${job.webhook.url} status=${res.status}`);
+
+        const status = res.status;
+
+        if (status >= 200 && status < 300) {
+            logger.debug(`[Webhook] delivery ok id=${job.deliveryId} url=${job.webhook.url} status=${status}`);
             return;
         }
-        const status = res.status;
+
         logger.debug(`[Webhook] delivery status=${status} id=${job.deliveryId} url=${job.webhook.url}`);
+
         if (job.attempt >= maxRetries) return;
-        if (status >= 500 || status === 429) {
-            scheduleRetry(job);
+
+        if (status === 429 || (status >= 500 && status <= 599)) {
+            scheduleRetry(job, parseRetryAfterMs(res.headers));
         }
     } catch {
         logger.debug(`[Webhook] delivery error id=${job.deliveryId} url=${job.webhook.url} attempt=${job.attempt}`);
         if (job.attempt >= maxRetries) return;
-        scheduleRetry(job);
+        scheduleRetry(job, 0);
     }
 }
 
@@ -112,21 +153,21 @@ function processQueue() {
 function enqueueDeliveries(eventName, payload) {
     const webhooks = findMatchingWebhooks(eventName, payload);
     if (!webhooks.length) return;
+
     for (const w of webhooks) {
         const deliveryId = crypto.randomBytes(16).toString("hex");
-        const body = {
-            id: deliveryId, timestamp: new Date().toISOString(), event: eventName, data: payload
-        };
-        queue.push({
-            webhook: w, eventName, body, deliveryId, attempt: 0
-        });
+        const body = {id: deliveryId, timestamp: new Date().toISOString(), event: eventName, data: payload};
+        queue.push({webhook: w, eventName, body, deliveryId, attempt: 0});
     }
+
+    clampQueue();
     processQueue();
 }
 
 function initWebhookDispatcher(eventBus) {
     if (initialized) return;
     initialized = true;
+
     const events = ["item.snapshot", "item.created", "item.updated", "sale.snapshot", "sale.update", "price.changed", "creator.trending"];
     for (const ev of events) {
         eventBus.on(ev, payload => {

@@ -125,7 +125,7 @@ function matchesCreatorFilter(filters, eventName, payload) {
     if (!filters || !Array.isArray(filters.creators) || !filters.creators.length) return true;
     const set = new Set(filters.creators.map(c => String(c).toLowerCase()));
     const names = getCreatorNamesFromPayload(eventName, payload);
-    if (!names.length) return true;
+    if (!names.length) return false;
     for (const n of names) {
         if (set.has(n)) return true;
     }

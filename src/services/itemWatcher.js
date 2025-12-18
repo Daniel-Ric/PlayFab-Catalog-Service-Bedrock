@@ -1,7 +1,7 @@
-const {sendPlayFabRequest, buildSearchPayload, isValidItem} = require("../utils/playfab");
-const {resolveTitle} = require("../utils/titles");
-const {stableHash} = require("../utils/hash");
-const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
+const {sendPlayFabRequest, buildSearchPayload, isValidItem, getItemsByIds} = require("./utils/playfab");
+const {resolveTitle} = require("./utils/titles");
+const {stableHash} = require("./utils/hash");
+const {projectCatalogItems, projectCatalogItem} = require("./utils/projectors");
 
 function getTitleId() {
     const alias = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || "").trim();
@@ -22,6 +22,16 @@ function creationDateOf(it) {
     return it.CreationDate || it.creationDate || null;
 }
 
+function lastModifiedDateOf(it) {
+    return it.LastModifiedDate || it.lastModifiedDate || null;
+}
+
+function tsOf(v) {
+    if (!v) return 0;
+    const t = new Date(v).getTime();
+    return Number.isFinite(t) ? t : 0;
+}
+
 function hashItemCore(it) {
     const core = {
         Id: it.Id || it.id,
@@ -33,7 +43,7 @@ function hashItemCore(it) {
         Images: Array.isArray(it.Images) ? it.Images.map(i => [i.Tag || i.tag, i.Url || i.url]) : [],
         DisplayProperties: it.DisplayProperties,
         ETag: it.ETag,
-        LastModifiedDate: it.LastModifiedDate,
+        LastModifiedDate: lastModifiedDateOf(it),
         StartDate: startDateOf(it),
         CreationDate: creationDateOf(it)
     };
@@ -54,7 +64,7 @@ async function fetchRecentItems(titleId, os, top, pages) {
             skip,
             orderBy,
             expandFields: "images",
-            selectFields: "images,startDate,creationDate,displayProperties"
+            selectFields: "images,startDate,creationDate,lastModifiedDate,displayProperties"
         });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 2, os);
         const items = (data.Items || []).filter(isValidItem);
@@ -65,38 +75,130 @@ async function fetchRecentItems(titleId, os, top, pages) {
     return out;
 }
 
-function diffItems(prevMap, currItems) {
-    const nextMap = new Map();
-    const created = [];
-    const updated = [];
-    for (const it of currItems) {
-        const id = it.Id || it.id;
-        if (!id) continue;
-        const h = hashItemCore(it);
-        nextMap.set(id, {
-            hash: h, raw: it, startDate: startDateOf(it), creationDate: creationDateOf(it)
-        });
-        const prev = prevMap.get(id);
-        if (!prev) {
-            created.push(it);
-        } else if (prev.hash !== h) {
-            updated.push({
-                id, before: prev.raw, after: it
-            });
-        }
-    }
-    return {nextMap, created, updated};
+function encodeContinuationToken(index) {
+    return Buffer.from(String(index), "utf8").toString("base64");
 }
 
-function filterCreatedByStartDate(created, sinceTs) {
-    if (!sinceTs) return created;
-    return created.filter(it => {
-        const d = startDateOf(it);
-        if (!d) return false;
-        const ts = new Date(d).getTime();
-        if (!Number.isFinite(ts)) return false;
-        return ts >= sinceTs;
+function normalizeFieldSpec(field) {
+    const f = String(field || "");
+    if (f === "CreationDate") return {primary: "CreationDate", fallback: "creationDate"};
+    if (f === "StartDate") return {primary: "StartDate", fallback: "startDate"};
+    if (f === "LastModifiedDate") return {primary: "LastModifiedDate", fallback: "lastModifiedDate"};
+    return {primary: f, fallback: f.toLowerCase()};
+}
+
+function idOfSearchHit(hit) {
+    if (!hit) return null;
+    return hit.Id || hit.id || hit.Item?.Id || hit.Item?.id || hit.ItemId || hit.itemId || null;
+}
+
+async function searchItemsPageEconomy(titleId, os, filter, orderBy, continuationToken, count) {
+    const payload = {
+        Filter: filter, OrderBy: orderBy, ContinuationToken: continuationToken, Count: count
+    };
+    const data = await sendPlayFabRequest(titleId, "Economy/SearchItems", payload, "X-EntityToken", 3, os);
+    return data || {};
+}
+
+async function searchItemsPageCatalog(titleId, os, filter, orderBy, skip, top) {
+    const payload = buildSearchPayload({
+        filter,
+        search: "",
+        top,
+        skip,
+        orderBy,
+        expandFields: "",
+        selectFields: "images,startDate,creationDate,lastModifiedDate,displayProperties"
     });
+    const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, os);
+    return data || {};
+}
+
+async function getItemsCompat(titleId, os, ids) {
+    const list = Array.from(new Set((ids || []).filter(Boolean)));
+    if (!list.length) return [];
+    const payload = {Ids: list, Expand: "Images"};
+    try {
+        const r = await sendPlayFabRequest(titleId, "Economy/GetItems", payload, "X-EntityToken", 3, os);
+        const items = r?.Items || r?.items || [];
+        if (items && items.length) return items;
+    } catch {
+    }
+    try {
+        const r = await sendPlayFabRequest(titleId, "Catalog/GetItems", payload, "X-EntityToken", 3, os);
+        const items = r?.Items || r?.items || [];
+        if (items && items.length) return items;
+    } catch {
+    }
+    return await getItemsByIds(titleId, list, os, 100, 5);
+}
+
+async function requestItems(titleId, os, filter, orderBy, continuationToken, skip, count) {
+    let data;
+    try {
+        data = await searchItemsPageEconomy(titleId, os, filter, orderBy, continuationToken, count);
+    } catch {
+        data = null;
+    }
+
+    if (data) {
+        const hits = data.Items || data.items || [];
+        if (!hits.length) return [];
+        const ids = hits.map(idOfSearchHit).filter(Boolean);
+        const full = await getItemsCompat(titleId, os, ids);
+        return (full || []).filter(isValidItem);
+    }
+
+    const cat = await searchItemsPageCatalog(titleId, os, filter, orderBy, skip, count);
+    const hits = cat.Items || cat.items || [];
+    if (!hits.length) return [];
+    const ids = hits.map(idOfSearchHit).filter(Boolean);
+    const full = await getItemsCompat(titleId, os, ids);
+    return (full || []).filter(isValidItem);
+}
+
+async function fetchItemsSince(titleId, os, field, sinceIso, itemsPerRequest, maxItems) {
+    const {primary, fallback} = normalizeFieldSpec(field);
+    const candidates = Array.from(new Set([primary, fallback].filter(Boolean)));
+    let lastErr = null;
+
+    for (const f of candidates) {
+        const filter = `(${f} ge ${sinceIso})`;
+        const orderBy = `${f} asc`;
+        const allItems = [];
+
+        try {
+            for (let index = 0; index < maxItems; index += itemsPerRequest) {
+                const continuationToken = encodeContinuationToken(index);
+                const pageItems = await requestItems(titleId, os, filter, orderBy, continuationToken, index, itemsPerRequest);
+                if (!pageItems.length) break;
+                allItems.push(...pageItems);
+                if (pageItems.length < itemsPerRequest) break;
+            }
+            return allItems;
+        } catch (e) {
+            lastErr = e;
+        }
+    }
+
+    if (lastErr) throw lastErr;
+    return [];
+}
+
+async function requestChangedItems(titleId, os, instantSinceIso, itemsPerRequest, maxItems) {
+    const itemMap = new Map();
+    const fields = ["CreationDate", "StartDate", "LastModifiedDate"];
+
+    for (const field of fields) {
+        const list = await fetchItemsSince(titleId, os, field, instantSinceIso, itemsPerRequest, maxItems);
+        for (const it of list) {
+            const id = it.Id || it.id;
+            if (!id) continue;
+            itemMap.set(id, it);
+        }
+    }
+
+    return Array.from(itemMap.values());
 }
 
 class ItemWatcher {
@@ -105,66 +207,96 @@ class ItemWatcher {
         this.timer = null;
         this.state = new Map();
         this.lastRunTs = 0;
-        this.lastStartDateTs = 0;
     }
 
     start(eventBus) {
         if (this.running) return;
         this.running = true;
+
         const os = process.env.OS || "iOS";
         const intervalMs = Math.max(10000, parseInt(process.env.ITEM_WATCH_INTERVAL_MS || "30000", 10));
         const pageTop = Math.max(50, parseInt(process.env.ITEM_WATCH_TOP || "150", 10));
         const pages = Math.max(1, parseInt(process.env.ITEM_WATCH_PAGES || "3", 10));
+        const itemsPerRequest = Math.max(10, parseInt(process.env.ITEM_WATCH_ITEMS_PER_REQUEST || "200", 10));
+        const maxItems = Math.max(itemsPerRequest, parseInt(process.env.ITEM_WATCH_MAX_ITEMS || "10000", 10));
+        const overlapMs = Math.max(0, parseInt(process.env.ITEM_WATCH_OVERLAP_MS || "60000", 10));
+
         const run = async () => {
             const titleId = getTitleId();
-            const recent = await fetchRecentItems(titleId, os, pageTop, pages);
+
             if (this.state.size === 0) {
+                const recent = await fetchRecentItems(titleId, os, pageTop, pages);
                 const bootstrapMap = new Map();
-                let maxStartTs = this.lastStartDateTs || 0;
                 for (const it of recent) {
                     const id = it.Id || it.id;
-                    const start = startDateOf(it);
-                    const ts = start ? new Date(start).getTime() : 0;
-                    if (ts && ts > maxStartTs) maxStartTs = ts;
+                    if (!id) continue;
                     bootstrapMap.set(id, {
-                        hash: hashItemCore(it), raw: it, startDate: start, creationDate: creationDateOf(it)
+                        hash: hashItemCore(it), raw: it
                     });
                 }
                 this.state = bootstrapMap;
                 this.lastRunTs = Date.now();
-                this.lastStartDateTs = maxStartTs || Date.now();
-                const snapshotPayload = {
-                    ts: Date.now(), count: bootstrapMap.size, items: projectCatalogItems(recent)
-                };
-                eventBus.emit("item.snapshot", snapshotPayload);
+                eventBus.emit("item.snapshot", {
+                    ts: Date.now(), count: recent.length, items: projectCatalogItems(recent)
+                });
                 return;
             }
-            const {nextMap, created, updated} = diffItems(this.state, recent);
-            const filteredCreated = filterCreatedByStartDate(created, this.lastStartDateTs);
-            if (filteredCreated.length > 0) {
-                const createdPayload = {
-                    ts: Date.now(), count: filteredCreated.length, items: projectCatalogItems(filteredCreated)
-                };
-                eventBus.emit("item.created", createdPayload);
-                let maxStartTs = this.lastStartDateTs || 0;
-                for (const it of filteredCreated) {
-                    const d = startDateOf(it);
-                    const ts = d ? new Date(d).getTime() : 0;
-                    if (ts && ts > maxStartTs) maxStartTs = ts;
+
+            const sinceTs = Math.max(0, (this.lastRunTs || Date.now()) - overlapMs);
+            const sinceIso = new Date(sinceTs).toISOString();
+
+            const changed = await requestChangedItems(titleId, os, sinceIso, itemsPerRequest, maxItems);
+            if (!changed.length) {
+                this.lastRunTs = Date.now();
+                return;
+            }
+
+            const created = [];
+            const updated = [];
+
+            for (const it of changed) {
+                const id = it.Id || it.id;
+                if (!id) continue;
+
+                const creationTs = tsOf(creationDateOf(it));
+                const startTs = tsOf(startDateOf(it));
+                const modTs = tsOf(lastModifiedDateOf(it));
+
+                const isNew = (creationTs && creationTs >= sinceTs) || (startTs && startTs >= sinceTs);
+                const prev = this.state.get(id) || null;
+
+                if (isNew) {
+                    created.push(it);
+                } else if ((modTs && modTs >= sinceTs) || (startTs && startTs >= sinceTs)) {
+                    updated.push({
+                        id, before: prev ? prev.raw : null, after: it
+                    });
                 }
-                if (maxStartTs) this.lastStartDateTs = maxStartTs;
+
+                this.state.set(id, {
+                    hash: hashItemCore(it), raw: it
+                });
             }
+
+            if (created.length > 0) {
+                eventBus.emit("item.created", {
+                    ts: Date.now(), count: created.length, items: projectCatalogItems(created)
+                });
+            }
+
             if (updated.length > 0) {
-                const updatedPayload = {
+                eventBus.emit("item.updated", {
                     ts: Date.now(), count: updated.length, items: updated.map(pair => ({
-                        id: pair.id, before: projectCatalogItem(pair.before), after: projectCatalogItem(pair.after)
+                        id: pair.id,
+                        before: pair.before ? projectCatalogItem(pair.before) : null,
+                        after: projectCatalogItem(pair.after)
                     }))
-                };
-                eventBus.emit("item.updated", updatedPayload);
+                });
             }
-            this.state = nextMap;
+
             this.lastRunTs = Date.now();
         };
+
         run().catch(() => {
         });
         this.timer = setInterval(() => run().catch(() => {

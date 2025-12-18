@@ -54,7 +54,7 @@ function hashItemCore(it) {
 
 async function fetchRecentItems(titleId, os, top, pages) {
     const out = [];
-    const orderBy = "startDate desc,creationDate desc";
+    const orderBy = "StartDate desc,CreationDate desc";
     const search = "";
     const filter = "";
     for (let i = 0; i < pages; i++) {
@@ -65,8 +65,8 @@ async function fetchRecentItems(titleId, os, top, pages) {
             top,
             skip,
             orderBy,
-            expandFields: "images",
-            selectFields: "images,startDate,creationDate,lastModifiedDate,displayProperties"
+            expandFields: "Images",
+            selectFields: "Images,StartDate,CreationDate,LastModifiedDate,DisplayProperties"
         });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 2, os);
         const items = (data.Items || []).filter(isValidItem);
@@ -79,14 +79,6 @@ async function fetchRecentItems(titleId, os, top, pages) {
 
 function encodeContinuationToken(index) {
     return Buffer.from(String(index), "utf8").toString("base64");
-}
-
-function normalizeFieldSpec(field) {
-    const f = String(field || "");
-    if (f === "CreationDate") return {primary: "CreationDate", fallback: "creationDate"};
-    if (f === "StartDate") return {primary: "StartDate", fallback: "startDate"};
-    if (f === "LastModifiedDate") return {primary: "LastModifiedDate", fallback: "lastModifiedDate"};
-    return {primary: f, fallback: f.toLowerCase()};
 }
 
 function idOfSearchHit(hit) {
@@ -110,7 +102,7 @@ async function searchItemsPageCatalog(titleId, os, filter, orderBy, skip, top) {
         skip,
         orderBy,
         expandFields: "",
-        selectFields: "images,startDate,creationDate,lastModifiedDate,displayProperties"
+        selectFields: "Images,StartDate,CreationDate,LastModifiedDate,DisplayProperties"
     });
     const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, os);
     return data || {};
@@ -160,31 +152,19 @@ async function requestItems(titleId, os, filter, orderBy, continuationToken, ski
 }
 
 async function fetchItemsSince(titleId, os, field, sinceIso, itemsPerRequest, maxItems) {
-    const {primary, fallback} = normalizeFieldSpec(field);
-    const candidates = Array.from(new Set([primary, fallback].filter(Boolean)));
-    let lastErr = null;
+    const filter = `(${field} ge ${sinceIso})`;
+    const orderBy = `${field} asc`;
+    const allItems = [];
 
-    for (const f of candidates) {
-        const filter = `(${f} ge ${sinceIso})`;
-        const orderBy = `${f} asc`;
-        const allItems = [];
-
-        try {
-            for (let index = 0; index < maxItems; index += itemsPerRequest) {
-                const continuationToken = encodeContinuationToken(index);
-                const pageItems = await requestItems(titleId, os, filter, orderBy, continuationToken, index, itemsPerRequest);
-                if (!pageItems.length) break;
-                allItems.push(...pageItems);
-                if (pageItems.length < itemsPerRequest) break;
-            }
-            return allItems;
-        } catch (e) {
-            lastErr = e;
-        }
+    for (let index = 0; index < maxItems; index += itemsPerRequest) {
+        const continuationToken = encodeContinuationToken(index);
+        const pageItems = await requestItems(titleId, os, filter, orderBy, continuationToken, index, itemsPerRequest);
+        if (!pageItems.length) break;
+        allItems.push(...pageItems);
+        if (pageItems.length < itemsPerRequest) break;
     }
 
-    if (lastErr) throw lastErr;
-    return [];
+    return allItems;
 }
 
 async function requestChangedItems(titleId, os, instantSinceIso, itemsPerRequest, maxItems) {

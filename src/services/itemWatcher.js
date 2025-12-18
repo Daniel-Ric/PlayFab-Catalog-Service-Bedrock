@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const {sendPlayFabRequest, buildSearchPayload, isValidItem, getItemsByIds} = require("./utils/playfab");
 const {resolveTitle} = require("./utils/titles");
 const {stableHash} = require("./utils/hash");
@@ -201,12 +203,63 @@ async function requestChangedItems(titleId, os, instantSinceIso, itemsPerRequest
     return Array.from(itemMap.values());
 }
 
+function atomicWriteText(file, text) {
+    const dir = path.dirname(file);
+    try {
+        fs.mkdirSync(dir, {recursive: true});
+    } catch {
+    }
+    const tmp = file + ".tmp";
+    fs.writeFileSync(tmp, text, "utf8");
+    fs.renameSync(tmp, file);
+}
+
+function readLastRunTs(file, fallbackTs) {
+    try {
+        if (!fs.existsSync(file)) return fallbackTs;
+        const raw = fs.readFileSync(file, "utf8");
+        const n = Number(String(raw || "").trim());
+        return Number.isFinite(n) && n > 0 ? n : fallbackTs;
+    } catch {
+        return fallbackTs;
+    }
+}
+
 class ItemWatcher {
     constructor() {
         this.running = false;
         this.timer = null;
         this.state = new Map();
-        this.lastRunTs = 0;
+        this.bootstrapped = false;
+        this.initPromise = null;
+    }
+
+    init(eventBus) {
+        if (this.bootstrapped) return Promise.resolve();
+
+        if (this.initPromise) return this.initPromise;
+
+        const os = process.env.OS || "iOS";
+        const pageTop = Math.max(50, parseInt(process.env.ITEM_WATCH_TOP || "150", 10));
+        const pages = Math.max(1, parseInt(process.env.ITEM_WATCH_PAGES || "3", 10));
+
+        this.initPromise = (async () => {
+            const titleId = getTitleId();
+            const recent = await fetchRecentItems(titleId, os, pageTop, pages);
+            const bootstrapMap = new Map();
+            for (const it of recent) {
+                const id = it.Id || it.id;
+                if (!id) continue;
+                bootstrapMap.set(id, {hash: hashItemCore(it), raw: it});
+            }
+            this.state = bootstrapMap;
+            this.bootstrapped = true;
+            eventBus.emit("item.snapshot", {
+                ts: Date.now(), count: recent.length, items: projectCatalogItems(recent)
+            });
+        })();
+
+        return this.initPromise;
     }
 
     start(eventBus) {
@@ -214,42 +267,27 @@ class ItemWatcher {
         this.running = true;
 
         const os = process.env.OS || "iOS";
-        const intervalMs = Math.max(10000, parseInt(process.env.ITEM_WATCH_INTERVAL_MS || "30000", 10));
-        const pageTop = Math.max(50, parseInt(process.env.ITEM_WATCH_TOP || "150", 10));
-        const pages = Math.max(1, parseInt(process.env.ITEM_WATCH_PAGES || "3", 10));
+        const intervalMs = Math.max(10000, parseInt(process.env.ITEM_WATCH_INTERVAL_MS || "60000", 10));
+
         const itemsPerRequest = Math.max(10, parseInt(process.env.ITEM_WATCH_ITEMS_PER_REQUEST || "200", 10));
         const maxItems = Math.max(itemsPerRequest, parseInt(process.env.ITEM_WATCH_MAX_ITEMS || "10000", 10));
-        const overlapMs = Math.max(0, parseInt(process.env.ITEM_WATCH_OVERLAP_MS || "60000", 10));
+
+        const lastRunFile = process.env.ITEM_WATCH_LAST_RUN_FILE ? String(process.env.ITEM_WATCH_LAST_RUN_FILE) : path.join(__dirname, "./data/last_run.txt");
 
         const run = async () => {
             const titleId = getTitleId();
 
-            if (this.state.size === 0) {
-                const recent = await fetchRecentItems(titleId, os, pageTop, pages);
-                const bootstrapMap = new Map();
-                for (const it of recent) {
-                    const id = it.Id || it.id;
-                    if (!id) continue;
-                    bootstrapMap.set(id, {
-                        hash: hashItemCore(it), raw: it
-                    });
-                }
-                this.state = bootstrapMap;
-                this.lastRunTs = Date.now();
-                eventBus.emit("item.snapshot", {
-                    ts: Date.now(), count: recent.length, items: projectCatalogItems(recent)
-                });
-                return;
+            const fallbackLastRun = Date.now() - intervalMs;
+            const lastRunTs = readLastRunTs(lastRunFile, fallbackLastRun);
+            const nowTs = Date.now();
+            try {
+                atomicWriteText(lastRunFile, String(nowTs));
+            } catch {
             }
 
-            const sinceTs = Math.max(0, (this.lastRunTs || Date.now()) - overlapMs);
-            const sinceIso = new Date(sinceTs).toISOString();
-
+            const sinceIso = new Date(lastRunTs).toISOString();
             const changed = await requestChangedItems(titleId, os, sinceIso, itemsPerRequest, maxItems);
-            if (!changed.length) {
-                this.lastRunTs = Date.now();
-                return;
-            }
+            if (!changed.length) return;
 
             const created = [];
             const updated = [];
@@ -262,20 +300,18 @@ class ItemWatcher {
                 const startTs = tsOf(startDateOf(it));
                 const modTs = tsOf(lastModifiedDateOf(it));
 
-                const isNew = (creationTs && creationTs >= sinceTs) || (startTs && startTs >= sinceTs);
+                const isNew = (creationTs && creationTs >= lastRunTs) || (startTs && startTs >= lastRunTs);
                 const prev = this.state.get(id) || null;
 
                 if (isNew) {
                     created.push(it);
-                } else if ((modTs && modTs >= sinceTs) || (startTs && startTs >= sinceTs)) {
+                } else if ((modTs && modTs >= lastRunTs) || (startTs && startTs >= lastRunTs)) {
                     updated.push({
                         id, before: prev ? prev.raw : null, after: it
                     });
                 }
 
-                this.state.set(id, {
-                    hash: hashItemCore(it), raw: it
-                });
+                this.state.set(id, {hash: hashItemCore(it), raw: it});
             }
 
             if (created.length > 0) {
@@ -293,14 +329,15 @@ class ItemWatcher {
                     }))
                 });
             }
-
-            this.lastRunTs = Date.now();
         };
 
-        run().catch(() => {
+        this.init(eventBus).catch(() => {
+        }).finally(() => {
+            run().catch(() => {
+            });
+            this.timer = setInterval(() => run().catch(() => {
+            }), intervalMs);
         });
-        this.timer = setInterval(() => run().catch(() => {
-        }), intervalMs);
     }
 
     stop() {

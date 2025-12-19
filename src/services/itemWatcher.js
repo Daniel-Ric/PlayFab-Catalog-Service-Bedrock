@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const {sendPlayFabRequest, buildSearchPayload, isValidItem, getItemsByIds} = require("./utils/playfab");
+const {sendPlayFabRequest, isValidItem, getItemsByIds} = require("./utils/playfab");
 const {resolveTitle} = require("./utils/titles");
 const {stableHash} = require("./utils/hash");
 const {projectCatalogItems, projectCatalogItem} = require("./utils/projectors");
@@ -52,31 +52,6 @@ function hashItemCore(it) {
     return stableHash(core);
 }
 
-async function fetchRecentItems(titleId, os, top, pages) {
-    const out = [];
-    const orderBy = "StartDate desc,CreationDate desc";
-    const search = "";
-    const filter = "";
-    for (let i = 0; i < pages; i++) {
-        const skip = i * top;
-        const payload = buildSearchPayload({
-            filter,
-            search,
-            top,
-            skip,
-            orderBy,
-            expandFields: "Images",
-            selectFields: "Images,StartDate,CreationDate,LastModifiedDate,DisplayProperties"
-        });
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 2, os);
-        const items = (data.Items || []).filter(isValidItem);
-        if (!items.length) break;
-        out.push(...items);
-        if (items.length < top) break;
-    }
-    return out;
-}
-
 function idOfSearchHit(hit) {
     if (!hit) return null;
     return hit.Id || hit.id || hit.Item?.Id || hit.Item?.id || hit.ItemId || hit.itemId || null;
@@ -119,6 +94,30 @@ async function requestItems(titleId, os, filter, orderBy, continuationToken, cou
 
     const items = (full && full.length) ? full : hits;
     return {items: (items || []).filter(isValidItem), continuationToken: nextToken};
+}
+
+async function fetchRecentItems(titleId, os, itemsPerRequest, maxItems) {
+    const field = "LastModifiedDate";
+    const orderBy = `${field} desc`;
+    const filter = "";
+
+    const allItems = [];
+    let continuationToken = null;
+
+    while (true) {
+        const page = await requestItems(titleId, os, filter, orderBy, continuationToken, itemsPerRequest);
+
+        const pageItems = page.items || [];
+        if (!pageItems.length) break;
+
+        allItems.push(...pageItems);
+        if (allItems.length >= maxItems) break;
+
+        continuationToken = page.continuationToken || null;
+        if (!continuationToken) break;
+    }
+
+    return allItems.slice(0, maxItems);
 }
 
 async function fetchItemsSince(titleId, os, field, sinceIso, itemsPerRequest, maxItems) {
@@ -198,12 +197,14 @@ class ItemWatcher {
         if (this.initPromise) return this.initPromise;
 
         const os = process.env.OS || "iOS";
-        const pageTop = Math.max(50, parseInt(process.env.ITEM_WATCH_TOP || "150", 10));
-        const pages = Math.max(1, parseInt(process.env.ITEM_WATCH_PAGES || "3", 10));
+
+        const bootstrapItemsPerRequest = Math.max(10, parseInt(process.env.ITEM_WATCH_BOOTSTRAP_ITEMS_PER_REQUEST || process.env.ITEM_WATCH_ITEMS_PER_REQUEST || "200", 10));
+
+        const bootstrapMaxItems = Math.max(bootstrapItemsPerRequest, parseInt(process.env.ITEM_WATCH_BOOTSTRAP_MAX_ITEMS || "600", 10));
 
         this.initPromise = (async () => {
             const titleId = getTitleId();
-            const recent = await fetchRecentItems(titleId, os, pageTop, pages);
+            const recent = await fetchRecentItems(titleId, os, bootstrapItemsPerRequest, bootstrapMaxItems);
             const bootstrapMap = new Map();
             for (const it of recent) {
                 const id = it.Id || it.id;

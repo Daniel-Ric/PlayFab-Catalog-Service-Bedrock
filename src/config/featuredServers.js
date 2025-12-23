@@ -5,6 +5,7 @@ module.exports = [
     {name: 'CubeCraft', id: 'ae4d3c11-be26-4e87-b969-70e9b8c9f73a'},
     {name: 'Mineville', id: 'c9f9af01-979a-4f36-b970-70bdf2fe593e'},
     {name: 'Enchanted Dragons', id: 'e791fe3d-b419-44fc-a121-8cfbd5fa75bd'},
-    {name: 'SoulSteel', id: 'e3da296b-8be0-4d79-8608-e53d60531b7b'},
+    {name: 'SoulSteel', id: 'f8edbbbc-aa1f-4c76-b60c-718d2993617b'},
+    {name: 'Mob Maze', id: '209712d4-4259-4880-88e4-521e9e987513'},
     {name: 'The Hive', id: 'f33e1256-b667-4679-b37a-91dd57fd7eba'}
 ];

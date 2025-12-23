@@ -6,6 +6,14 @@ function parseEventsParam(raw) {
     return new Set(arr);
 }
 
+function parseCreatorNamesParam(raw) {
+    const set = new Set();
+    if (typeof raw !== "string" || !raw.trim()) return set;
+    const parts = raw.split(",").map(s => s.trim()).filter(Boolean);
+    for (const p of parts) set.add(p.toLowerCase());
+    return set;
+}
+
 exports.stream = (req, res) => {
     res.status(200);
     res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
@@ -16,10 +24,12 @@ exports.stream = (req, res) => {
     if (typeof res.flushHeaders === "function") res.flushHeaders();
 
     const eventsSet = parseEventsParam(req.query.events);
+
     const creatorNames = new Set();
-    if (typeof req.query.creatorName === "string" && req.query.creatorName.trim()) {
-        creatorNames.add(req.query.creatorName.trim().toLowerCase());
-    }
+    const fromSingle = parseCreatorNamesParam(req.query.creatorName);
+    const fromMulti = parseCreatorNamesParam(req.query.creatorNames);
+    for (const n of fromSingle) creatorNames.add(n);
+    for (const n of fromMulti) creatorNames.add(n);
 
     const heartbeatMsRaw = parseInt(req.query.heartbeatMs, 10);
     const filters = {

@@ -1,7 +1,9 @@
-const {sendPlayFabRequest, buildSearchPayload, isValidItem} = require("../utils/playfab");
-const {resolveTitle} = require("../utils/titles");
-const {stableHash} = require("../utils/hash");
-const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
+const fs = require("fs");
+const path = require("path");
+const {sendPlayFabRequest, isValidItem, getItemsByIds} = require("./utils/playfab");
+const {resolveTitle} = require("./utils/titles");
+const {stableHash} = require("./utils/hash");
+const {projectCatalogItems, projectCatalogItem} = require("./utils/projectors");
 
 function getTitleId() {
     const alias = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || "").trim();
@@ -22,6 +24,16 @@ function creationDateOf(it) {
     return it.CreationDate || it.creationDate || null;
 }
 
+function lastModifiedDateOf(it) {
+    return it.LastModifiedDate || it.lastModifiedDate || null;
+}
+
+function tsOf(v) {
+    if (!v) return 0;
+    const t = new Date(v).getTime();
+    return Number.isFinite(t) ? t : 0;
+}
+
 function hashItemCore(it) {
     const core = {
         Id: it.Id || it.id,
@@ -33,70 +45,141 @@ function hashItemCore(it) {
         Images: Array.isArray(it.Images) ? it.Images.map(i => [i.Tag || i.tag, i.Url || i.url]) : [],
         DisplayProperties: it.DisplayProperties,
         ETag: it.ETag,
-        LastModifiedDate: it.LastModifiedDate,
+        LastModifiedDate: lastModifiedDateOf(it),
         StartDate: startDateOf(it),
         CreationDate: creationDateOf(it)
     };
     return stableHash(core);
 }
 
-async function fetchRecentItems(titleId, os, top, pages) {
-    const out = [];
-    const orderBy = "startDate desc,creationDate desc";
-    const search = "";
-    const filter = "";
-    for (let i = 0; i < pages; i++) {
-        const skip = i * top;
-        const payload = buildSearchPayload({
-            filter,
-            search,
-            top,
-            skip,
-            orderBy,
-            expandFields: "images",
-            selectFields: "images,startDate,creationDate,displayProperties"
-        });
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 2, os);
-        const items = (data.Items || []).filter(isValidItem);
-        if (!items.length) break;
-        out.push(...items);
-        if (items.length < top) break;
-    }
-    return out;
+function idOfSearchHit(hit) {
+    if (!hit) return null;
+    return hit.Id || hit.id || hit.Item?.Id || hit.Item?.id || hit.ItemId || hit.itemId || null;
 }
 
-function diffItems(prevMap, currItems) {
-    const nextMap = new Map();
-    const created = [];
-    const updated = [];
-    for (const it of currItems) {
-        const id = it.Id || it.id;
-        if (!id) continue;
-        const h = hashItemCore(it);
-        nextMap.set(id, {
-            hash: h, raw: it, startDate: startDateOf(it), creationDate: creationDateOf(it)
-        });
-        const prev = prevMap.get(id);
-        if (!prev) {
-            created.push(it);
-        } else if (prev.hash !== h) {
-            updated.push({
-                id, before: prev.raw, after: it
-            });
+async function searchItemsPage(titleId, os, filter, orderBy, continuationToken, count) {
+    const payload = {
+        Filter: filter, OrderBy: orderBy, ContinuationToken: continuationToken, Count: count
+    };
+    const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, os);
+    return data || {};
+}
+
+async function getItemsCompat(titleId, os, ids) {
+    const list = Array.from(new Set((ids || []).filter(Boolean)));
+    if (!list.length) return [];
+    const payload = {Ids: list, Expand: "Images"};
+    try {
+        const r = await sendPlayFabRequest(titleId, "Catalog/GetItems", payload, "X-EntityToken", 3, os);
+        const items = r?.Items || r?.items || [];
+        if (items && items.length) return items;
+    } catch {
+    }
+    return await getItemsByIds(titleId, list, os, 100, 5);
+}
+
+async function requestItems(titleId, os, filter, orderBy, continuationToken, count) {
+    const data = await searchItemsPage(titleId, os, filter, orderBy, continuationToken, count);
+    const hits = data.Items || data.items || [];
+    const nextToken = data.ContinuationToken || data.continuationToken || null;
+    if (!hits.length) return {items: [], continuationToken: nextToken};
+
+    const ids = hits.map(idOfSearchHit).filter(Boolean);
+    let full = [];
+    try {
+        full = await getItemsCompat(titleId, os, ids);
+    } catch {
+        full = [];
+    }
+
+    const items = (full && full.length) ? full : hits;
+    return {items: (items || []).filter(isValidItem), continuationToken: nextToken};
+}
+
+async function fetchRecentItems(titleId, os, itemsPerRequest, maxItems) {
+    const field = "LastModifiedDate";
+    const orderBy = `${field} desc`;
+    const filter = "";
+
+    const allItems = [];
+    let continuationToken = null;
+
+    while (true) {
+        const page = await requestItems(titleId, os, filter, orderBy, continuationToken, itemsPerRequest);
+
+        const pageItems = page.items || [];
+        if (!pageItems.length) break;
+
+        allItems.push(...pageItems);
+        if (allItems.length >= maxItems) break;
+
+        continuationToken = page.continuationToken || null;
+        if (!continuationToken) break;
+    }
+
+    return allItems.slice(0, maxItems);
+}
+
+async function fetchItemsSince(titleId, os, field, sinceIso, itemsPerRequest, maxItems) {
+    const filter = `(${field} ge ${sinceIso})`;
+    const orderBy = `${field} asc`;
+    const allItems = [];
+    let continuationToken = null;
+
+    while (allItems.length < maxItems) {
+        const remaining = maxItems - allItems.length;
+        const count = Math.min(itemsPerRequest, remaining);
+        const page = await requestItems(titleId, os, filter, orderBy, continuationToken, count);
+
+        const pageItems = page.items || [];
+        if (!pageItems.length) break;
+
+        allItems.push(...pageItems);
+        if (pageItems.length < count) break;
+
+        continuationToken = page.continuationToken || null;
+        if (!continuationToken) break;
+    }
+
+    return allItems;
+}
+
+async function requestChangedItems(titleId, os, instantSinceIso, itemsPerRequest, maxItems) {
+    const itemMap = new Map();
+    const fields = ["CreationDate", "StartDate", "LastModifiedDate"];
+
+    for (const field of fields) {
+        const list = await fetchItemsSince(titleId, os, field, instantSinceIso, itemsPerRequest, maxItems);
+        for (const it of list) {
+            const id = it.Id || it.id;
+            if (!id) continue;
+            itemMap.set(id, it);
         }
     }
-    return {nextMap, created, updated};
+
+    return Array.from(itemMap.values());
 }
 
-function filterCreatedByStartDate(created, sinceTs) {
-    if (!sinceTs) return created;
-    return created.filter(it => {
-        const d = startDateOf(it);
-        if (!d) return false;
-        const ts = new Date(d).getTime();
-        if (!Number.isFinite(ts)) return false;
-        return ts >= sinceTs;
-    });
+function atomicWriteText(file, text) {
+    const dir = path.dirname(file);
+    try {
+        fs.mkdirSync(dir, {recursive: true});
+    } catch {
+    }
+    const tmp = file + ".tmp";
+    fs.writeFileSync(tmp, text, "utf8");
+    fs.renameSync(tmp, file);
+}
+
+function readLastRunTs(file, fallbackTs) {
+    try {
+        if (!fs.existsSync(file)) return fallbackTs;
+        const raw = fs.readFileSync(file, "utf8");
+        const n = Number(String(raw || "").trim());
+        return Number.isFinite(n) && n > 0 ? n : fallbackTs;
+    } catch {
+        return fallbackTs;
+    }
 }
 
 class ItemWatcher {
@@ -104,71 +187,116 @@ class ItemWatcher {
         this.running = false;
         this.timer = null;
         this.state = new Map();
-        this.lastRunTs = 0;
-        this.lastStartDateTs = 0;
+        this.bootstrapped = false;
+        this.initPromise = null;
+    }
+
+    init(eventBus) {
+        if (this.bootstrapped) return Promise.resolve();
+
+        if (this.initPromise) return this.initPromise;
+
+        const os = process.env.OS || "iOS";
+
+        const bootstrapItemsPerRequest = Math.max(10, parseInt(process.env.ITEM_WATCH_BOOTSTRAP_ITEMS_PER_REQUEST || process.env.ITEM_WATCH_ITEMS_PER_REQUEST || "200", 10));
+
+        const bootstrapMaxItems = Math.max(bootstrapItemsPerRequest, parseInt(process.env.ITEM_WATCH_BOOTSTRAP_MAX_ITEMS || "600", 10));
+
+        this.initPromise = (async () => {
+            const titleId = getTitleId();
+            const recent = await fetchRecentItems(titleId, os, bootstrapItemsPerRequest, bootstrapMaxItems);
+            const bootstrapMap = new Map();
+            for (const it of recent) {
+                const id = it.Id || it.id;
+                if (!id) continue;
+                bootstrapMap.set(id, {hash: hashItemCore(it), raw: it});
+            }
+            this.state = bootstrapMap;
+            this.bootstrapped = true;
+            eventBus.emit("item.snapshot", {
+                ts: Date.now(), count: recent.length, items: projectCatalogItems(recent)
+            });
+        })();
+
+        return this.initPromise;
     }
 
     start(eventBus) {
         if (this.running) return;
         this.running = true;
+
         const os = process.env.OS || "iOS";
-        const intervalMs = Math.max(10000, parseInt(process.env.ITEM_WATCH_INTERVAL_MS || "30000", 10));
-        const pageTop = Math.max(50, parseInt(process.env.ITEM_WATCH_TOP || "150", 10));
-        const pages = Math.max(1, parseInt(process.env.ITEM_WATCH_PAGES || "3", 10));
+        const intervalMs = Math.max(10000, parseInt(process.env.ITEM_WATCH_INTERVAL_MS || "60000", 10));
+
+        const itemsPerRequest = Math.max(10, parseInt(process.env.ITEM_WATCH_ITEMS_PER_REQUEST || "200", 10));
+        const maxItems = Math.max(itemsPerRequest, parseInt(process.env.ITEM_WATCH_MAX_ITEMS || "10000", 10));
+
+        const lastRunFile = process.env.ITEM_WATCH_LAST_RUN_FILE ? String(process.env.ITEM_WATCH_LAST_RUN_FILE) : path.join(__dirname, "./data/last_run.txt");
+
         const run = async () => {
             const titleId = getTitleId();
-            const recent = await fetchRecentItems(titleId, os, pageTop, pages);
-            if (this.state.size === 0) {
-                const bootstrapMap = new Map();
-                let maxStartTs = this.lastStartDateTs || 0;
-                for (const it of recent) {
-                    const id = it.Id || it.id;
-                    const start = startDateOf(it);
-                    const ts = start ? new Date(start).getTime() : 0;
-                    if (ts && ts > maxStartTs) maxStartTs = ts;
-                    bootstrapMap.set(id, {
-                        hash: hashItemCore(it), raw: it, startDate: start, creationDate: creationDateOf(it)
+
+            const fallbackLastRun = Date.now() - intervalMs;
+            const lastRunTs = readLastRunTs(lastRunFile, fallbackLastRun);
+            const nowTs = Date.now();
+            try {
+                atomicWriteText(lastRunFile, String(nowTs));
+            } catch {
+            }
+
+            const sinceIso = new Date(lastRunTs).toISOString();
+            const changed = await requestChangedItems(titleId, os, sinceIso, itemsPerRequest, maxItems);
+            if (!changed.length) return;
+
+            const created = [];
+            const updated = [];
+
+            for (const it of changed) {
+                const id = it.Id || it.id;
+                if (!id) continue;
+
+                const creationTs = tsOf(creationDateOf(it));
+                const startTs = tsOf(startDateOf(it));
+                const modTs = tsOf(lastModifiedDateOf(it));
+
+                const isNew = (creationTs && creationTs >= lastRunTs) || (startTs && startTs >= lastRunTs);
+                const prev = this.state.get(id) || null;
+
+                if (isNew) {
+                    created.push(it);
+                } else if ((modTs && modTs >= lastRunTs) || (startTs && startTs >= lastRunTs)) {
+                    updated.push({
+                        id, before: prev ? prev.raw : null, after: it
                     });
                 }
-                this.state = bootstrapMap;
-                this.lastRunTs = Date.now();
-                this.lastStartDateTs = maxStartTs || Date.now();
-                const snapshotPayload = {
-                    ts: Date.now(), count: bootstrapMap.size, items: projectCatalogItems(recent)
-                };
-                eventBus.emit("item.snapshot", snapshotPayload);
-                return;
+
+                this.state.set(id, {hash: hashItemCore(it), raw: it});
             }
-            const {nextMap, created, updated} = diffItems(this.state, recent);
-            const filteredCreated = filterCreatedByStartDate(created, this.lastStartDateTs);
-            if (filteredCreated.length > 0) {
-                const createdPayload = {
-                    ts: Date.now(), count: filteredCreated.length, items: projectCatalogItems(filteredCreated)
-                };
-                eventBus.emit("item.created", createdPayload);
-                let maxStartTs = this.lastStartDateTs || 0;
-                for (const it of filteredCreated) {
-                    const d = startDateOf(it);
-                    const ts = d ? new Date(d).getTime() : 0;
-                    if (ts && ts > maxStartTs) maxStartTs = ts;
-                }
-                if (maxStartTs) this.lastStartDateTs = maxStartTs;
+
+            if (created.length > 0) {
+                eventBus.emit("item.created", {
+                    ts: Date.now(), count: created.length, items: projectCatalogItems(created)
+                });
             }
+
             if (updated.length > 0) {
-                const updatedPayload = {
+                eventBus.emit("item.updated", {
                     ts: Date.now(), count: updated.length, items: updated.map(pair => ({
-                        id: pair.id, before: projectCatalogItem(pair.before), after: projectCatalogItem(pair.after)
+                        id: pair.id,
+                        before: pair.before ? projectCatalogItem(pair.before) : null,
+                        after: projectCatalogItem(pair.after)
                     }))
-                };
-                eventBus.emit("item.updated", updatedPayload);
+                });
             }
-            this.state = nextMap;
-            this.lastRunTs = Date.now();
         };
-        run().catch(() => {
+
+        this.init(eventBus).catch(() => {
+        }).finally(() => {
+            run().catch(() => {
+            });
+            this.timer = setInterval(() => run().catch(() => {
+            }), intervalMs);
         });
-        this.timer = setInterval(() => run().catch(() => {
-        }), intervalMs);
     }
 
     stop() {

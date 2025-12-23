@@ -52,12 +52,11 @@ class SseHub {
 
         if (filters.creatorNames && filters.creatorNames.size) {
             const names = getCreatorNamesFromPayload(eventName, payload);
-            if (names.length) {
-                for (const n of names) {
-                    if (filters.creatorNames.has(n)) return true;
-                }
-                return false;
+            if (!names.length) return false;
+            for (const n of names) {
+                if (filters.creatorNames.has(n)) return true;
             }
+            return false;
         }
 
         return true;

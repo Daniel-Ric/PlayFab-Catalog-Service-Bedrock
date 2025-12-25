@@ -1,38 +1,32 @@
-{
-  "demo": {
-    "id": "2C63B",
-    "notes": "Used in demo title login examples"
-  },
-  "bedrock": {
-    "id": "3BA5B",
-    "notes": "Seen in leaked Bedrock logs / Xbox Insider builds"
-  },
-  "edu": {
-    "id": "DD402",
-    "notes": "Minecraft EDU testing"
-  },
-  "prod": {
+[
+  {
+    "alias": "prod",
     "id": "20CA2",
     "notes": "Minecraft Production Title"
   },
-  "staging": {
-    "id": "F8A3C",
-    "notes": "Known test/staging"
-  },
-  "stage": {
+  {
+    "alias": "stage",
     "id": "EE7B",
-    "notes": "Staging"
+    "notes": "Minecraft Staging Title"
   },
-  "dev": {
+  {
+    "alias": "dev",
     "id": "E9D1",
-    "notes": "Development env"
+    "notes": "Minecraft Development Title"
   },
-  "experimental": {
-    "id": "69D2F",
-    "notes": "Spotted in store traffic"
+  {
+    "alias": "mcweb1",
+    "id": "1DF18",
+    "notes": "Minecraft PlayFab Web Title (Unknown the exact purpose yet)"
   },
-  "creator": {
-    "id": "C0164",
-    "notes": "Inferred from public xbl-title.json logs"
+  {
+    "alias": "mcweb2",
+    "id": "B7B52",
+    "notes": "Minecraft PlayFab Web Title (Unknown the exact purpose yet)"
+  },
+  {
+    "alias": "mcweb3",
+    "id": "E99B0",
+    "notes": "Minecraft PlayFab Web Title (Unknown the exact purpose yet)"
   }
-}
+]

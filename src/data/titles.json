@@ -11,16 +11,16 @@
     "id": "E9D1",
     "notes": "Minecraft Development Title"
   },
-  "mcweb1": {
-    "id": "1DF18",
-    "notes": "Minecraft PlayFab Web Title (Unknown the exact purpose yet)"
-  },
-  "mcweb2": {
+  "launcher": {
     "id": "B7B52",
-    "notes": "Minecraft PlayFab Web Title (Unknown the exact purpose yet)"
+    "notes": "Minecraft Launcher (PlayFab web title)"
   },
-  "mcweb3": {
+  "java": {
     "id": "E99B0",
-    "notes": "Minecraft PlayFab Web Title (Unknown the exact purpose yet)"
+    "notes": "Minecraft: Java Edition (PlayFab web title)"
+  },
+  "web_unknown": {
+    "id": "1DF18",
+    "notes": "Minecraft PlayFab web title (purpose currently unknown)"
   }
 }

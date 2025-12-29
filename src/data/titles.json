@@ -1,32 +1,26 @@
-[
-  {
-    "alias": "prod",
+{
+  "prod": {
     "id": "20CA2",
     "notes": "Minecraft Production Title"
   },
-  {
-    "alias": "stage",
+  "stage": {
     "id": "EE7B",
     "notes": "Minecraft Staging Title"
   },
-  {
-    "alias": "dev",
+  "dev": {
     "id": "E9D1",
     "notes": "Minecraft Development Title"
   },
-  {
-    "alias": "mcweb1",
+  "mcweb1": {
     "id": "1DF18",
     "notes": "Minecraft PlayFab Web Title (Unknown the exact purpose yet)"
   },
-  {
-    "alias": "mcweb2",
+  "mcweb2": {
     "id": "B7B52",
     "notes": "Minecraft PlayFab Web Title (Unknown the exact purpose yet)"
   },
-  {
-    "alias": "mcweb3",
+  "mcweb3": {
     "id": "E99B0",
     "notes": "Minecraft PlayFab Web Title (Unknown the exact purpose yet)"
   }
-]
+}

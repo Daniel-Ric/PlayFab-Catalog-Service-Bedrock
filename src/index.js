@@ -59,7 +59,7 @@ const app = express();
 
 (function configureTrustProxy() {
     const val = process.env.TRUST_PROXY;
-    if (typeof val === "undefined") app.set("trust proxy", 1); else if (/^\d+$/.test(val)) app.set("trust proxy", parseInt(val, 10)); else if (val === "true" || val === "false") app.set("trust proxy", val === "true"); else app.set("trust proxy", val.split(",").map(s => s.trim()).filter(Boolean));
+    if (typeof val === "undefined") app.set("trust proxy", 1); else if (/^\d+$/.test(val)) app.set("trust proxy", parseInt(val, 10)); else if (val === "true" || val === "false") app.set("trust proxy", val === "true"); else app.set("trust proxy", val.split(",").map((s) => s.trim()).filter(Boolean));
 })();
 
 const port = process.env.PORT || 3000;
@@ -75,12 +75,16 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
 
 app.use(helmet({contentSecurityPolicy: false, crossOriginResourcePolicy: {policy: "cross-origin"}}));
 
-const allowed = (process.env.CORS_ORIGINS || "").split(",").map(s => s.trim()).filter(Boolean);
+const allowed = (process.env.CORS_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
 app.use(cors({
     origin: allowed.length ? allowed : false,
     credentials: false,
     methods: ["GET", "POST", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Authorization", "Content-Type", "If-None-Match"]
+    allowedHeaders: ["Authorization", "Content-Type", "If-None-Match"],
 }));
 
 app.use((req, _res, next) => {
@@ -94,10 +98,9 @@ if ((process.env.LOG_LEVEL || "info").toLowerCase() === "debug" || (logger.level
 
 const openapi = getOpenApiSpec();
 app.get("/openapi.json", (_, res) => res.json(openapi));
+
 if (process.env.ENABLE_DOCS === "true") {
-    app
-        .use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, {explorer: true}))
-        .get("/docs", (_req, res) => res.end());
+    app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, {explorer: true}));
 }
 
 app.get("/", (_req, res) => res.json({ok: true, name: "View Marketplace API"}));
@@ -116,7 +119,7 @@ app.post(["/login", "/login/"], loginLimiter, express.json({limit: "100kb"}), (r
 });
 
 const jwtCache = new NodeCache({stdTTL: 0, checkperiod: 120, useClones: false});
-const isDocs = p => p === "/docs" || p.startsWith("/docs/");
+const isDocs = (p) => p === "/docs" || p.startsWith("/docs/");
 const pathIs = (reqPath, probe) => reqPath === probe || reqPath === `${probe}/`;
 
 function enforceAuth(req, res, next) {
@@ -124,20 +127,23 @@ function enforceAuth(req, res, next) {
     if (req.path === "/openapi.json" && req.method === "GET") return next();
     if (isDocs(req.path)) return next();
     if (pathIs(req.path, "/login") && req.method === "POST") return next();
+
     const header = req.headers["authorization"];
     if (!header || !header.startsWith("Bearer ")) {
         return res.status(401).json({
             error: {
-                type: "unauthorized", message: "Unauthorized", traceId: req.headers["x-request-id"] || req.id
-            }
+                type: "unauthorized", message: "Unauthorized", traceId: req.headers["x-request-id"] || req.id,
+            },
         });
     }
+
     const token = header.slice(7);
     const cached = jwtCache.get(token);
     if (cached) {
         req.user = cached;
         return next();
     }
+
     try {
         const payload = jwt.verify(token, JWT_SECRET);
         req.user = payload;
@@ -148,8 +154,8 @@ function enforceAuth(req, res, next) {
     } catch {
         return res.status(403).json({
             error: {
-                type: "forbidden", message: "Invalid token", traceId: req.headers["x-request-id"] || req.id
-            }
+                type: "forbidden", message: "Invalid token", traceId: req.headers["x-request-id"] || req.id,
+            },
         });
     }
 }
@@ -205,7 +211,7 @@ if (process.env.VALIDATE_REQUESTS === "true") {
         apiSpec: openapi,
         validateRequests: true,
         validateResponses: process.env.VALIDATE_RESPONSES === "true",
-        validateSecurity: {handlers: {BearerAuth: bearerAuthHandler}}
+        validateSecurity: {handlers: {BearerAuth: bearerAuthHandler}},
     }));
 }
 
@@ -247,18 +253,22 @@ app.use((req, res) => {
     res.status(404).json({error: "Route not found."});
 });
 
-app.use((err, req, res, _next) => {
+app.use((err, req, res, next) => {
+    if (res.headersSent) return next(err);
+
     const status = err.status || 500;
     const traceId = req.headers["x-request-id"] || req.id;
     if (status >= 500) logger.error(err.stack || err.message);
+
     const payload = {
         error: {
             type: status === 400 ? "bad_request" : status === 401 ? "unauthorized" : status === 403 ? "forbidden" : status === 404 ? "not_found" : "internal_error",
             message: status >= 500 && process.env.NODE_ENV === "production" ? "Internal server error." : err.publicMessage || err.message || "Error",
             details: Array.isArray(err.errors) ? err.errors : undefined,
-            traceId
-        }
+            traceId,
+        },
     };
+
     res.status(status).json(payload);
 });
 
@@ -267,6 +277,7 @@ app.listen(port, () => {
     logger.info(`API running at http://localhost:${port}`);
     initSseHub(eventBus);
     initWebhookDispatcher(eventBus);
+
     if (process.env.ENABLE_SALES_WATCHER === "true") {
         salesWatcher.start(eventBus);
         logger.info("Sales watcher started");

@@ -1,9 +1,9 @@
 const fs = require("fs");
 const path = require("path");
-const {sendPlayFabRequest, isValidItem, getItemsByIds} = require("./utils/playfab");
-const {resolveTitle} = require("./utils/titles");
-const {stableHash} = require("./utils/hash");
-const {projectCatalogItems, projectCatalogItem} = require("./utils/projectors");
+const {sendPlayFabRequest, isValidItem, getItemsByIds} = require("../utils/playfab");
+const {resolveTitle} = require("../utils/titles");
+const {stableHash} = require("../utils/hash");
+const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
 
 function getTitleId() {
     const alias = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || "").trim();

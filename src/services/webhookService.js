@@ -3,7 +3,7 @@ const path = require("path");
 const {readJson, writeJsonAtomic} = require("../utils/storage");
 const {getCreatorNamesFromPayload} = require("../utils/eventPayload");
 
-const filePath = path.join(__dirname, "./data/webhooks.json");
+const filePath = path.join(__dirname, "../data/webhooks.json");
 
 let cache = null;
 

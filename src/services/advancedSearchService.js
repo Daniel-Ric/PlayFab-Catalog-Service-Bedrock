@@ -52,8 +52,14 @@ function buildFilter(alias, body) {
     if (typeof f.priceMin === "number") priceClauses.push(`displayProperties/price ge ${Math.max(0, f.priceMin)}`);
     if (typeof f.priceMax === "number") priceClauses.push(`displayProperties/price le ${Math.max(0, f.priceMax)}`);
     const dateClauses = [];
-    if (f.createdFrom) dateClauses.push(`creationDate ge ${new Date(f.createdFrom).toISOString()}`);
-    if (f.createdTo) dateClauses.push(`creationDate le ${new Date(f.createdTo).toISOString()}`);
+    if (f.createdFrom) {
+        const from = new Date(f.createdFrom);
+        if (!Number.isNaN(from.getTime())) dateClauses.push(`creationDate ge ${from.toISOString()}`);
+    }
+    if (f.createdTo) {
+        const to = new Date(f.createdTo);
+        if (!Number.isNaN(to.getTime())) dateClauses.push(`creationDate le ${to.toISOString()}`);
+    }
     const typeClauses = Array.isArray(f.contentTypes) ? f.contentTypes.filter(Boolean).map(ct => `contentType eq '${esc(ct)}'`) : [];
     return andJoin([...tagClauses, orJoin(creatorClauses), ...priceClauses, ...dateClauses, orJoin(typeClauses)]);
 }

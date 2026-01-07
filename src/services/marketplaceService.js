@@ -26,7 +26,7 @@ const STORE_MAX_FOR_PRICE_ENRICH = Math.max(1, parseInt(process.env.STORE_MAX_FO
 
 const creatorsArr = loadCreators();
 const creatorsByNormalized = new Map(creatorsArr.map(c => [String(c.creatorName).replace(/\s/g, "").toLowerCase(), c]));
-const titlesMap = require("../utils/titles").loadTitles();
+const {loadTitles} = require("../utils/titles");
 
 function andFilter(a, b) {
     const A = (a || "").trim();
@@ -284,7 +284,7 @@ function creatorMetaById(cid) {
 
 function summarizeItem(it) {
     const id = it.Id || it.id || "";
-    aconstitle = (it.Title && (it.Title.NEUTRAL || it.Title.neutral)) || "";
+    const title = (it.Title && (it.Title.NEUTRAL || it.Title.neutral)) || "";
     const creatorName = (it.DisplayProperties && it.DisplayProperties.creatorName) || "";
     const startDate = it.StartDate || it.CreationDate || it.creationDate || null;
     const price = it.DisplayProperties && typeof it.DisplayProperties.price === "number" ? it.DisplayProperties.price : null;
@@ -294,7 +294,7 @@ function summarizeItem(it) {
         const th = it.Images.find(img => (img.Type || "").toLowerCase() === "thumbnail") || it.Images[0];
         if (th && th.Url) thumbnail = th.Url;
     }
-    return {id, title: aconstitle, creatorName, startDate, price, contentType, thumbnail};
+    return {id, title, creatorName, startDate, price, contentType, thumbnail};
 }
 
 function ratingCountOf(it) {
@@ -558,6 +558,7 @@ module.exports = {
 
     async fetchCompare(creatorName) {
         const cid = resolveCreatorId(creatorsArr, creatorName);
+        const titlesMap = loadTitles();
         const entries = Object.entries(titlesMap).map(async ([alias, {id: titleId}]) => {
             const filter = `creatorId eq '${esc(cid)}'`;
             let items = await searchLoop(titleId, {filter, orderBy: "creationDate desc", batch: 300});

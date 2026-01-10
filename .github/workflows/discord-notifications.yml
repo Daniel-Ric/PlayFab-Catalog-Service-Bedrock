@@ -2,9 +2,9 @@ name: Discord Notifications
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
     types: [opened, reopened, synchronize, closed, ready_for_review, converted_to_draft, edited, labeled, unlabeled, assigned, unassigned, review_requested, review_request_removed]
   pull_request_review:
     types: [submitted, edited, dismissed]

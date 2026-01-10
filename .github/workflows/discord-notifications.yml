@@ -1,0 +1,145 @@
+name: Discord Notifications
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, closed, ready_for_review, converted_to_draft, edited, labeled, unlabeled, assigned, unassigned, review_requested, review_request_removed]
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  pull_request_review_comment:
+    types: [created, edited, deleted]
+  issues:
+    types: [opened, reopened, closed, edited, labeled, unlabeled, assigned, unassigned, milestoned, demilestoned, transferred, pinned, unpinned, locked, unlocked, deleted]
+  issue_comment:
+    types: [created, edited, deleted]
+  release:
+    types: [published, unpublished, created, edited, deleted, prereleased, released]
+  create:
+  delete:
+  fork:
+  star:
+    types: [created, deleted]
+  watch:
+    types: [started]
+  discussion:
+    types: [created, edited, deleted, pinned, unpinned, locked, unlocked, transferred, category_changed, answered, unanswered]
+  discussion_comment:
+    types: [created, edited, deleted]
+  workflow_run:
+    types: [completed, requested, in_progress]
+  workflow_dispatch:
+  repository_dispatch:
+  public:
+  member:
+    types: [added, edited, removed]
+  milestone:
+    types: [created, closed, opened, edited, deleted]
+  label:
+    types: [created, edited, deleted]
+  project:
+    types: [created, closed, reopened, edited, deleted]
+  project_card:
+    types: [created, moved, converted, edited, deleted]
+  project_column:
+    types: [created, updated, moved, deleted]
+  status:
+  deployment:
+  deployment_status:
+  page_build:
+  gollum:
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' || github.event_name != 'push' }}
+    steps:
+      - name: Send Discord notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          EVENT_NAME: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          SERVER_URL: ${{ github.server_url }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then
+            exit 0
+          fi
+
+          URL="$SERVER_URL/$REPO"
+          CONTENT="**$EVENT_NAME**"
+          if [ -n "$ACTION" ] && [ "$ACTION" != "null" ]; then
+            CONTENT="$CONTENT (\`$ACTION\`)"
+          fi
+          CONTENT="$CONTENT in **$REPO** von **$ACTOR**\nRef: \`$REF\`\n$URL\nRun: $RUN_URL"
+
+          if [ "$EVENT_NAME" = "push" ]; then
+            SHORT_SHA=$(echo "$SHA" | cut -c1-7)
+            CONTENT="$CONTENT\nCommit: \`$SHORT_SHA\`\n$URL/commit/$SHA"
+          fi
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            PR_URL="${{ github.event.pull_request.html_url }}"
+            PR_TITLE="${{ github.event.pull_request.title }}"
+            PR_NUM="${{ github.event.pull_request.number }}"
+            CONTENT="$CONTENT\nPR #$PR_NUM: **$PR_TITLE**\n$PR_URL"
+          fi
+
+          if [ "$EVENT_NAME" = "issues" ]; then
+            ISSUE_URL="${{ github.event.issue.html_url }}"
+            ISSUE_TITLE="${{ github.event.issue.title }}"
+            ISSUE_NUM="${{ github.event.issue.number }}"
+            CONTENT="$CONTENT\nIssue #$ISSUE_NUM: **$ISSUE_TITLE**\n$ISSUE_URL"
+          fi
+
+          if [ "$EVENT_NAME" = "issue_comment" ]; then
+            C_URL="${{ github.event.comment.html_url }}"
+            ISSUE_NUM="${{ github.event.issue.number }}"
+            CONTENT="$CONTENT\nComment on Issue #$ISSUE_NUM\n$C_URL"
+          fi
+
+          if [ "$EVENT_NAME" = "pull_request_review" ]; then
+            R_URL="${{ github.event.review.html_url }}"
+            PR_NUM="${{ github.event.pull_request.number }}"
+            STATE="${{ github.event.review.state }}"
+            CONTENT="$CONTENT\nReview on PR #$PR_NUM: \`$STATE\`\n$R_URL"
+          fi
+
+          if [ "$EVENT_NAME" = "pull_request_review_comment" ]; then
+            RC_URL="${{ github.event.comment.html_url }}"
+            PR_NUM="${{ github.event.pull_request.number }}"
+            CONTENT="$CONTENT\nReview comment on PR #$PR_NUM\n$RC_URL"
+          fi
+
+          if [ "$EVENT_NAME" = "release" ]; then
+            REL_URL="${{ github.event.release.html_url }}"
+            REL_NAME="${{ github.event.release.name }}"
+            REL_TAG="${{ github.event.release.tag_name }}"
+            CONTENT="$CONTENT\nRelease: **$REL_NAME** (\`$REL_TAG\`)\n$REL_URL"
+          fi
+
+          if [ "$EVENT_NAME" = "discussion" ]; then
+            D_URL="${{ github.event.discussion.html_url }}"
+            D_TITLE="${{ github.event.discussion.title }}"
+            CONTENT="$CONTENT\nDiscussion: **$D_TITLE**\n$D_URL"
+          fi
+
+          if [ "$EVENT_NAME" = "discussion_comment" ]; then
+            DC_URL="${{ github.event.comment.html_url }}"
+            CONTENT="$CONTENT\nDiscussion comment\n$DC_URL"
+          fi
+
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            WR_URL="${{ github.event.workflow_run.html_url }}"
+            WR_NAME="${{ github.event.workflow_run.name }}"
+            WR_CONC="${{ github.event.workflow_run.conclusion }}"
+            CONTENT="$CONTENT\nWorkflow: **$WR_NAME**\nConclusion: \`$WR_CONC\`\n$WR_URL"
+          fi
+
+          payload=$(jq -n --arg content "$CONTENT" '{content: $content}')
+          curl -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"

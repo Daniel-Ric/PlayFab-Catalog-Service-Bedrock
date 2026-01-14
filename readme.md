@@ -485,22 +485,42 @@ Aggregate store sales (from `SearchStores` + `GetStoreItems`) with items resolve
 }
 ```
 
-#### `POST /marketplace/search-advanced/:alias`
+#### `POST /marketplace/search/advanced/:alias`
 
 Body supports query + filters + sorting; response includes `facets`.
 
 ```json
 {
   "query": "castle",
+  "queryMode": "phrase",
   "filters": {
-    "tags": ["adventure","survival"],
+    "tagsAny": ["adventure","survival"],
+    "tagsAll": ["marketplace"],
+    "excludeTags": ["demo"],
     "creatorIds": ["uuid-1","uuid-2"],
     "creatorName": "SomeCreator",
+    "itemIds": ["item-1","item-2"],
+    "friendlyIds": ["friendly-1"],
+    "catalogVersion": "v1",
     "priceMin": 0,
     "priceMax": 1990,
+    "isFree": false,
     "createdFrom": "2024-01-01T00:00:00Z",
     "createdTo": "2025-01-01T00:00:00Z",
-    "contentTypes": ["bundle","skinpack"]
+    "updatedFrom": "2024-06-01T00:00:00Z",
+    "updatedTo": "2025-01-01T00:00:00Z",
+    "startFrom": "2024-01-01T00:00:00Z",
+    "startTo": "2025-01-01T00:00:00Z",
+    "endFrom": "2024-01-01T00:00:00Z",
+    "endTo": "2025-01-01T00:00:00Z",
+    "contentTypes": ["bundle","skinpack"],
+    "excludeContentTypes": ["worldtemplate"],
+    "platforms": ["Android","Xbox"],
+    "excludePlatforms": ["Switch"],
+    "ratingMin": 3.5,
+    "ratingMax": 5,
+    "ratingCountMin": 50,
+    "raw": "displayProperties/featured eq true"
   },
   "sort": [{ "field": "creationDate", "dir": "desc" }]
 }

@@ -40,7 +40,7 @@ function buildAllFilter(field, values, prefix = "x") {
 }
 
 function toOrderBy(sort) {
-    const allowed = new Set(["creationDate", "rating/totalcount", "title", "displayProperties/price"]);
+    const allowed = new Set(["creationDate", "lastModifiedDate", "startDate", "endDate", "rating/totalcount", "rating/average", "title", "displayProperties/price"]);
     if (!Array.isArray(sort) || !sort.length) return "creationDate desc";
     const mapped = [];
     for (const s of sort) {

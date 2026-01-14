@@ -209,7 +209,7 @@ exports.advancedSearch = async (alias, body, {page, pageSize}) => {
     const titleId = resolveTitle(alias);
     const filter = buildFilter(alias, body || {});
     const orderBy = toOrderBy(body && body.sort);
-    const q = body && body.query ? `"${String(body.query).slice(0, 200)}"` : "";
+    const q = buildSearchQuery(body);
     const all = await searchLoop(titleId, filter, q, orderBy);
     const facets = buildFacets(all);
     const {items, meta} = paginate(all, page, pageSize);

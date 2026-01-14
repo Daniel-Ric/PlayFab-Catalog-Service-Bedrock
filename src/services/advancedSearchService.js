@@ -21,6 +21,24 @@ function orJoin(parts) {
     return `(${parts.join(" or ")})`;
 }
 
+function normalizeArray(value) {
+    if (Array.isArray(value)) return value.filter(Boolean);
+    if (typeof value === "string" && value.trim()) return [value.trim()];
+    return [];
+}
+
+function buildAnyFilter(field, values, prefix = "x") {
+    const list = normalizeArray(values);
+    if (!list.length) return "";
+    return orJoin(list.map(v => `${field}/any(${prefix}:${prefix} eq '${esc(v)}')`));
+}
+
+function buildAllFilter(field, values, prefix = "x") {
+    const list = normalizeArray(values);
+    if (!list.length) return "";
+    return andJoin(list.map(v => `${field}/any(${prefix}:${prefix} eq '${esc(v)}')`));
+}
+
 function toOrderBy(sort) {
     const allowed = new Set(["creationDate", "rating/totalcount", "title", "displayProperties/price"]);
     if (!Array.isArray(sort) || !sort.length) return "creationDate desc";

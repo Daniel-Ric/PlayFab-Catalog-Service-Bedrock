@@ -372,7 +372,7 @@ The token encodes `{ role: "admin" }` for admin credentials. Use it via `Authori
 | GET    | `/marketplace/featured-servers`                    | Curated featured servers               |
 | GET    | `/marketplace/sales`                               | Aggregated sales across aliases        |
 | GET    | `/marketplace/sales/:alias`                        | Aggregated sales for one alias         |
-| POST   | `/marketplace/search-advanced/:alias`              | Advanced search + facets               |
+| POST   | `/marketplace/search/advanced/:alias`              | Advanced search + facets               |
 
 ---
 

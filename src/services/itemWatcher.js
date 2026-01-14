@@ -259,8 +259,8 @@ class ItemWatcher {
                 const startTs = tsOf(startDateOf(it));
                 const modTs = tsOf(lastModifiedDateOf(it));
 
-                const isNew = (creationTs && creationTs >= lastRunTs) || (startTs && startTs >= lastRunTs);
                 const prev = this.state.get(id) || null;
+                const isNew = !prev && ((creationTs && creationTs >= lastRunTs) || (startTs && startTs >= lastRunTs));
 
                 if (isNew) {
                     created.push(it);

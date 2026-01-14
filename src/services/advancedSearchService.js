@@ -135,6 +135,18 @@ function paginate(items, page, pageSize) {
     };
 }
 
+function buildSearchQuery(body) {
+    if (!body) return "";
+    const base = body.search || body.query || "";
+    const mode = String(body.queryMode || "").toLowerCase();
+    const q = Array.isArray(base) ? base.filter(Boolean).join(" ") : String(base || "");
+    const trimmed = q.trim().slice(0, 200);
+    if (!trimmed) return "";
+    if (mode === "exact" || mode === "phrase") return `"${trimmed}"`;
+    if (body.exact === true) return `"${trimmed}"`;
+    return trimmed;
+}
+
 function buildFacets(all) {
     const tags = new Map();
     const creators = new Map();

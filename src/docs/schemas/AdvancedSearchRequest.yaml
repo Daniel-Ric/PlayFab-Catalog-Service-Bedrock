@@ -4,6 +4,17 @@ AdvancedSearchRequest:
     query:
       type: string
       maxLength: 200
+    search:
+      type: string
+      maxLength: 200
+    queryMode:
+      type: string
+      enum:
+        - default
+        - exact
+        - phrase
+    exact:
+      type: boolean
     filters:
       type: object
       properties:

@@ -173,12 +173,12 @@ function atomicWriteText(file, text) {
 
 function readLastRunTs(file, fallbackTs) {
     try {
-        if (!fs.existsSync(file)) return fallbackTs;
+        if (!fs.existsSync(file)) return {ts: fallbackTs, existed: false};
         const raw = fs.readFileSync(file, "utf8");
         const n = Number(String(raw || "").trim());
-        return Number.isFinite(n) && n > 0 ? n : fallbackTs;
+        return {ts: Number.isFinite(n) && n > 0 ? n : fallbackTs, existed: true};
     } catch {
-        return fallbackTs;
+        return {ts: fallbackTs, existed: false};
     }
 }
 
@@ -237,7 +237,7 @@ class ItemWatcher {
             const titleId = getTitleId();
 
             const fallbackLastRun = Date.now() - intervalMs;
-            const lastRunTs = readLastRunTs(lastRunFile, fallbackLastRun);
+            const {ts: lastRunTs, existed: lastRunFileExists} = readLastRunTs(lastRunFile, fallbackLastRun);
             const nowTs = Date.now();
             try {
                 atomicWriteText(lastRunFile, String(nowTs));
@@ -273,13 +273,13 @@ class ItemWatcher {
                 this.state.set(id, {hash: hashItemCore(it), raw: it});
             }
 
-            if (created.length > 0) {
+            if (created.length > 0 && lastRunFileExists) {
                 eventBus.emit("item.created", {
                     ts: Date.now(), count: created.length, items: projectCatalogItems(created)
                 });
             }
 
-            if (updated.length > 0) {
+            if (updated.length > 0 && lastRunFileExists) {
                 eventBus.emit("item.updated", {
                     ts: Date.now(), count: updated.length, items: updated.map(pair => ({
                         id: pair.id,

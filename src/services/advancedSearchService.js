@@ -36,7 +36,7 @@ function toOrderBy(sort) {
 
 function buildFilter(alias, body) {
     const f = body.filters || {};
-    const tagClauses = Array.isArray(f.tags) ? f.tags.filter(Boolean).map(t => `tags/any(t:t eq '${esc(t)}')`) : [];
+    const tagClauses = [buildAnyFilter("tags", f.tags || f.tagsAny, "t"), buildAllFilter("tags", f.tagsAll, "t"), buildAnyFilter("tags", f.excludeTags, "t") ? `not ${buildAnyFilter("tags", f.excludeTags, "t")}` : ""];
     const creatorClauses = [];
     if (Array.isArray(f.creatorIds) && f.creatorIds.length) {
         creatorClauses.push(orJoin(f.creatorIds.map(id => `creatorId eq '${esc(id)}'`)));
@@ -48,9 +48,20 @@ function buildFilter(alias, body) {
         } catch {
         }
     }
+    const idClauses = [];
+    if (Array.isArray(f.itemIds) && f.itemIds.length) {
+        idClauses.push(orJoin(f.itemIds.map(id => `id eq '${esc(id)}'`)));
+    }
+    const friendlyIds = normalizeArray(f.friendlyIds);
+    if (friendlyIds.length) {
+        const clauses = friendlyIds.map(id => `alternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${esc(id)}')`);
+        idClauses.push(orJoin(clauses));
+    }
+    if (f.catalogVersion) idClauses.push(`catalogVersion eq '${esc(f.catalogVersion)}'`);
     const priceClauses = [];
     if (typeof f.priceMin === "number") priceClauses.push(`displayProperties/price ge ${Math.max(0, f.priceMin)}`);
     if (typeof f.priceMax === "number") priceClauses.push(`displayProperties/price le ${Math.max(0, f.priceMax)}`);
+    if (typeof f.isFree === "boolean") priceClauses.push(f.isFree ? "displayProperties/price le 0" : "displayProperties/price gt 0");
     const dateClauses = [];
     if (f.createdFrom) {
         const from = new Date(f.createdFrom);
@@ -60,8 +71,38 @@ function buildFilter(alias, body) {
         const to = new Date(f.createdTo);
         if (!Number.isNaN(to.getTime())) dateClauses.push(`creationDate le ${to.toISOString()}`);
     }
-    const typeClauses = Array.isArray(f.contentTypes) ? f.contentTypes.filter(Boolean).map(ct => `contentType eq '${esc(ct)}'`) : [];
-    return andJoin([...tagClauses, orJoin(creatorClauses), ...priceClauses, ...dateClauses, orJoin(typeClauses)]);
+    if (f.updatedFrom) {
+        const from = new Date(f.updatedFrom);
+        if (!Number.isNaN(from.getTime())) dateClauses.push(`lastModifiedDate ge ${from.toISOString()}`);
+    }
+    if (f.updatedTo) {
+        const to = new Date(f.updatedTo);
+        if (!Number.isNaN(to.getTime())) dateClauses.push(`lastModifiedDate le ${to.toISOString()}`);
+    }
+    if (f.startFrom) {
+        const from = new Date(f.startFrom);
+        if (!Number.isNaN(from.getTime())) dateClauses.push(`startDate ge ${from.toISOString()}`);
+    }
+    if (f.startTo) {
+        const to = new Date(f.startTo);
+        if (!Number.isNaN(to.getTime())) dateClauses.push(`startDate le ${to.toISOString()}`);
+    }
+    if (f.endFrom) {
+        const from = new Date(f.endFrom);
+        if (!Number.isNaN(from.getTime())) dateClauses.push(`endDate ge ${from.toISOString()}`);
+    }
+    if (f.endTo) {
+        const to = new Date(f.endTo);
+        if (!Number.isNaN(to.getTime())) dateClauses.push(`endDate le ${to.toISOString()}`);
+    }
+    const typeClauses = [orJoin(normalizeArray(f.contentTypes).map(ct => `contentType eq '${esc(ct)}'`)), normalizeArray(f.excludeContentTypes).length ? `not ${orJoin(normalizeArray(f.excludeContentTypes).map(ct => `contentType eq '${esc(ct)}'`))}` : ""];
+    const platformClauses = [buildAnyFilter("platforms", f.platforms, "p"), normalizeArray(f.excludePlatforms).length ? `not ${buildAnyFilter("platforms", f.excludePlatforms, "p")}` : ""];
+    const ratingClauses = [];
+    if (typeof f.ratingMin === "number") ratingClauses.push(`rating/average ge ${Math.max(0, f.ratingMin)}`);
+    if (typeof f.ratingMax === "number") ratingClauses.push(`rating/average le ${Math.max(0, f.ratingMax)}`);
+    if (typeof f.ratingCountMin === "number") ratingClauses.push(`rating/totalcount ge ${Math.max(0, f.ratingCountMin)}`);
+    const customFilter = typeof f.raw === "string" && f.raw.trim() ? `(${f.raw.trim()})` : "";
+    return andJoin([...tagClauses, orJoin(creatorClauses), orJoin(idClauses), ...priceClauses, ...dateClauses, ...typeClauses, ...platformClauses, ...ratingClauses, customFilter]);
 }
 
 async function searchLoop(titleId, filter, search, orderBy) {
@@ -122,16 +163,13 @@ function buildFacets(all) {
     }
     return {
         tags: Array.from(tags.entries()).map(([value, count]) => ({
-            value,
-            count
+            value, count
         })).sort((a, b) => b.count - a.count).slice(0, 50),
         creators: Array.from(creators.entries()).map(([value, count]) => ({
-            value,
-            count
+            value, count
         })).sort((a, b) => b.count - a.count).slice(0, 50),
         contentTypes: Array.from(typeMap.entries()).map(([value, count]) => ({
-            value,
-            count
+            value, count
         })).sort((a, b) => b.count - a.count),
         price: Array.from(priceBuckets.entries()).map(([bucket, count]) => ({bucket, count}))
     };

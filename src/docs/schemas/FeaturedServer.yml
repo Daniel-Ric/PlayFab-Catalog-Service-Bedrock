@@ -1,15 +1,11 @@
 FeaturedServer:
   type: object
   properties:
-    name:
-      type: string
-    id:
-      type: string
+    count:
+      type: integer
     items:
       type: array
       items:
-        $ref: "#/components/schemas/Item"
-  required:
-    - name
-    - id
-    - items
+        type: object
+        additionalProperties: true
+  additionalProperties: true

@@ -3,7 +3,7 @@
     tags:
       - Marketplace
     summary: Get featured servers
-    description: Returns a list of curated servers and, if available, their associated item.
+    description: Returns featured server discovery data from the Minecraft services API.
     security:
       - BearerAuth: [ ]
     responses:
@@ -16,9 +16,7 @@
         content:
           application/json:
             schema:
-              type: array
-              items:
-                $ref: "#/components/schemas/FeaturedServer"
+              $ref: "#/components/schemas/FeaturedServer"
       "401":
         description: Unauthorized
         content:

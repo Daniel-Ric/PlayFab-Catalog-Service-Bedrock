@@ -15,15 +15,9 @@ const httpsAgent = new https.Agent({
 });
 
 const api = axios.create({
-    timeout: Number(process.env.UPSTREAM_TIMEOUT_MS || 20000),
-    httpAgent,
-    httpsAgent,
-    headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": "libhttpclient/1.0.0.0"
-    },
-    validateStatus: () => true
+    timeout: Number(process.env.UPSTREAM_TIMEOUT_MS || 20000), httpAgent, httpsAgent, headers: {
+        "Content-Type": "application/json", "Accept": "application/json", "User-Agent": "libhttpclient/1.0.0.0"
+    }, validateStatus: () => true
 });
 
 const AUTH_BASE = process.env.MC_AUTH_BASE || "https://authorization.franchise.minecraft-services.net";
@@ -121,8 +115,7 @@ async function fetchMCToken(titleId) {
                 regionCode: MC_REGION_CODE,
                 token: session.SessionTicket,
                 tokentype: MC_TOKEN_TYPE
-            },
-            device: {
+            }, device: {
                 applicationType: MC_APPLICATION_TYPE,
                 memory: Math.floor(Math.random() * 10 ** 12) + 1,
                 id: randomUUID(),

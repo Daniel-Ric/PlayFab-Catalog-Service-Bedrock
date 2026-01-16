@@ -29,6 +29,7 @@ const api = axios.create({
 const AUTH_BASE = process.env.MC_AUTH_BASE || "https://authorization.franchise.minecraft-services.net";
 const DISCOVERY_BASE = process.env.MC_DISCOVERY_BASE || "https://gatherings-secondary.franchise.minecraft-services.net";
 const CLIENT_VERSION_URL = process.env.MC_CLIENT_VERSION_URL || "https://displaycatalog.mp.microsoft.com/v7.0/products/9NBLGGH2JHXJ/?market=CA&languages=en-CA,en,neutral";
+const CLIENT_VERSION_OVERRIDE = (process.env.MC_CLIENT_VERSION || "").trim();
 
 const CLIENT_VERSION_TTL_MS = Number(process.env.MC_CLIENT_VERSION_TTL_MS || 12 * 60 * 60 * 1000);
 const TOKEN_TTL_MS = Number(process.env.MC_TOKEN_TTL_MS || 15 * 60 * 1000);
@@ -50,25 +51,61 @@ const DISCOVERY_TOP = Math.max(1, parseInt(process.env.MC_FEATURED_TOP || "75", 
 function extractClientVersion(data) {
     const full = data?.Product?.DisplaySkuAvailabilities?.[0]?.Sku?.Properties?.Packages?.[0]?.PackageFullName;
     const match = String(full || "").match(/(\d+\.\d+\.\d+)\.\d+/);
-    return match ? match[1] : null;
+    if (match) return match[1];
+    return findVersionInObject(data);
+}
+
+function findVersionInObject(data) {
+    const seen = new Set();
+    const stack = [data];
+    while (stack.length) {
+        const current = stack.pop();
+        if (!current) continue;
+        if (typeof current === "string") {
+            const match = current.match(/(\d+\.\d+\.\d+)\.\d+/);
+            if (match) return match[1];
+            continue;
+        }
+        if (typeof current !== "object") continue;
+        if (seen.has(current)) continue;
+        seen.add(current);
+        if (Array.isArray(current)) {
+            for (let i = 0; i < current.length; i += 1) stack.push(current[i]);
+        } else {
+            for (const key of Object.keys(current)) stack.push(current[key]);
+        }
+    }
+    return null;
 }
 
 async function fetchClientVersion() {
-    return dataCache.getOrSetAsync("mc-client-version", async () => {
-        const r = await api.get(CLIENT_VERSION_URL);
-        if (r.status < 200 || r.status >= 300) {
-            const e = new Error(`Client version request failed with status ${r.status}`);
-            e.status = r.status;
-            throw e;
-        }
-        const version = extractClientVersion(r.data);
-        if (!version) {
-            const e = new Error("Client version response missing package metadata");
-            e.status = 502;
-            throw e;
-        }
+    if (CLIENT_VERSION_OVERRIDE) return CLIENT_VERSION_OVERRIDE;
+    const lastKnown = dataCache.get("mc-client-version:last");
+    try {
+        const version = await dataCache.getOrSetAsync("mc-client-version", async () => {
+            const r = await api.get(CLIENT_VERSION_URL);
+            if (r.status < 200 || r.status >= 300) {
+                const e = new Error(`Client version request failed with status ${r.status}`);
+                e.status = r.status;
+                throw e;
+            }
+            const found = extractClientVersion(r.data);
+            if (!found) {
+                const e = new Error("Client version response missing package metadata");
+                e.status = 502;
+                throw e;
+            }
+            dataCache.set("mc-client-version:last", found, {ttl: CLIENT_VERSION_TTL_MS});
+            return found;
+        }, CLIENT_VERSION_TTL_MS);
         return version;
-    }, CLIENT_VERSION_TTL_MS);
+    } catch (err) {
+        if (lastKnown) {
+            logger.warn("Client version fetch failed, using cached value");
+            return lastKnown;
+        }
+        throw err;
+    }
 }
 
 async function fetchMCToken(titleId) {

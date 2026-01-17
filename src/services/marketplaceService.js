@@ -226,6 +226,7 @@ async function enrichWithFullItems(titleId, items) {
 async function enrichItemsWithResolvedReferences(titleId, items) {
     const allRefIds = [];
     for (const it of items) {
+        if (!it) continue;
         const refs = Array.isArray(it.ItemReferences) ? it.ItemReferences : [];
         for (const r of refs) if (r?.Id) allRefIds.push(r.Id);
     }
@@ -234,6 +235,7 @@ async function enrichItemsWithResolvedReferences(titleId, items) {
     const refDetails = await getItemsByIds(titleId, unique, OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
     const refMap = new Map(refDetails.map(x => [x.Id, transformItem(x)]));
     return items.map(it => {
+        if (!it) return it;
         const refs = Array.isArray(it.ItemReferences) ? it.ItemReferences : [];
         const resolved = refs.map(r => refMap.get(r.Id)).filter(Boolean);
         return {...it, ResolvedReferences: resolved};
@@ -597,6 +599,11 @@ module.exports = {
         const id = items[0].Id;
         const full = await getItemsByIds(titleId, [id], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
         const t = full.filter(isValidItem).map(transformItem)[0];
+        if (!t) {
+            const e = new Error(`No item with the FriendlyId ${friendlyId} has been found`);
+            e.status = 404;
+            throw e;
+        }
         const withRefs = await enrichItemsWithResolvedReferences(titleId, [t]);
         return withRefs[0];
     },
@@ -615,6 +622,11 @@ module.exports = {
         const id = items[0].Id;
         const full = await getItemsByIds(titleId, [id], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
         const t = full.filter(isValidItem).map(transformItem)[0];
+        if (!t) {
+            const e = new Error(`No item with the FriendlyId ${friendlyId} has been found`);
+            e.status = 404;
+            throw e;
+        }
         const withRefs = await enrichItemsWithResolvedReferences(titleId, [t]);
         return withRefs[0];
     },

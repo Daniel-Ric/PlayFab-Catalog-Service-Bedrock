@@ -27,6 +27,8 @@
                 type: string
               titlePlayerAccountId:
                 type: string
+              creatorName:
+                type: string
               filter:
                 type: string
               search:

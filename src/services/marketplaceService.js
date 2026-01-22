@@ -14,6 +14,7 @@ const {resolveTitle} = require("../utils/titles");
 const {loadCreators, resolveCreatorId} = require("../utils/creators");
 const {buildFilter} = require("../utils/filter");
 const {resolveMarketplaceEntityInput} = require("../utils/marketplaceTokens");
+const {buildPlayerMarketplaceFilter} = require("../utils/marketplaceFilters");
 const featuredServers = require("../config/featuredServers");
 const logger = require("../config/logger");
 
@@ -523,8 +524,9 @@ module.exports = {
         const skipRaw = Number(payload.skip);
         const top = Number.isFinite(topRaw) && topRaw > 0 ? Math.min(topRaw, 300) : 100;
         const skip = Number.isFinite(skipRaw) && skipRaw >= 0 ? skipRaw : 0;
+        const creatorFilter = buildPlayerMarketplaceFilter(payload.filter, payload.creatorName, creatorsArr);
         const payloadSearch = buildSearchPayload({
-            filter: typeof payload.filter === "string" ? payload.filter : "",
+            filter: creatorFilter,
             search: typeof payload.search === "string" ? payload.search : "",
             top,
             skip,

@@ -108,6 +108,7 @@ app.get("/", (_req, res) => res.json({ok: true, name: "View Marketplace API"}));
 
 const loginLimiter = createRateLimiter("LOGIN", {windowMs: 15 * 60 * 1000, max: 20});
 const marketplaceLimiter = createOptionalRateLimiter("MARKETPLACE", {windowMs: 60 * 60 * 1000, max: 2000});
+const playerMarketplaceLimiter = createRateLimiter("MARKETPLACE_PLAYER", {windowMs: 60 * 60 * 1000, max: 2000});
 const adminLimiter = createOptionalRateLimiter("ADMIN", {windowMs: 60 * 60 * 1000, max: 1000});
 const healthLimiter = createOptionalRateLimiter("HEALTH", {windowMs: 5 * 60 * 1000, max: 500});
 
@@ -242,7 +243,7 @@ app.use("/marketplace/compare", enforceAuth, marketplaceLimiter, cacheHeaders(60
 app.use("/marketplace/featured-servers", enforceAuth, marketplaceLimiter, cacheHeaders(300, 1200), mpFeaturedServers);
 app.use("/marketplace/sales", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpSales);
 app.use("/marketplace/search/advanced", enforceAuth, marketplaceLimiter, mpSearchAdvanced);
-app.use("/marketplace/player/search", enforceAuth, marketplaceLimiter, mpPlayerSearch);
+app.use("/marketplace/player/search", enforceAuth, playerMarketplaceLimiter, cacheHeaders(30, 180), mpPlayerSearch);
 app.use("/marketplace/recommendations", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpRecommendations);
 app.use("/marketplace", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpStats);
 

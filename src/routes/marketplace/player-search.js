@@ -11,6 +11,7 @@ router.post(
         body("titleEntityToken").optional().isString().isLength({min: 1, max: 4096}),
         body("masterEntityToken").optional().isString().isLength({min: 1, max: 4096}),
         body("titlePlayerAccountId").optional().isString().isLength({min: 1, max: 200}),
+        body("creatorName").optional().isString().isLength({max: 200}),
         body("filter").optional().isString().isLength({max: 2000}),
         body("search").optional().isString().isLength({max: 200}),
         body("orderBy").optional().isString().isLength({max: 200}),

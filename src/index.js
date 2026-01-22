@@ -243,7 +243,7 @@ app.use("/marketplace/compare", enforceAuth, marketplaceLimiter, cacheHeaders(60
 app.use("/marketplace/featured-servers", enforceAuth, marketplaceLimiter, cacheHeaders(300, 1200), mpFeaturedServers);
 app.use("/marketplace/sales", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpSales);
 app.use("/marketplace/search/advanced", enforceAuth, marketplaceLimiter, mpSearchAdvanced);
-app.use("/marketplace/player/search", enforceAuth, playerMarketplaceLimiter, cacheHeaders(30, 180), mpPlayerSearch);
+app.use("/marketplace/player/search", enforceAuth, marketplaceLimiter, cacheHeaders(30, 180), mpPlayerSearch);
 app.use("/marketplace/recommendations", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpRecommendations);
 app.use("/marketplace", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpStats);
 

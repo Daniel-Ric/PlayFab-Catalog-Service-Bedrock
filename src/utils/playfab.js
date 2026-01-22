@@ -122,6 +122,38 @@ async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-Ent
     throw lastErr || new Error("sendPlayFabRequest failed");
 }
 
+async function sendPlayFabRequestWithEntityToken(titleId, endpoint, payload = {}, entityToken, maxRetries = 2) {
+    let attempt = 0;
+    let lastErr;
+    const budget = Number(process.env.RETRY_BUDGET || maxRetries);
+    while (attempt <= budget) {
+        try {
+            const headers = {"X-EntityToken": entityToken};
+            const r = await api.post(`https://${titleId}.playfabapi.com/${endpoint}`, payload, {headers});
+            if (r.status >= 200 && r.status < 300) {
+                return r.data.data ?? r.data;
+            }
+            const status = r.status;
+            const shouldRetry = [408, 409, 425, 429, 500, 502, 503, 504].includes(status);
+            if (!shouldRetry || attempt >= budget) {
+                const e = new Error(`Upstream error ${status}`);
+                e.status = status;
+                e.response = r;
+                throw e;
+            }
+            const waitMs = status === 429 ? parseRetryAfter(r.headers["retry-after"]) ?? jitter(200, attempt, 10000) : jitter(200, attempt, 10000);
+            await sleep(waitMs);
+            attempt++;
+        } catch (err) {
+            lastErr = err;
+            if (attempt >= budget) throw err;
+            await sleep(jitter(200, attempt, 10000));
+            attempt++;
+        }
+    }
+    throw lastErr || new Error("sendPlayFabRequestWithEntityToken failed");
+}
+
 function buildSearchPayload({
                                 filter = "",
                                 search = "",
@@ -245,6 +277,7 @@ module.exports = {
     getEntityToken,
     getSession,
     sendPlayFabRequest,
+    sendPlayFabRequestWithEntityToken,
     fetchAllMarketplaceItemsEfficiently,
     isValidItem,
     transformItem,

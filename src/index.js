@@ -10,6 +10,14 @@ const requestLogger = require("./middleware/requestLogger");
 const titlesRoutes = require("./routes/titles");
 const creatorsRoutes = require("./routes/creators");
 const sessionRoutes = require("./routes/session");
+const rateLimit = require("express-rate-limit");
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 1000, // limit each IP to 1000 authenticated requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 const mpAll = require("./routes/marketplace/all");
 const mpLatest = require("./routes/marketplace/latest");
 const mpSearch = require("./routes/marketplace/search");
@@ -232,25 +240,25 @@ app.use("/creators", enforceAuth, adminLimiter, creatorsRoutes);
 app.use("/marketplace/all", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpAll);
 app.use("/marketplace/latest", enforceAuth, marketplaceLimiter, cacheHeaders(30, 180), mpLatest);
 app.use("/marketplace/search", enforceAuth, marketplaceLimiter, cacheHeaders(30, 180), mpSearch);
-app.use("/marketplace/popular", enforceAuth, marketplaceLimiter, cacheHeaders(45, 240), mpPopular);
-app.use("/marketplace/tag", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpTag);
-app.use("/marketplace/free", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpFree);
-app.use("/marketplace/details", enforceAuth, marketplaceLimiter, cacheHeaders(120, 600), mpDetails);
-app.use("/marketplace/friendly", enforceAuth, marketplaceLimiter, cacheHeaders(120, 600), mpFriendly);
-app.use("/marketplace/summary", enforceAuth, marketplaceLimiter, cacheHeaders(120, 600), mpSummary);
-app.use("/marketplace/resolve", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpResolve);
-app.use("/marketplace/compare", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpCompare);
-app.use("/marketplace/featured-servers", enforceAuth, marketplaceLimiter, cacheHeaders(300, 1200), mpFeaturedServers);
-app.use("/marketplace/sales", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpSales);
-app.use("/marketplace/search/advanced", enforceAuth, marketplaceLimiter, mpSearchAdvanced);
-app.use("/marketplace/player/search", enforceAuth, marketplaceLimiter, cacheHeaders(30, 180), mpPlayerSearch);
-app.use("/marketplace/recommendations", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpRecommendations);
-app.use("/marketplace", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpStats);
+app.use("/marketplace/popular", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(45, 240), mpPopular);
+app.use("/marketplace/tag", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpTag);
+app.use("/marketplace/free", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpFree);
+app.use("/marketplace/details", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(120, 600), mpDetails);
+app.use("/marketplace/friendly", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(120, 600), mpFriendly);
+app.use("/marketplace/summary", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(120, 600), mpSummary);
+app.use("/marketplace/resolve", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpResolve);
+app.use("/marketplace/compare", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpCompare);
+app.use("/marketplace/featured-servers", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(300, 1200), mpFeaturedServers);
+app.use("/marketplace/sales", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpSales);
+app.use("/marketplace/search/advanced", enforceAuth, authLimiter, marketplaceLimiter, mpSearchAdvanced);
+app.use("/marketplace/player/search", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(30, 180), mpPlayerSearch);
+app.use("/marketplace/recommendations", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpRecommendations);
+app.use("/marketplace", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpStats);
 
-app.use("/events", enforceAuth, marketplaceLimiter, eventsRoutes);
-app.use("/webhooks", enforceAuth, requireRole("admin"), adminLimiter, webhookRoutes);
+app.use("/events", enforceAuth, authLimiter, marketplaceLimiter, eventsRoutes);
+app.use("/webhooks", enforceAuth, authLimiter, requireRole("admin"), adminLimiter, webhookRoutes);
 
-app.use("/health", enforceAuth, healthLimiter, cacheHeaders(5, 5), healthRoutes);
+app.use("/health", enforceAuth, authLimiter, healthLimiter, cacheHeaders(5, 5), healthRoutes);
 
 app.use((req, res) => {
     res.status(404).json({error: "Route not found."});

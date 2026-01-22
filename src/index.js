@@ -24,6 +24,7 @@ const mpCompare = require("./routes/marketplace/compare");
 const mpFeaturedServers = require("./routes/marketplace/featured-servers");
 const mpSales = require("./routes/marketplace/sales");
 const mpSearchAdvanced = require("./routes/marketplace/search-advanced");
+const mpPlayerSearch = require("./routes/marketplace/player-search");
 const mpRecommendations = require("./routes/marketplace/recommendations");
 const mpStats = require("./routes/marketplace/stats");
 const healthRoutes = require("./routes/health");
@@ -241,6 +242,7 @@ app.use("/marketplace/compare", enforceAuth, marketplaceLimiter, cacheHeaders(60
 app.use("/marketplace/featured-servers", enforceAuth, marketplaceLimiter, cacheHeaders(300, 1200), mpFeaturedServers);
 app.use("/marketplace/sales", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpSales);
 app.use("/marketplace/search/advanced", enforceAuth, marketplaceLimiter, mpSearchAdvanced);
+app.use("/marketplace/player/search", enforceAuth, marketplaceLimiter, mpPlayerSearch);
 app.use("/marketplace/recommendations", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpRecommendations);
 app.use("/marketplace", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpStats);
 

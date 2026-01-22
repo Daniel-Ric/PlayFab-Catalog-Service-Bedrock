@@ -27,14 +27,20 @@ function loadTitles() {
     return readTitlesFromDisk();
 }
 
+function normalizeAlias(alias) {
+    if (typeof alias !== "string") return "";
+    return alias.trim().toLowerCase();
+}
+
 function resolveTitle(alias) {
     const titles = readTitlesFromDisk();
-    if (!titles[alias]) {
+    const normalized = normalizeAlias(alias);
+    if (!normalized || !titles[normalized]) {
         const e = new Error(`Alias '${alias}' not found.`);
         e.status = 404;
         throw e;
     }
-    return titles[alias].id;
+    return titles[normalized].id;
 }
 
 function saveTitles(titles) {

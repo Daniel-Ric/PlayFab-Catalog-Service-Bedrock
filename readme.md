@@ -513,18 +513,24 @@ Body supports query + filters + sorting; response includes `facets`.
     "startTo": "2025-01-01T00:00:00Z",
     "endFrom": "2024-01-01T00:00:00Z",
     "endTo": "2025-01-01T00:00:00Z",
+    "contentKinds": ["skinpack"],
     "contentTypes": ["bundle","skinpack"],
     "excludeContentTypes": ["worldtemplate"],
     "platforms": ["Android","Xbox"],
     "excludePlatforms": ["Switch"],
     "ratingMin": 3.5,
     "ratingMax": 5,
-    "ratingCountMin": 50,
-    "raw": "displayProperties/featured eq true"
+    "ratingCountMin": 50
   },
   "sort": [{ "field": "creationDate", "dir": "desc" }]
 }
 ```
+
+Notes:
+
+* `contentKinds` is optimized for marketplace-friendly categories: `skinpack`, `world`, and `persona`.
+* `contentTypes` targets raw PlayFab content type values, which are often title-specific and not human-friendly.
+* `raw` filters are not supported and return a 400 response.
 
 #### Events (SSE)
 

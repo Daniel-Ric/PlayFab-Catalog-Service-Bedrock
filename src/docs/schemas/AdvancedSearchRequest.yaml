@@ -82,6 +82,10 @@ AdvancedSearchRequest:
         endTo:
           type: string
           format: date-time
+        contentKinds:
+          type: array
+          items:
+            type: string
         contentTypes:
           type: array
           items:
@@ -107,8 +111,6 @@ AdvancedSearchRequest:
         ratingCountMin:
           type: integer
           minimum: 0
-        raw:
-          type: string
     sort:
       type: array
       items:

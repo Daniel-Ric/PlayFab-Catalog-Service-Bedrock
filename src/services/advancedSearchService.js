@@ -6,6 +6,21 @@ const PAGE_BATCH = Math.max(100, parseInt(process.env.ADV_SEARCH_BATCH || "300",
 const MAX_BATCHES = Math.max(1, parseInt(process.env.ADV_SEARCH_MAX_BATCHES || "10", 10));
 const OS = process.env.OS || "iOS";
 const creators = loadCreators();
+const CONTENT_KIND_ALIASES = {
+    skinpack: "skinpack",
+    skinpacks: "skinpack",
+    world: "world",
+    worlds: "world",
+    worldtemplate: "world",
+    worldtemplates: "world",
+    persona: "persona",
+    personas: "persona"
+};
+const CONTENT_KIND_DEFS = {
+    skinpack: {tagsAll: ["skinpack"]},
+    world: {tagsAll: ["worldtemplate"]},
+    persona: {excludeTags: ["worldtemplate", "skinpack"]}
+};
 
 function esc(v) {
     return String(v).replace(/'/g, "''");
@@ -27,6 +42,10 @@ function normalizeArray(value) {
     return [];
 }
 
+function normalizeKindName(value) {
+    return String(value || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 function buildAnyFilter(field, values, prefix = "x") {
     const list = normalizeArray(values);
     if (!list.length) return "";
@@ -37,6 +56,51 @@ function buildAllFilter(field, values, prefix = "x") {
     const list = normalizeArray(values);
     if (!list.length) return "";
     return andJoin(list.map(v => `${field}/any(${prefix}:${prefix} eq '${esc(v)}')`));
+}
+
+function buildContentKindFilter(values) {
+    const rawKinds = normalizeArray(values);
+    if (!rawKinds.length) return "";
+    const unknown = [];
+    const kinds = new Set();
+    for (const value of rawKinds) {
+        const normalized = normalizeKindName(value);
+        if (!normalized) continue;
+        const alias = CONTENT_KIND_ALIASES[normalized];
+        if (!alias) {
+            unknown.push(value);
+            continue;
+        }
+        kinds.add(alias);
+    }
+    if (unknown.length) {
+        const e = new Error("Unknown contentKinds.");
+        e.status = 400;
+        e.publicMessage = `Unknown contentKinds: ${unknown.join(", ")}. Supported values: skinpack, world, persona.`;
+        throw e;
+    }
+    const clauses = Array.from(kinds).map(kind => {
+        const def = CONTENT_KIND_DEFS[kind];
+        if (!def) return "";
+        const parts = [];
+        if (def.tagsAny) parts.push(buildAnyFilter("tags", def.tagsAny, "t"));
+        if (def.tagsAll) parts.push(buildAllFilter("tags", def.tagsAll, "t"));
+        if (def.excludeTags) {
+            const ex = buildAnyFilter("tags", def.excludeTags, "t");
+            if (ex) parts.push(`not ${ex}`);
+        }
+        return andJoin(parts);
+    }).filter(Boolean);
+    return orJoin(clauses);
+}
+
+function buildRawFilter(raw) {
+    const trimmed = typeof raw === "string" ? raw.trim() : "";
+    if (!trimmed) return "";
+    const e = new Error("Raw filters are not supported.");
+    e.status = 400;
+    e.publicMessage = "Raw filters are not supported. Use tagsAny, tagsAll, excludeTags, or contentKinds.";
+    throw e;
 }
 
 function toOrderBy(sort) {
@@ -54,6 +118,7 @@ function toOrderBy(sort) {
 
 function buildFilter(alias, body) {
     const f = body.filters || {};
+    const kindClause = buildContentKindFilter(f.contentKinds);
     const tagClauses = [buildAnyFilter("tags", f.tags || f.tagsAny, "t"), buildAllFilter("tags", f.tagsAll, "t"), buildAnyFilter("tags", f.excludeTags, "t") ? `not ${buildAnyFilter("tags", f.excludeTags, "t")}` : ""];
     const creatorClauses = [];
     if (Array.isArray(f.creatorIds) && f.creatorIds.length) {
@@ -119,8 +184,8 @@ function buildFilter(alias, body) {
     if (typeof f.ratingMin === "number") ratingClauses.push(`rating/average ge ${Math.max(0, f.ratingMin)}`);
     if (typeof f.ratingMax === "number") ratingClauses.push(`rating/average le ${Math.max(0, f.ratingMax)}`);
     if (typeof f.ratingCountMin === "number") ratingClauses.push(`rating/totalcount ge ${Math.max(0, f.ratingCountMin)}`);
-    const customFilter = typeof f.raw === "string" && f.raw.trim() ? `(${f.raw.trim()})` : "";
-    return andJoin([...tagClauses, orJoin(creatorClauses), orJoin(idClauses), ...priceClauses, ...dateClauses, ...typeClauses, ...platformClauses, ...ratingClauses, customFilter]);
+    const customFilter = buildRawFilter(f.raw);
+    return andJoin([kindClause, ...tagClauses, orJoin(creatorClauses), orJoin(idClauses), ...priceClauses, ...dateClauses, ...typeClauses, ...platformClauses, ...ratingClauses, customFilter]);
 }
 
 async function searchLoop(titleId, filter, search, orderBy) {
@@ -215,3 +280,5 @@ exports.advancedSearch = async (alias, body, {page, pageSize}) => {
     const {items, meta} = paginate(all, page, pageSize);
     return {items, meta, facets};
 };
+
+exports._internals = {buildFilter, buildContentKindFilter, buildRawFilter};

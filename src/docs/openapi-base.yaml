@@ -390,10 +390,33 @@ components:
         query:
           type: string
           maxLength: 200
+        search:
+          type: string
+          maxLength: 200
+        queryMode:
+          type: string
+          enum:
+            - default
+            - exact
+            - phrase
+        exact:
+          type: boolean
         filters:
           type: object
           properties:
             tags:
+              type: array
+              items:
+                type: string
+            tagsAny:
+              type: array
+              items:
+                type: string
+            tagsAll:
+              type: array
+              items:
+                type: string
+            excludeTags:
               type: array
               items:
                 type: string
@@ -403,22 +426,77 @@ components:
                 type: string
             creatorName:
               type: string
+            itemIds:
+              type: array
+              items:
+                type: string
+            friendlyIds:
+              type: array
+              items:
+                type: string
+            catalogVersion:
+              type: string
             priceMin:
               type: integer
               minimum: 0
             priceMax:
               type: integer
               minimum: 0
+            isFree:
+              type: boolean
             createdFrom:
               type: string
               format: date-time
             createdTo:
               type: string
               format: date-time
+            updatedFrom:
+              type: string
+              format: date-time
+            updatedTo:
+              type: string
+              format: date-time
+            startFrom:
+              type: string
+              format: date-time
+            startTo:
+              type: string
+              format: date-time
+            endFrom:
+              type: string
+              format: date-time
+            endTo:
+              type: string
+              format: date-time
+            contentKinds:
+              type: array
+              items:
+                type: string
             contentTypes:
               type: array
               items:
                 type: string
+            excludeContentTypes:
+              type: array
+              items:
+                type: string
+            platforms:
+              type: array
+              items:
+                type: string
+            excludePlatforms:
+              type: array
+              items:
+                type: string
+            ratingMin:
+              type: number
+              minimum: 0
+            ratingMax:
+              type: number
+              minimum: 0
+            ratingCountMin:
+              type: integer
+              minimum: 0
         sort:
           type: array
           items:

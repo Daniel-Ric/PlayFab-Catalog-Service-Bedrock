@@ -181,13 +181,14 @@ function isValidItem(item) {
 
 function transformItem(item) {
     const images = (item.Images || []).map(img => {
-        const tag = (img.Tag || "").toLowerCase();
+        const tag = img.Tag || "";
+        const isThumbnail = tag === "thumbnail" || tag === "Thumbnail";
         return {
-            Id: img.Id, Tag: img.Tag, Type: tag === "thumbnail" ? "thumbnail" : "screenshot", Url: img.Url
+            Id: img.Id, Tag: img.Tag, Type: isThumbnail ? "Thumbnail" : "Screenshot", Url: img.Url
         };
     });
-    const thumbs = images.filter(i => i.Type === "thumbnail");
-    const shots = images.filter(i => i.Type !== "thumbnail");
+    const thumbs = images.filter(i => i.Type === "Thumbnail");
+    const shots = images.filter(i => i.Type !== "Thumbnail");
     return {
         ...item, StartDate: item.startDate || item.StartDate || item.CreationDate, Images: [...thumbs, ...shots]
     };

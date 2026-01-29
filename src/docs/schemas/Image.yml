@@ -8,8 +8,8 @@ Image:
     Type:
       type: string
       enum:
-        - thumbnail
-        - screenshot
+        - Thumbnail
+        - Screenshot
     Url:
       type: string
       format: uri

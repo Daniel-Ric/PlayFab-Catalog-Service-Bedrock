@@ -176,4 +176,4 @@ async function fetchFeaturedServers(titleId) {
     return r.data;
 }
 
-module.exports = {fetchFeaturedServers};
+module.exports = {fetchFeaturedServers, fetchMCToken};

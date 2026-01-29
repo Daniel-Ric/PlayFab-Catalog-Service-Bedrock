@@ -752,7 +752,7 @@ Items are normalized by `utils/playfab.transformItem()`:
 type TransformedImage = {
   Id: string;
   Tag: string;
-  Type: "thumbnail" | "screenshot";
+  Type: "Thumbnail" | "Screenshot";
   Url: string;
 };
 type TransformedItem = {

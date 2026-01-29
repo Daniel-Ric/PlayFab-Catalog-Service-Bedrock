@@ -1,0 +1,3 @@
+FeaturedPersona:
+  type: object
+  additionalProperties: true

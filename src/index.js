@@ -30,6 +30,7 @@ const mpResolve = require("./routes/marketplace/resolve");
 const mpSummary = require("./routes/marketplace/summary");
 const mpCompare = require("./routes/marketplace/compare");
 const mpFeaturedServers = require("./routes/marketplace/featured-servers");
+const mpFeaturedPersona = require("./routes/marketplace/featured-persona");
 const mpSales = require("./routes/marketplace/sales");
 const mpSearchAdvanced = require("./routes/marketplace/search-advanced");
 const mpPlayerSearch = require("./routes/marketplace/player-search");
@@ -249,6 +250,7 @@ app.use("/marketplace/summary", enforceAuth, authLimiter, marketplaceLimiter, ca
 app.use("/marketplace/resolve", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpResolve);
 app.use("/marketplace/compare", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpCompare);
 app.use("/marketplace/featured-servers", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(300, 1200), mpFeaturedServers);
+app.use("/marketplace/featured-persona", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(300, 1200), mpFeaturedPersona);
 app.use("/marketplace/sales", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpSales);
 app.use("/marketplace/search/advanced", enforceAuth, authLimiter, marketplaceLimiter, mpSearchAdvanced);
 app.use("/marketplace/player/search", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(30, 180), mpPlayerSearch);

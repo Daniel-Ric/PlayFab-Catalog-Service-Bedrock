@@ -370,7 +370,7 @@ The token encodes `{ role: "admin" }` for admin credentials. Use it via `Authori
 | GET    | `/marketplace/summary/:alias`                      | Compact list (id/title/links)          |
 | GET    | `/marketplace/compare/:creatorName`                | Compare a creator across titles        |
 | GET    | `/marketplace/featured-servers`                    | Curated featured servers               |
-| GET    | `/marketplace/featured-persona`                    | Featured persona items                 |
+| GET    | `/marketplace/featured-content`                    | Featured persona items                 |
 | GET    | `/marketplace/sales`                               | Aggregated sales across aliases        |
 | GET    | `/marketplace/sales/:alias`                        | Aggregated sales for one alias         |
 | POST   | `/marketplace/search/advanced/:alias`              | Advanced search + facets               |
@@ -465,7 +465,7 @@ Compare one creator across **all configured titles** in `titles.json`. Returns `
 
 Returns a curated list from `src/config/featuredServers.js`, each resolved to a live item (if present).
 
-#### `GET /marketplace/featured-persona`
+#### `GET /marketplace/featured-content`
 
 Returns featured persona items from the Dressing Room layout page.
 

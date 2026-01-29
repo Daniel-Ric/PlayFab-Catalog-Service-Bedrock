@@ -264,7 +264,7 @@ function getRoutesInfo() {
             recommendations: "/marketplace/recommendations/:itemId",
             stats: "/marketplace/:creatorName/stats",
             featuredServers: "/marketplace/featured-servers",
-            featuredPersona: "/marketplace/featured-persona",
+            featuredPersona: "/marketplace/featured-content",
             sales: "/marketplace/sales[/::alias]"
         },
         events: {

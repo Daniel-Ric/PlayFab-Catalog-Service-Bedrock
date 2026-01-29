@@ -1,4 +1,4 @@
-/marketplace/featured-persona:
+/marketplace/featured-content:
   get:
     tags:
       - Marketplace

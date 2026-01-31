@@ -16,7 +16,7 @@ const CONTENT_KIND_ALIASES = {
     persona: "persona",
     personas: "persona",
     addon: "addon",
-    addons: "addon
+    addons: "addon"
 };
 const CONTENT_KIND_DEFS = {
     skinpack: {contentTypes: ["MarketplaceDurableCatalog_V1.2"], tagsAll: ["skinpack"]},

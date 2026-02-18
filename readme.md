@@ -8,6 +8,11 @@
 [![Auth](https://img.shields.io/badge/auth-JWT-orange)](#)
 [![Status](https://img.shields.io/badge/stability-stable-success)](#)
 
+> [!IMPORTANT]
+> **Project Disclaimer**  
+> "PlayFab Catalog Service Bedrock" by SpindexGFX is an independent project. It is not affiliated with, endorsed by, sponsored by, or otherwise connected to Mojang AB, Microsoft Corporation, or any of their subsidiaries or affiliates. No partnership, approval, or official relationship with Mojang AB or Microsoft is implied.  
+> All names, logos, brands, trademarks, service marks, and registered trademarks are the property of their respective owners and are used strictly for identification and reference purposes only. This project does not claim ownership of third-party intellectual property and does not grant any license to use it.
+
 ---
 
 ## Table of Contents

@@ -1,0 +1,116 @@
+/marketplace/sales:
+  get:
+    tags:
+      - Marketplace
+    summary: Get current sales
+    description: Returns active sales and included items. Optional filter by creator display name.
+    security:
+      - BearerAuth: [ ]
+    parameters:
+      - in: query
+        name: creator
+        required: false
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        headers:
+          ETag:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SalesOverview"
+      "400":
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "404":
+        description: No sales currently active
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "500":
+        description: Server error
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+
+/marketplace/sales/{alias}:
+  get:
+    tags:
+      - Marketplace
+    summary: Get current sales for a specific title
+    description: Returns active sales and included items for the given title alias.
+    security:
+      - BearerAuth: [ ]
+    parameters:
+      - in: path
+        name: alias
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: creator
+        required: false
+        schema:
+          type: string
+    responses:
+      "200":
+        description: OK
+        headers:
+          ETag:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SalesOverview"
+      "400":
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "404":
+        description: No sales currently active
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "500":
+        description: Server error
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"

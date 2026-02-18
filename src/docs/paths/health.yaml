@@ -1,0 +1,36 @@
+/health:
+  get:
+    tags:
+      - Health
+    summary: Health and configuration status
+    security:
+      - BearerAuth: [ ]
+    responses:
+      "200":
+        description: OK
+        headers:
+          ETag:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              type: object
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "500":
+        description: Server error
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"

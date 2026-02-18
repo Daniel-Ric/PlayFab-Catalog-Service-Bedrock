@@ -1,0 +1,91 @@
+/marketplace/player/search/{alias}:
+  post:
+    tags:
+      - Marketplace
+    summary: Search the player marketplace with entity tokens
+    description: Use a title player entity token or a master entity token with a title player account id to query the marketplace title.
+    security:
+      - BearerAuth: [ ]
+    parameters:
+      - in: path
+        name: alias
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              entityToken:
+                type: string
+              titleEntityToken:
+                type: string
+              masterEntityToken:
+                type: string
+              titlePlayerAccountId:
+                type: string
+              creatorName:
+                type: string
+              filter:
+                type: string
+              search:
+                type: string
+              orderBy:
+                type: string
+              top:
+                type: integer
+                minimum: 1
+                maximum: 300
+              skip:
+                type: integer
+                minimum: 0
+              select:
+                type: string
+              expand:
+                type: string
+    responses:
+      "200":
+        description: OK
+        headers:
+          ETag:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/Item"
+      "400":
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "404":
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "500":
+        description: Server error
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"

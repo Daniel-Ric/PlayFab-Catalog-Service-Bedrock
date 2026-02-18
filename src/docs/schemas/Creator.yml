@@ -1,0 +1,10 @@
+Creator:
+  type: object
+  properties:
+    creatorName:
+      type: string
+    displayName:
+      type: string
+  required:
+    - creatorName
+    - displayName

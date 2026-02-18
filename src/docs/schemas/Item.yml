@@ -1,0 +1,21 @@
+Item:
+  type: object
+  properties:
+    Id:
+      type: string
+    Title:
+      type: object
+      additionalProperties: true
+    StartDate:
+      type: string
+      format: date-time
+    Images:
+      type: array
+      items:
+        $ref: "#/components/schemas/Image"
+    DisplayProperties:
+      type: object
+      additionalProperties: true
+  required:
+    - Id
+    - Images

@@ -1,0 +1,617 @@
+openapi: 3.0.3
+info:
+  title: PlayFab Service | VMC API
+  version: "1.1.0"
+  description: Public HTTP API for marketplace browsing.
+servers:
+  - url: http://localhost:3000
+    description: Local
+tags:
+  - name: Auth
+  - name: Titles
+  - name: Creators
+  - name: Session
+  - name: Marketplace
+  - name: Admin
+  - name: Events
+  - name: Health
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            type:
+              type: string
+            message:
+              type: string
+            details:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            traceId:
+              type: string
+          required:
+            - type
+            - message
+      required:
+        - error
+    Creator:
+      type: object
+      properties:
+        creatorName:
+          type: string
+        displayName:
+          type: string
+      required:
+        - creatorName
+        - displayName
+    Image:
+      type: object
+      properties:
+        Id:
+          type: string
+        Tag:
+          type: string
+        Type:
+          type: string
+          enum:
+            - Thumbnail
+            - Screenshot
+        Url:
+          type: string
+          format: uri
+      required:
+        - Id
+        - Url
+    Item:
+      type: object
+      properties:
+        Id:
+          type: string
+        Title:
+          type: object
+          additionalProperties: true
+        StartDate:
+          type: string
+          format: date-time
+        Images:
+          type: array
+          items:
+            $ref: '#/components/schemas/Image'
+        DisplayProperties:
+          type: object
+          additionalProperties: true
+      required:
+        - Id
+        - Images
+    Title:
+      type: object
+      properties:
+        alias:
+          type: string
+        id:
+          type: string
+        notes:
+          type: string
+      required:
+        - alias
+        - id
+    WebhookRegistration:
+      type: object
+      required:
+        - url
+      properties:
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        secret:
+          type: string
+          nullable: true
+        vendor:
+          type: string
+        active:
+          type: boolean
+        filters:
+          type: object
+          nullable: true
+          properties:
+            creators:
+              type: array
+              items:
+                type: string
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        secret:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+        vendor:
+          type: string
+        filters:
+          type: object
+          nullable: true
+          properties:
+            creators:
+              type: array
+              items:
+                type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - url
+        - events
+        - active
+        - vendor
+    WebhookResult:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: integer
+        ok:
+          type: boolean
+        event:
+          type: string
+      required:
+        - id
+        - status
+        - ok
+        - event
+    SaleEvent:
+      type: object
+      properties:
+        ts:
+          type: integer
+        changes:
+          type: array
+          items:
+            type: object
+            properties:
+              storeId:
+                type: string
+              type:
+                type: string
+    PriceAmount:
+      type: object
+      properties:
+        currencyId:
+          type: string
+        amount:
+          type: number
+      required:
+        - currencyId
+        - amount
+    SaleItem:
+      type: object
+      properties:
+        id:
+          type: string
+        prices:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceAmount'
+        catalogVersion:
+          type: string
+          nullable: true
+        customData:
+          type: object
+          nullable: true
+          additionalProperties: true
+        contentType:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        platforms:
+          type: array
+          items:
+            type: string
+        keywords:
+          type: object
+          additionalProperties: true
+        images:
+          type: array
+          items:
+            $ref: '#/components/schemas/Image'
+        virtualCurrencyPrices:
+          type: object
+          nullable: true
+          additionalProperties: true
+        realCurrencyPrices:
+          type: object
+          nullable: true
+          additionalProperties: true
+        rawItem:
+          type: object
+          additionalProperties: true
+      required:
+        - id
+        - prices
+    Sale:
+      type: object
+      properties:
+        id:
+          type: string
+        catalogVersion:
+          type: string
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        startDate:
+          type: string
+          format: date-time
+          nullable: true
+        endDate:
+          type: string
+          format: date-time
+          nullable: true
+        discountPercent:
+          type: integer
+          nullable: true
+        virtualCurrencyPrices:
+          type: object
+          nullable: true
+          additionalProperties: true
+        realCurrencyPrices:
+          type: object
+          nullable: true
+          additionalProperties: true
+        tags:
+          type: array
+          items:
+            type: string
+        platforms:
+          type: array
+          items:
+            type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/SaleItem'
+      required:
+        - id
+        - items
+    SalesOverview:
+      type: object
+      properties:
+        totalItems:
+          type: integer
+        itemsPerCreator:
+          type: object
+          additionalProperties:
+            type: integer
+        sales:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/Sale'
+      required:
+        - totalItems
+        - itemsPerCreator
+        - sales
+    FeaturedServer:
+      type: object
+      properties:
+        name:
+          type: string
+        id:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Item'
+      required:
+        - name
+        - id
+        - items
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        page:
+          type: integer
+          minimum: 1
+        pageSize:
+          type: integer
+          minimum: 1
+        skip:
+          type: integer
+          minimum: 0
+        limit:
+          type: integer
+          minimum: 1
+        hasNext:
+          type: boolean
+        nextPage:
+          type: integer
+          minimum: 1
+          nullable: true
+        start:
+          type: integer
+          minimum: 0
+        end:
+          type: integer
+          minimum: 0
+    PaginatedItems:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    AdvancedSearchRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        query:
+          type: object
+          additionalProperties: false
+          properties:
+            text:
+              type: string
+              maxLength: 200
+        filters:
+          type: object
+          additionalProperties: false
+          properties:
+            id:
+              oneOf:
+                - type: string
+                - type: array
+                  items:
+                    type: string
+            friendlyId:
+              oneOf:
+                - type: string
+                - type: array
+                  items:
+                    type: string
+            alternateIds:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - type
+                  - value
+                properties:
+                  type:
+                    type: string
+                  value:
+                    type: string
+            keywords:
+              oneOf:
+                - type: string
+                - type: array
+                  items:
+                    type: string
+            isStackable:
+              type: boolean
+            platforms:
+              oneOf:
+                - type: string
+                - type: array
+                  items:
+                    type: string
+            tags:
+              oneOf:
+                - type: string
+                - type: array
+                  items:
+                    type: string
+            tagsAny:
+              oneOf:
+                - type: string
+                - type: array
+                  items:
+                    type: string
+            tagsAll:
+              oneOf:
+                - type: string
+                - type: array
+                  items:
+                    type: string
+            contentKinds:
+              oneOf:
+                - type: string
+                - type: array
+                  items:
+                    type: string
+                    enum:
+                      - skinpack
+                      - world
+                      - persona
+                      - addon
+            creationDate:
+              type: object
+              additionalProperties: false
+              properties:
+                from:
+                  type: string
+                  format: date-time
+                to:
+                  type: string
+                  format: date-time
+            lastModifiedDate:
+              type: object
+              additionalProperties: false
+              properties:
+                from:
+                  type: string
+                  format: date-time
+                to:
+                  type: string
+                  format: date-time
+            startDate:
+              type: object
+              additionalProperties: false
+              properties:
+                from:
+                  type: string
+                  format: date-time
+                to:
+                  type: string
+                  format: date-time
+            priceAmounts:
+              type: object
+              additionalProperties: false
+              properties:
+                min:
+                  type: number
+                  minimum: 0
+                max:
+                  type: number
+                  minimum: 0
+                currencyId:
+                  type: string
+            creatorName:
+              type: string
+            offerId:
+              type: string
+            purchasable:
+              type: boolean
+            packIdentityType:
+              type: string
+            ratingMin:
+              type: number
+              minimum: 0
+        sort:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            properties:
+              field:
+                type: string
+                enum:
+                  - id
+                  - type
+                  - title
+                  - description
+                  - keywords
+                  - isStackable
+                  - platforms
+                  - tags
+                  - creationDate
+                  - lastModifiedDate
+                  - startDate
+                  - priceAmount
+                  - creatorName
+                  - purchasable
+                  - packIdentityType
+              dir:
+                type: string
+                enum:
+                  - asc
+                  - desc
+    AdvancedSearchResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+        meta:
+          type: object
+          properties:
+            total:
+              type: integer
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            hasNext:
+              type: boolean
+            nextPage:
+              type: integer
+              nullable: true
+            start:
+              type: integer
+            end:
+              type: integer
+        facets:
+          type: object
+          properties:
+            tags:
+              type: array
+              items:
+                type: object
+                properties:
+                  value:
+                    type: string
+                  count:
+                    type: integer
+            creators:
+              type: array
+              items:
+                type: object
+                properties:
+                  value:
+                    type: string
+                  count:
+                    type: integer
+            contentTypes:
+              type: array
+              items:
+                type: object
+                properties:
+                  value:
+                    type: string
+                  count:
+                    type: integer
+            price:
+              type: array
+              items:
+                type: object
+                properties:
+                  bucket:
+                    type: string
+                  count:
+                    type: integer
+security: [ ]
+paths: { }

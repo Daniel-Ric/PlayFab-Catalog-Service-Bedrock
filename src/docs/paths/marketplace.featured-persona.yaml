@@ -1,0 +1,37 @@
+/marketplace/featured-content:
+  get:
+    tags:
+      - Marketplace
+    summary: Get featured persona items
+    description: Returns featured persona items from the Dressing Room layout page.
+    security:
+      - BearerAuth: [ ]
+    responses:
+      "200":
+        description: OK
+        headers:
+          ETag:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeaturedPersona"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "500":
+        description: Server error
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"

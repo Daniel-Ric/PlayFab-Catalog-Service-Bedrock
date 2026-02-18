@@ -1,0 +1,11 @@
+FeaturedServer:
+  type: object
+  properties:
+    count:
+      type: integer
+    items:
+      type: array
+      items:
+        type: object
+        additionalProperties: true
+  additionalProperties: true

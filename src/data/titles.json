@@ -1,0 +1,30 @@
+{
+  "prod": {
+    "id": "20CA2",
+    "notes": "Minecraft Production Title"
+  },
+  "stage": {
+    "id": "EE7B",
+    "notes": "Minecraft Staging Title"
+  },
+  "dev": {
+    "id": "E9D1",
+    "notes": "Minecraft Development Title"
+  },
+  "launcher": {
+    "id": "B7B52",
+    "notes": "Minecraft Launcher (PlayFab web title)"
+  },
+  "java": {
+    "id": "E99B0",
+    "notes": "Minecraft: Java Edition (PlayFab web title)"
+  },
+  "market_player_access": {
+    "id": "e9d1",
+    "notes": "Minecraft: title_player Marketplace (This marketplace title ID is used with the user’s `title_player_account` to access the player marketplace.\n)"
+  },
+  "web_unknown": {
+    "id": "1DF18",
+    "notes": "Minecraft PlayFab web title (purpose currently unknown)"
+  }
+}

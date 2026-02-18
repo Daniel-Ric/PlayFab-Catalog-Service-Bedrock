@@ -1,0 +1,40 @@
+/marketplace/mc-token:
+  get:
+    tags:
+      - Marketplace
+    summary: Get MC token
+    description: Returns the Minecraft Services authorization token for the configured primary title.
+    security: [ ]
+    responses:
+      "200":
+        description: OK
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                titleId:
+                  type: string
+                token:
+                  type: string
+              required:
+                - titleId
+                - token
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "500":
+        description: Server error
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"

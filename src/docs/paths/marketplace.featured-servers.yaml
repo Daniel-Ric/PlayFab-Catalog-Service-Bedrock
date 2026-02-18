@@ -1,0 +1,37 @@
+/marketplace/featured-servers:
+  get:
+    tags:
+      - Marketplace
+    summary: Get featured servers
+    description: Returns featured server discovery data from the Minecraft services API.
+    security:
+      - BearerAuth: [ ]
+    responses:
+      "200":
+        description: OK
+        headers:
+          ETag:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeaturedServer"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "500":
+        description: Server error
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"

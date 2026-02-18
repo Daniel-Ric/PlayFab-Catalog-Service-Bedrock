@@ -1,0 +1,2699 @@
+{
+  "info": {
+    "_postman_id": "2aa298d9-29b3-4cdd-8889-9552243b07df",
+    "name": "PlayFab Service | VMC",
+    "description": "Postman collection for the PlayFab VMC (View Marketplace) API. The collection mirrors the current OpenAPI spec and keeps the existing folder layout while adding missing endpoints and clearer documentation.\n\nSetup:\n1) Set {{baseUrl}} to your running instance (e.g. http://localhost:3000).\n2) Aliases come from src/data/titles.json (prod, bedrock, edu, demo, staging, stage, dev, experimental, creator).\n3) Variables used: {{creator1}} / {{creator2}}, {{keyword}}, {{tag}}, {{itemId}}, {{friendlyId}}.\n4) ETag-aware endpoints return an ETag header for caching.\n\nAuth:\n- Call Login to get a JWT and store it in {{token}}.\n- Most marketplace, admin, and event endpoints require Bearer auth.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "37965769"
+  },
+  "item": [
+    {
+      "name": "Health / Meta / Docs",
+      "item": [
+        {
+          "name": "GET /",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": []
+            },
+            "description": "Simple service root response for quick connectivity checks."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Return service health, version, and uptime details."
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "let data;\r",
+                  "try {\r",
+                  "  data = pm.response.json();\r",
+                  "} catch (e) {\r",
+                  "  pm.test(\"Antwort ist JSON\", function () {\r",
+                  "    pm.expect.fail(\"Antwort ist kein gültiges JSON\");\r",
+                  "  });\r",
+                  "}\r",
+                  "\r",
+                  "const token = data?.token;\r",
+                  "pm.test(\"Token vorhanden\", function () {\r",
+                  "  pm.expect(token, \"Token fehlt in der Login-Antwort\").to.exist;\r",
+                  "});\r",
+                  "\r",
+                  "pm.collectionVariables.set(\"token\", token);\r",
+                  "\r",
+                  "try {\r",
+                  "  const payload = JSON.parse(atob(token.split('.')[1]));\r",
+                  "  if (payload?.exp) pm.collectionVariables.set(\"token_exp\", payload.exp);\r",
+                  "} catch (e) {\r",
+                  "  // Ignoriere\r",
+                  "}\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "",
+                "value": "",
+                "type": "text",
+                "disabled": true
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"username\": \"adm7nQwR4vZ\", \"password\": \"X9uYcV7rPq1LmE\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "description": "Authenticate and obtain a JWT token for protected endpoints."
+          },
+          "response": []
+        },
+        {
+          "name": "Open API JSON",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/openapi.json",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "openapi.json"
+              ]
+            },
+            "description": "Fetch the live OpenAPI specification used by Swagger UI."
+          },
+          "response": []
+        }
+      ],
+      "description": "Service health, authentication, and documentation endpoints."
+    },
+    {
+      "name": "Creators",
+      "item": [
+        {
+          "name": "GET /creators",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                  "pm.test(\"JSON array\", () => Array.isArray(pm.response.json()));",
+                  "pm.test(\"Creator objects have creatorName & displayName\", () => {",
+                  "  const arr = pm.response.json();",
+                  "  if (arr.length) {",
+                  "    pm.expect(arr[0]).to.have.property('creatorName');",
+                  "    pm.expect(arr[0]).to.have.property('displayName');",
+                  "  }",
+                  "});",
+                  "pm.test(\"Response time < 3000ms\", () => pm.response.responseTime < 3000);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/creators",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "creators"
+              ]
+            },
+            "description": "List all creators visible to the service."
+          },
+          "response": []
+        }
+      ],
+      "description": "Creator discovery endpoints."
+    },
+    {
+      "name": "Titles",
+      "item": [
+        {
+          "name": "GET /titles → all titles (alias, id, notes)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                  "pm.test(\"JSON array\", () => Array.isArray(pm.response.json()));",
+                  "pm.test(\"First entry has alias & id\", () => {",
+                  "  const arr = pm.response.json();",
+                  "  if (arr.length) {",
+                  "    pm.expect(arr[0]).to.have.property('alias');",
+                  "    pm.expect(arr[0]).to.have.property('id');",
+                  "  }",
+                  "});",
+                  "pm.test(\"Response time < 3000ms\", () => pm.response.responseTime < 3000);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/titles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "titles"
+              ]
+            },
+            "description": "List all configured title aliases."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /titles → create title",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.code === 201);",
+                  "const b = pm.response.json();",
+                  "pm.test(\"Echoed alias/id\", () => {",
+                  "  pm.expect(b).to.have.property('alias');",
+                  "  pm.expect(b).to.have.property('id');",
+                  "});",
+                  "// Store alias for subsequent delete",
+                  "pm.collectionVariables.set('created_alias', b.alias);",
+                  "pm.collectionVariables.set('created_id', b.id);",
+                  "pm.test(\"Response time < 4000ms\", () => pm.response.responseTime < 4000);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"alias\": \"{{new_alias}}\",\n  \"id\": \"{{new_id}}\",\n  \"notes\": \"Created via Postman at {{ts}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/titles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "titles"
+              ]
+            },
+            "description": "Create a new title alias. Requires admin access."
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /titles/:alias → delete created title",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "if (!pm.collectionVariables.get('created_alias')) {",
+                  "  pm.request.url = pm.request.url.toString().replace('{{created_alias}}', pm.collectionVariables.get('alias_to_delete'));",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                  "pm.test(\"Deleted field present\", () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b).to.have.property('deleted');",
+                  "});",
+                  "pm.test(\"Response time < 3000ms\", () => pm.response.responseTime < 3000);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/titles/{{created_alias}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "titles",
+                "{{created_alias}}"
+              ]
+            },
+            "description": "Delete a previously created title alias. Requires admin access."
+          },
+          "response": []
+        }
+      ],
+      "description": "Manage title aliases used by marketplace queries."
+    },
+    {
+      "name": "Session",
+      "item": [
+        {
+          "name": "GET /session/:alias (prod)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                  "const b = pm.response.json();",
+                  "pm.test(\"Has EntityToken\", () => pm.expect(b).to.have.property('EntityToken'));",
+                  "pm.test(\"Has SessionTicket & PlayFabId\", () => {",
+                  "  pm.expect(b).to.have.property('SessionTicket');",
+                  "  pm.expect(b).to.have.property('PlayFabId');",
+                  "});",
+                  "pm.test(\"Response time < 7000ms (login may be slow)\", () => pm.response.responseTime < 7000);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/session/{{alias_prod}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "session",
+                "{{alias_prod}}"
+              ]
+            },
+            "description": "Request a cached PlayFab entity session for the given title alias."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /session/:alias (bedrock)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                  "const b = pm.response.json();",
+                  "pm.test(\"Has EntityToken\", () => pm.expect(b).to.have.property('EntityToken'));",
+                  "pm.test(\"Response time < 7000ms\", () => pm.response.responseTime < 7000);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/session/{{alias_bedrock}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "session",
+                "{{alias_bedrock}}"
+              ]
+            },
+            "description": "Request a cached PlayFab entity session for the given title alias."
+          },
+          "response": []
+        }
+      ],
+      "description": "Resolve PlayFab session data for a title alias."
+    },
+    {
+      "name": "Marketplace",
+      "item": [
+        {
+          "name": "All",
+          "item": [
+            {
+              "name": "GET /marketplace/all/:alias (no filters)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                      "pm.test(\"ETag present\", () => {",
+                      "  const et = pm.response.headers.get('ETag');",
+                      "  pm.collectionVariables.set('etag_all_prod', et || '');",
+                      "  pm.expect(!!et).to.be.true;",
+                      "});",
+                      "pm.test(\"Body is array of items or empty\", () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(Array.isArray(body)).to.be.true;",
+                      "});",
+                      "pm.test(\"Response time < 8000ms\", () => pm.response.responseTime < 8000);",
+                      "// Re-request with If-None-Match to validate 304",
+                      "const et = pm.collectionVariables.get('etag_all_prod');",
+                      "if (et) {",
+                      "  pm.sendRequest({",
+                      "    url: pm.request.url.toString(),",
+                      "    method: 'GET',",
+                      "    header: [{ key: 'If-None-Match', value: et }, { key: 'Accept', value: 'application/json' }]",
+                      "  }, (err, res) => {",
+                      "    if (err) { pm.expect.fail(String(err)); }",
+                      "    else { pm.expect([304,200]).to.include(res.code); }",
+                      "  });",
+                      "}"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/all/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "all",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/all/:alias (creatorName={{creator1}})",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+                      "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/all/{{alias_prod}}?creatorName={{creator1}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "all",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}"
+                    }
+                  ]
+                },
+                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/all/:alias (creatorName={{creator2}})",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+                      "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/all/{{alias_prod}}?creatorName={{creator2}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "all",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator2}}"
+                    }
+                  ]
+                },
+                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/all/:alias (tag={{tag}})",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+                      "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/all/{{alias_prod}}?tag={{tag}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "all",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "tag",
+                      "value": "{{tag}}"
+                    }
+                  ]
+                },
+                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/all/:alias (creatorName + tag)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+                      "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/all/{{alias_prod}}?creatorName={{creator1}}&tag={{tag}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "all",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}"
+                    },
+                    {
+                      "key": "tag",
+                      "value": "{{tag}}"
+                    }
+                  ]
+                },
+                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/all/:alias (bedrock, no filters)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+                      "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/all/{{alias_bedrock}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "all",
+                    "{{alias_bedrock}}"
+                  ]
+                },
+                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag."
+              },
+              "response": []
+            }
+          ],
+          "description": "Browse all catalog items with optional creator and tag filters."
+        },
+        {
+          "name": "Latest",
+          "item": [
+            {
+              "name": "GET /marketplace/latest/:alias?count=10 (no filters)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+                      "pm.test(\"Array <= 10\", () => {",
+                      "  const arr = pm.response.json();",
+                      "  pm.expect(Array.isArray(arr)).to.be.true;",
+                      "  pm.expect(arr.length).to.be.at.most(10);",
+                      "});"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "latest",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "count",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/latest/:alias?count=25 (no filters)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=25",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "latest",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "count",
+                      "value": "25"
+                    }
+                  ]
+                },
+                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/latest/:alias?count=50 (cap)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=50",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "latest",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "count",
+                      "value": "50"
+                    }
+                  ]
+                },
+                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/latest/:alias?count=25&creatorName={{creator1}}",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=25&creatorName={{creator1}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "latest",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "count",
+                      "value": "25"
+                    },
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}"
+                    }
+                  ]
+                },
+                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/latest/:alias?count=25&creatorName={{creator2}}",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=25&creatorName={{creator2}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "latest",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "count",
+                      "value": "25"
+                    },
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator2}}"
+                    }
+                  ]
+                },
+                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/latest/:alias?count=25&tag={{tag}}",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=25&tag={{tag}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "latest",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "count",
+                      "value": "25"
+                    },
+                    {
+                      "key": "tag",
+                      "value": "{{tag}}"
+                    }
+                  ]
+                },
+                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/latest/:alias?count=25&creatorName={{creator1}}&tag={{tag}}",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=25&creatorName={{creator1}}&tag={{tag}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "latest",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "count",
+                      "value": "25"
+                    },
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}"
+                    },
+                    {
+                      "key": "tag",
+                      "value": "{{tag}}"
+                    }
+                  ]
+                },
+                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/latest/:alias?count=10 (bedrock)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/latest/{{alias_bedrock}}?count=10",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "latest",
+                    "{{alias_bedrock}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "count",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
+              },
+              "response": []
+            }
+          ],
+          "description": "Browse the latest published items with optional filters and count."
+        },
+        {
+          "name": "Popular",
+          "item": [
+            {
+              "name": "GET /marketplace/popular/:alias (no filters)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/popular/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "popular",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Return popular items for the title alias. Optional filters: creatorName, tag."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/popular/:alias?creatorName={{creator1}}",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/popular/{{alias_prod}}?creatorName={{creator1}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "popular",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}"
+                    }
+                  ]
+                },
+                "description": "Return popular items for the title alias. Optional filters: creatorName, tag."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/popular/:alias?creatorName={{creator2}}",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/popular/{{alias_prod}}?creatorName={{creator2}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "popular",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator2}}"
+                    }
+                  ]
+                },
+                "description": "Return popular items for the title alias. Optional filters: creatorName, tag."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/popular/:alias?creatorName={{creator1}}&tag={{tag}}",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/popular/{{alias_prod}}?creatorName={{creator1}}&tag={{tag}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "popular",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}"
+                    },
+                    {
+                      "key": "tag",
+                      "value": "{{tag}}"
+                    }
+                  ]
+                },
+                "description": "Return popular items for the title alias. Optional filters: creatorName, tag."
+              },
+              "response": []
+            }
+          ],
+          "description": "Browse popular items with optional creator and tag filters.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Folder-level quick check for last response (if any)",
+                  "if (pm.response) {",
+                  "  pm.test(\"Status 200\", () => [200,304].includes(pm.response.code));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Free",
+          "item": [
+            {
+              "name": "GET /marketplace/free/:alias (no filters)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/free/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "free",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Return free items for the title alias. Optional filter: creatorName."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/free/:alias?creatorName={{creator1}}",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/free/{{alias_prod}}?creatorName={{creator1}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "free",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}"
+                    }
+                  ]
+                },
+                "description": "Return free items for the title alias. Optional filter: creatorName."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/free/:alias?creatorName={{creator2}}",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/free/{{alias_prod}}?creatorName={{creator2}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "free",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator2}}"
+                    }
+                  ]
+                },
+                "description": "Return free items for the title alias. Optional filter: creatorName."
+              },
+              "response": []
+            }
+          ],
+          "description": "Browse free items only (price==0)."
+        },
+        {
+          "name": "Tag",
+          "item": [
+            {
+              "name": "GET /marketplace/tag/:alias/:tag (prod)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/tag/{{alias_prod}}/{{tag}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "tag",
+                    "{{alias_prod}}",
+                    "{{tag}}"
+                  ]
+                },
+                "description": "Return items tagged with the given tag for the title alias."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/tag/:alias/:tag (bedrock)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/tag/{{alias_bedrock}}/{{tag}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "tag",
+                    "{{alias_bedrock}}",
+                    "{{tag}}"
+                  ]
+                },
+                "description": "Return items tagged with the given tag for the title alias."
+              },
+              "response": []
+            }
+          ],
+          "description": "Browse items by tag for a specific title alias."
+        },
+        {
+          "name": "Search",
+          "item": [
+            {
+              "name": "GET /marketplace/search/:alias?creatorName={{creator1}}&keyword={{keyword}} (prod)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/search/{{alias_prod}}?creatorName={{creator1}}&keyword={{keyword}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "search",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}"
+                    },
+                    {
+                      "key": "keyword",
+                      "value": "{{keyword}}"
+                    }
+                  ]
+                },
+                "description": "Search items using creatorName and keyword query parameters."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/search/:alias?creatorName={{creator2}}&keyword={{keyword}} (prod)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/search/{{alias_prod}}?creatorName={{creator2}}&keyword={{keyword}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "search",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator2}}"
+                    },
+                    {
+                      "key": "keyword",
+                      "value": "{{keyword}}"
+                    }
+                  ]
+                },
+                "description": "Search items using creatorName and keyword query parameters."
+              },
+              "response": []
+            }
+          ],
+          "description": "Search catalog items by creatorName and keyword."
+        },
+        {
+          "name": "Advanced Search",
+          "item": [
+            {
+              "name": "Advanced Search: basic full-text",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+                      "pm.test(\"Has items + meta + facets\", function () {",
+                      "  const json = pm.response.json();",
+                      "  pm.expect(json).to.have.property('items');",
+                      "  pm.expect(json).to.have.property('meta');",
+                      "  pm.expect(json).to.have.property('facets');",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": {\n    \"text\": \"survival bundle\"\n  },\n  \"filters\": {\n    \"tagsAny\": [\"adventure\", \"multiplayer\"],\n    \"tagsAll\": [\"marketplace\"],\n    \"contentKinds\": [\"world\"],\n    \"platforms\": [\"android.googleplay\"],\n    \"creationDate\": {\n      \"from\": \"2025-01-01T00:00:00.000Z\",\n      \"to\": \"2026-12-31T23:59:59.000Z\"\n    },\n    \"priceAmounts\": {\n      \"min\": 0,\n      \"max\": 1990\n    },\n    \"ratingMin\": 3.5,\n    \"purchasable\": true\n  },\n  \"sort\": [\n    { \"field\": \"creationDate\", \"dir\": \"desc\" },\n    { \"field\": \"priceAmount\", \"dir\": \"asc\" }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/search/advanced/{{alias}}?page=1&pageSize=24",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "search",
+                    "advanced",
+                    "{{alias}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24"
+                    }
+                  ]
+                },
+                "description": "Advanced search with the new strict body contract: query + filters + sort (PlayFab-aligned + API-layer filters)."
+              },
+              "response": []
+            },
+            {
+              "name": "Advanced Search: by creatorName, narrow date window",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Facets present\", () => { const j = pm.response.json(); pm.expect(j.facets).to.be.an('object'); });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": {\n    \"text\": \"valentine\"\n  },\n  \"filters\": {\n    \"creatorName\": \"The Hive\",\n    \"friendlyId\": \"f5c30f04-e47e-4a2c-88f1-313b868195dc\",\n    \"alternateIds\": [\n      { \"type\": \"FriendlyId\", \"value\": \"f5c30f04-e47e-4a2c-88f1-313b868195dc\" }\n    ],\n    \"lastModifiedDate\": {\n      \"from\": \"2025-01-01T00:00:00.000Z\",\n      \"to\": \"2026-12-31T23:59:59.000Z\"\n    },\n    \"offerId\": \"f5c30f04-e47e-4a2c-88f1-313b868195dc\",\n    \"packIdentityType\": \"durable\",\n    \"keywords\": [\"Bundle\"],\n    \"tags\": [\"hidden_offer\"],\n    \"ratingMin\": 4.0\n  },\n  \"sort\": [\n    { \"field\": \"lastModifiedDate\", \"dir\": \"desc\" },\n    { \"field\": \"creatorName\", \"dir\": \"asc\" }\n  ]\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/search/advanced/{{alias}}?page=1&pageSize=12",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "search",
+                    "advanced",
+                    "{{alias}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "12"
+                    }
+                  ]
+                },
+                "description": "Advanced search with creator/alternateId/date filters and API-layer fields like offerId/packIdentityType."
+              },
+              "response": []
+            }
+          ],
+          "description": "Advanced search with strict request body (query/filters/sort), pagination, and PlayFab-aligned filtering."
+        },
+        {
+          "name": "Details",
+          "item": [
+            {
+              "name": "GET /marketplace/details/:alias/:itemId (prod)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200 or 404 (if invalid itemId)\", () => [200,404].includes(pm.response.code));",
+                      "if (pm.response.code === 200) {",
+                      "  const b = pm.response.json();",
+                      "  pm.test(\"Has Id\", () => pm.expect(b).to.have.property('Id'));",
+                      "  pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+                      "}"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/details/{{alias_prod}}/{{itemId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "details",
+                    "{{alias_prod}}",
+                    "{{itemId}}"
+                  ]
+                },
+                "description": "Return item details for the title alias and itemId."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/details/:alias/:itemId (bedrock)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/details/{{alias_bedrock}}/{{itemId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "details",
+                    "{{alias_bedrock}}",
+                    "{{itemId}}"
+                  ]
+                },
+                "description": "Return item details for the title alias and itemId."
+              },
+              "response": []
+            }
+          ],
+          "description": "Fetch a single item by itemId within a title alias."
+        },
+        {
+          "name": "Friendly",
+          "item": [
+            {
+              "name": "GET /marketplace/friendly/:alias/:friendlyId (prod)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/friendly/{{alias_prod}}/{{friendlyId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "friendly",
+                    "{{alias_prod}}",
+                    "{{friendlyId}}"
+                  ]
+                },
+                "description": "Return item details for the title alias and friendlyId."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/friendly/:alias/:friendlyId (bedrock)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/friendly/{{alias_bedrock}}/{{friendlyId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "friendly",
+                    "{{alias_bedrock}}",
+                    "{{friendlyId}}"
+                  ]
+                },
+                "description": "Return item details for the title alias and friendlyId."
+              },
+              "response": []
+            }
+          ],
+          "description": "Fetch a single item by FriendlyId within a title alias."
+        },
+        {
+          "name": "Resolve",
+          "item": [
+            {
+              "name": "GET /marketplace/resolve/:alias/:itemId",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/resolve/{{alias_prod}}/{{itemId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "resolve",
+                    "{{alias_prod}}",
+                    "{{itemId}}"
+                  ]
+                },
+                "description": "Resolve an itemId to its canonical catalog entry. Optional query: depth."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/resolve/friendly/:alias/:friendlyId",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/resolve/friendly/{{alias_prod}}/{{friendlyId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "resolve",
+                    "friendly",
+                    "{{alias_prod}}",
+                    "{{friendlyId}}"
+                  ]
+                },
+                "description": "Resolve a friendlyId to its canonical catalog entry. Optional query: depth."
+              },
+              "response": []
+            }
+          ],
+          "description": "Resolve wrapper items to canonical catalog entries."
+        },
+        {
+          "name": "Summary",
+          "item": [
+            {
+              "name": "GET /marketplace/summary/:alias (prod)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/summary/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "summary",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Return summary metrics for the title alias."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/summary/:alias (bedrock)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/summary/{{alias_bedrock}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "summary",
+                    "{{alias_bedrock}}"
+                  ]
+                },
+                "description": "Return summary metrics for the title alias."
+              },
+              "response": []
+            }
+          ],
+          "description": "Return summary metrics for a title alias."
+        },
+        {
+          "name": "Compare",
+          "item": [
+            {
+              "name": "GET /marketplace/compare/:creatorName ({{creator1}})",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                      "pm.test(\"Response is object keyed by alias\", () => {",
+                      "  const b = pm.response.json();",
+                      "  pm.expect(b).to.be.an('object');",
+                      "});"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/compare/{{creator1}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "compare",
+                    "{{creator1}}"
+                  ]
+                },
+                "description": "Compare a creator across all configured titles."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/compare/:creatorName ({{creator2}})",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/compare/{{creator2}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "compare",
+                    "{{creator2}}"
+                  ]
+                },
+                "description": "Compare a creator across all configured titles."
+              },
+              "response": []
+            }
+          ],
+          "description": "Compare a creator across all titles."
+        },
+        {
+          "name": "Stats",
+          "item": [
+            {
+              "name": "GET /marketplace/:creatorName/stats",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/{{creator1}}/stats?latestLimit=10&topRatedLimit=10&months=12&includeLists=true",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "{{creator1}}",
+                    "stats"
+                  ],
+                  "query": [
+                    {
+                      "key": "latestLimit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "topRatedLimit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "months",
+                      "value": "12"
+                    },
+                    {
+                      "key": "includeLists",
+                      "value": "true"
+                    }
+                  ]
+                },
+                "description": "Return statistics for a creator with optional limits and time window."
+              },
+              "response": []
+            }
+          ],
+          "description": "Creator-level metrics, rating distributions, and time series stats."
+        },
+        {
+          "name": "Player Search",
+          "item": [
+            {
+              "name": "POST /marketplace/player/search/:alias",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/player/search/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "player",
+                    "search",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Search the player marketplace with entity tokens and optional filters.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"titleEntityToken\": \"REPLACE_WITH_ENTITY_TOKEN\",\n  \"titlePlayerAccountId\": \"REPLACE_WITH_PLAYER_ID\",\n  \"search\": \"{{keyword}}\",\n  \"creatorName\": \"{{creator1}}\",\n  \"top\": 25,\n  \"skip\": 0\n}"
+                }
+              },
+              "response": []
+            }
+          ],
+          "description": "Search the marketplace using player entity tokens."
+        },
+        {
+          "name": "Recommendations",
+          "item": [
+            {
+              "name": "GET /marketplace/recommendations/:itemId",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/recommendations/{{itemId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "recommendations",
+                    "{{itemId}}"
+                  ]
+                },
+                "description": "Return recommended items for the given item. Optional query: limit."
+              },
+              "response": []
+            }
+          ],
+          "description": "Get item recommendations based on a seed item."
+        },
+        {
+          "name": "Featured Content",
+          "item": [
+            {
+              "name": "GET /marketplace/featured-content",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/featured-content",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "featured-content"
+                  ]
+                },
+                "description": "Return featured persona items."
+              },
+              "response": []
+            }
+          ],
+          "description": "Featured persona content from the Dressing Room layout."
+        },
+        {
+          "name": "Featured Servers",
+          "item": [
+            {
+              "name": "GET /marketplace/featured-servers",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
+                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
+                      "pm.test(\"Array of server entries\", () => {",
+                      "  const arr = pm.response.json();",
+                      "  pm.expect(Array.isArray(arr)).to.be.true;",
+                      "  if (arr.length) {",
+                      "    pm.expect(arr[0]).to.have.property('name');",
+                      "    pm.expect(arr[0]).to.have.property('id');",
+                      "  }",
+                      "});"
+                    ],
+                    "type": "text/javascript",
+                    "packages": {},
+                    "requests": {}
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/featured-servers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "featured-servers"
+                  ]
+                },
+                "description": "Return curated featured servers with title, tags, and metadata."
+              },
+              "response": []
+            }
+          ],
+          "description": "Return curated featured server data."
+        },
+        {
+          "name": "Sales",
+          "item": [
+            {
+              "name": "GET /marketplace/sales",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/sales",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "sales"
+                  ]
+                },
+                "description": "Return all active sales. Optional query: creator."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/sales/:alias",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/sales/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "sales",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Return active sales for the given title alias. Optional query: creator."
+              },
+              "response": []
+            }
+          ],
+          "description": "Inspect active sales across titles or for a single title alias."
+        },
+        {
+          "name": "Events – Stream (SSE)",
+          "description": "Server-sent event stream for marketplace events with optional filters.",
+          "item": [
+            {
+              "name": "Events Stream (SSE)",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Accept",
+                    "value": "text/event-stream"
+                  },
+                  {
+                    "key": "Cache-Control",
+                    "value": "no-store"
+                  },
+                  {
+                    "key": "Connection",
+                    "value": "keep-alive"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/events/stream",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "events",
+                    "stream"
+                  ]
+                },
+                "description": "Subscribe to the events stream. Optional query params: events, creatorName, heartbeatMs."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Admin – Webhooks",
+          "description": "Manage webhook registrations for marketplace events.",
+          "item": [
+            {
+              "name": "GET /webhooks",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/webhooks",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "webhooks"
+                  ]
+                },
+                "description": "List all registered webhooks."
+              },
+              "response": []
+            },
+            {
+              "name": "POST /webhooks",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/webhooks",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "webhooks"
+                  ]
+                },
+                "description": "Create a new webhook registration.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"url\": \"https://example.com/webhooks/vmc\",\n  \"events\": [\n    \"sale.update\",\n    \"item.updated\"\n  ],\n  \"secret\": \"optional-secret\",\n  \"vendor\": \"{{webhookProvider}}\",\n  \"active\": true,\n  \"filters\": {\n    \"creators\": [\n      \"{{creator1}}\"\n    ]\n  }\n}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "GET /webhooks/:id",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/webhooks/{{webhookId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "webhooks",
+                    "{{webhookId}}"
+                  ]
+                },
+                "description": "Fetch a webhook registration by id."
+              },
+              "response": []
+            },
+            {
+              "name": "PATCH /webhooks/:id",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/webhooks/{{webhookId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "webhooks",
+                    "{{webhookId}}"
+                  ]
+                },
+                "description": "Update a webhook registration.",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"active\": true,\n  \"events\": [\n    \"sale.update\"\n  ],\n  \"filters\": {\n    \"creators\": [\n      \"{{creator1}}\"\n    ]\n  }\n}"
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "DELETE /webhooks/:id",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/webhooks/{{webhookId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "webhooks",
+                    "{{webhookId}}"
+                  ]
+                },
+                "description": "Delete a webhook registration."
+              },
+              "response": []
+            },
+            {
+              "name": "POST /webhooks/:id/test",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/webhooks/{{webhookId}}/test",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "webhooks",
+                    "{{webhookId}}",
+                    "test"
+                  ]
+                },
+                "description": "Trigger a test delivery for a webhook and return delivery status."
+              },
+              "response": []
+            }
+          ]
+        }
+      ],
+      "description": "Marketplace browsing, search, and metadata endpoints."
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// Collection-level pre-request: ensure a timestamp variable for uniqueness in examples",
+          "pm.collectionVariables.set(\"ts\", Date.now().toString());"
+        ],
+        "type": "text/javascript"
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "exec": [
+          "// Collection-level test placeholder"
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "localhost:3000"
+    },
+    {
+      "key": "alias_prod",
+      "value": "prod"
+    },
+    {
+      "key": "alias_bedrock",
+      "value": "bedrock"
+    },
+    {
+      "key": "creator1",
+      "value": "CubeCraftGames"
+    },
+    {
+      "key": "creator2",
+      "value": "TheHive"
+    },
+    {
+      "key": "keyword",
+      "value": "Rank"
+    },
+    {
+      "key": "tag",
+      "value": "hidden_offer"
+    },
+    {
+      "key": "itemId",
+      "value": "REPLACE_WITH_REAL_ITEM_ID"
+    },
+    {
+      "key": "friendlyId",
+      "value": "REPLACE_WITH_REAL_FRIENDLY_ID"
+    },
+    {
+      "key": "alias_to_delete",
+      "value": "demo"
+    },
+    {
+      "key": "new_alias",
+      "value": "postman-added-{{ts}}"
+    },
+    {
+      "key": "new_id",
+      "value": "PSTMN{{ts}}"
+    },
+    {
+      "key": "ts",
+      "value": ""
+    },
+    {
+      "key": "created_alias",
+      "value": ""
+    },
+    {
+      "key": "created_id",
+      "value": ""
+    },
+    {
+      "key": "etag_all_prod",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "webhookProvider",
+      "value": "auto"
+    },
+    {
+      "key": "token_exp",
+      "value": ""
+    },
+    {
+      "key": "webhookId",
+      "value": "REPLACE_WITH_WEBHOOK_ID"
+    }
+  ]
+}

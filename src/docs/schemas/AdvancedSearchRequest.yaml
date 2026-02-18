@@ -1,0 +1,165 @@
+AdvancedSearchRequest:
+  type: object
+  additionalProperties: false
+  properties:
+    query:
+      type: object
+      additionalProperties: false
+      properties:
+        text:
+          type: string
+          maxLength: 200
+    filters:
+      type: object
+      additionalProperties: false
+      properties:
+        id:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        friendlyId:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        alternateIds:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - type
+              - value
+            properties:
+              type:
+                type: string
+              value:
+                type: string
+        keywords:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        isStackable:
+          type: boolean
+        platforms:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        tags:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        tagsAny:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        tagsAll:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        contentKinds:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+                enum:
+                  - skinpack
+                  - world
+                  - persona
+                  - addon
+        creationDate:
+          type: object
+          additionalProperties: false
+          properties:
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+        lastModifiedDate:
+          type: object
+          additionalProperties: false
+          properties:
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+        startDate:
+          type: object
+          additionalProperties: false
+          properties:
+            from:
+              type: string
+              format: date-time
+            to:
+              type: string
+              format: date-time
+        priceAmounts:
+          type: object
+          additionalProperties: false
+          properties:
+            min:
+              type: number
+              minimum: 0
+            max:
+              type: number
+              minimum: 0
+            currencyId:
+              type: string
+        creatorName:
+          type: string
+        offerId:
+          type: string
+        purchasable:
+          type: boolean
+        packIdentityType:
+          type: string
+        ratingMin:
+          type: number
+          minimum: 0
+    sort:
+      type: array
+      items:
+        type: object
+        additionalProperties: false
+        properties:
+          field:
+            type: string
+            enum:
+              - id
+              - type
+              - title
+              - description
+              - keywords
+              - isStackable
+              - platforms
+              - tags
+              - creationDate
+              - lastModifiedDate
+              - startDate
+              - priceAmount
+              - creatorName
+              - purchasable
+              - packIdentityType
+          dir:
+            type: string
+            enum:
+              - asc
+              - desc

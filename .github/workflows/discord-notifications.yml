@@ -1,0 +1,90 @@
+name: Discord Notifications
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord embed
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          EVENT_NAME: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          SHA: ${{ github.sha }}
+        run: |
+          EVENT_JSON="$GITHUB_EVENT_PATH"
+
+          REPO_URL="$(jq -r '.repository.html_url // ""' "$EVENT_JSON")"
+          REPO_FULL="$(jq -r '.repository.full_name // ""' "$EVENT_JSON")"
+
+          ACTOR_NAME="$(jq -r '.sender.login // ""' "$EVENT_JSON")"
+          ACTOR_AVATAR="$(jq -r '.sender.avatar_url // ""' "$EVENT_JSON")"
+          ACTOR_URL="$(jq -r '.sender.html_url // ""' "$EVENT_JSON")"
+
+          TS="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+          ACTION_PART=""
+          if [ -n "${ACTION}" ] && [ "${ACTION}" != "null" ]; then
+            ACTION_PART=" (${ACTION})"
+          fi
+
+          BASE_LINE="A new **${EVENT_NAME}${ACTION_PART}** was performed on **${REPO_FULL}** by **${ACTOR_NAME}**."
+
+          MESSAGE=""
+          EXTRA_NAME=""
+          EXTRA_VALUE=""
+
+          COLOR=3092790
+
+          if [ "$EVENT_NAME" = "push" ]; then
+            MESSAGE="$(jq -r '.head_commit.message // "" | gsub("\\\\n"; "\n")' "$EVENT_JSON" | head -c 600)"
+          fi
+
+          BASE_LINE="$(printf '%s' "$BASE_LINE" | tr -d '\r')"
+          MESSAGE="$(printf '%s' "$MESSAGE" | tr -d '\r')"
+
+          if [ -n "$MESSAGE" ]; then
+            DESCRIPTION="$(printf "%s\n\n%s" "$BASE_LINE" "$MESSAGE")"
+          else
+            DESCRIPTION="$BASE_LINE"
+          fi
+
+          DESCRIPTION="$(printf '%s' "$DESCRIPTION" | sed -E ':a;N;$!ba;s/\n{3,}/\n\n/g')"
+
+          payload="$(jq -n \
+            --arg title "$REPO_FULL" \
+            --arg url "$REPO_URL" \
+            --arg desc "$DESCRIPTION" \
+            --arg author_name "$ACTOR_NAME" \
+            --arg author_icon "$ACTOR_AVATAR" \
+            --arg author_url "$ACTOR_URL" \
+            --arg extra_name "$EXTRA_NAME" \
+            --arg extra_value "$EXTRA_VALUE" \
+            --arg ts "$TS" \
+            --arg footer "View-Marketplace Systems" \
+            --argjson color "$COLOR" \
+            '{
+              embeds: [
+                {
+                  title: $title,
+                  url: $url,
+                  description: $desc,
+                  color: $color,
+                  author: {
+                    name: $author_name,
+                    url: (if ($author_url|length)>0 then $author_url else null end),
+                    icon_url: (if ($author_icon|length)>0 then $author_icon else null end)
+                  },
+                  fields: (
+                    (if ($extra_name|length)>0 and ($extra_value|length)>0 then [{name:$extra_name, value:$extra_value, inline:true}] else [] end)
+                  ),
+                  timestamp: $ts,
+                  footer: {text: $footer}
+                }
+              ]
+            }')"
+
+          curl -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"

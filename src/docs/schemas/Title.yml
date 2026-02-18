@@ -1,0 +1,12 @@
+Title:
+  type: object
+  properties:
+    alias:
+      type: string
+    id:
+      type: string
+    notes:
+      type: string
+  required:
+    - alias
+    - id

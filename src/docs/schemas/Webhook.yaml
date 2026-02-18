@@ -1,0 +1,39 @@
+Webhook:
+  type: object
+  properties:
+    id:
+      type: string
+    url:
+      type: string
+      format: uri
+    events:
+      type: array
+      items:
+        type: string
+    secret:
+      type: string
+      nullable: true
+    active:
+      type: boolean
+    vendor:
+      type: string
+    filters:
+      type: object
+      nullable: true
+      properties:
+        creators:
+          type: array
+          items:
+            type: string
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+  required:
+    - id
+    - url
+    - events
+    - active
+    - vendor

@@ -1,0 +1,128 @@
+PriceAmount:
+  type: object
+  properties:
+    currencyId:
+      type: string
+    amount:
+      type: number
+  required:
+    - currencyId
+    - amount
+SaleItem:
+  type: object
+  properties:
+    id:
+      type: string
+    prices:
+      type: array
+      items:
+        $ref: "#/components/schemas/PriceAmount"
+    catalogVersion:
+      type: string
+      nullable: true
+    customData:
+      type: object
+      nullable: true
+      additionalProperties: true
+    contentType:
+      type: string
+      nullable: true
+    title:
+      type: string
+      nullable: true
+    description:
+      type: string
+      nullable: true
+    tags:
+      type: array
+      items:
+        type: string
+    platforms:
+      type: array
+      items:
+        type: string
+    keywords:
+      type: object
+      additionalProperties: true
+    images:
+      type: array
+      items:
+        $ref: "#/components/schemas/Image"
+    virtualCurrencyPrices:
+      type: object
+      nullable: true
+      additionalProperties: true
+    realCurrencyPrices:
+      type: object
+      nullable: true
+      additionalProperties: true
+    rawItem:
+      type: object
+      additionalProperties: true
+  required:
+    - id
+    - prices
+Sale:
+  type: object
+  properties:
+    id:
+      type: string
+    catalogVersion:
+      type: string
+      nullable: true
+    title:
+      type: string
+    description:
+      type: string
+      nullable: true
+    startDate:
+      type: string
+      format: date-time
+      nullable: true
+    endDate:
+      type: string
+      format: date-time
+      nullable: true
+    discountPercent:
+      type: integer
+      nullable: true
+    virtualCurrencyPrices:
+      type: object
+      nullable: true
+      additionalProperties: true
+    realCurrencyPrices:
+      type: object
+      nullable: true
+      additionalProperties: true
+    tags:
+      type: array
+      items:
+        type: string
+    platforms:
+      type: array
+      items:
+        type: string
+    items:
+      type: array
+      items:
+        $ref: "#/components/schemas/SaleItem"
+  required:
+    - id
+    - items
+SalesOverview:
+  type: object
+  properties:
+    totalItems:
+      type: integer
+    itemsPerCreator:
+      type: object
+      additionalProperties:
+        type: integer
+    sales:
+      type: object
+      additionalProperties:
+        $ref: "#/components/schemas/Sale"
+  required:
+    - totalItems
+    - itemsPerCreator
+    - sales

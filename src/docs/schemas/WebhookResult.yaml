@@ -1,0 +1,16 @@
+WebhookResult:
+  type: object
+  properties:
+    id:
+      type: string
+    status:
+      type: integer
+    ok:
+      type: boolean
+    event:
+      type: string
+  required:
+    - id
+    - status
+    - ok
+    - event

@@ -1,0 +1,18 @@
+Image:
+  type: object
+  properties:
+    Id:
+      type: string
+    Tag:
+      type: string
+    Type:
+      type: string
+      enum:
+        - Thumbnail
+        - Screenshot
+    Url:
+      type: string
+      format: uri
+  required:
+    - Id
+    - Url

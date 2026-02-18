@@ -1,0 +1,61 @@
+/marketplace/resolve/friendly/{alias}/{friendlyId}:
+  get:
+    tags:
+      - Marketplace
+    summary: Resolve wrapper to real item by FriendlyId
+    description: Resolves an item by its FriendlyId and returns the canonical item.
+    security:
+      - BearerAuth: [ ]
+    parameters:
+      - in: path
+        name: alias
+        required: true
+        schema:
+          type: string
+      - in: path
+        name: friendlyId
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: depth
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 1
+    responses:
+      "200":
+        description: OK
+        headers:
+          ETag:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Item"
+      "400":
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "404":
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"

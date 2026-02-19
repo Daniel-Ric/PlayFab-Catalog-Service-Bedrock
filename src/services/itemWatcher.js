@@ -12,7 +12,7 @@
 //
 // -----------------------------------------------------------------------------
 
-const {sendPlayFabRequest, buildSearchPayload, isValidItem, getItemsByIds} = require("../utils/playfab");
+const {sendPlayFabRequest, isValidItem, getItemsByIds} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
 const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
@@ -70,32 +70,28 @@ function hashItemCore(it) {
     return stableHash(core);
 }
 
-async function fetchRecentItems(titleId, os, top, pages) {
-    const out = [];
-    const orderBy = "startDate desc,creationDate desc";
-    const search = "";
+async function fetchRecentItems(titleId, os, itemsPerRequest, maxItems) {
+    const field = "LastModifiedDate";
+    const orderBy = `${field} desc`;
     const filter = "";
-    for (let i = 0; i < pages; i++) {
-        const skip = i * top;
-        const payload = buildSearchPayload({
-            filter,
-            search,
-            top,
-            skip,
-            orderBy,
-            expandFields: "images",
-            selectFields: "images,startDate,creationDate,lastModifiedDate,displayProperties"
-        });
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 2, os);
-        const hits = data.Items || [];
-        const ids = hits.map(idOfSearchHit).filter(Boolean);
-        const full = await getItemsCompat(titleId, os, ids);
-        const items = (full && full.length ? full : hits).filter(isValidItem);
-        if (!items.length) break;
-        out.push(...items);
-        if (items.length < top) break;
+
+    const allItems = [];
+    let continuationToken = null;
+
+    while (allItems.length < maxItems) {
+        const remaining = maxItems - allItems.length;
+        const count = Math.min(itemsPerRequest, remaining);
+        const page = await requestItems(titleId, os, filter, orderBy, continuationToken, count);
+
+        const pageItems = page.items || [];
+        if (!pageItems.length) break;
+
+        allItems.push(...pageItems);
+        continuationToken = page.continuationToken || null;
+        if (!continuationToken) break;
     }
-    return out;
+
+    return allItems;
 }
 
 function normalizeFieldSpec(field) {
@@ -116,25 +112,11 @@ function itemFromSearchHit(hit) {
     return hit.Item || hit.item || hit;
 }
 
-async function searchItemsPageEconomy(titleId, os, filter, orderBy, continuationToken, count) {
+async function searchItemsPage(titleId, os, filter, orderBy, continuationToken, count) {
     const payload = {
         Filter: filter, OrderBy: orderBy, ContinuationToken: continuationToken, Count: count
     };
-    const data = await sendPlayFabRequest(titleId, "Economy/SearchItems", payload, "X-EntityToken", 3, os);
-    return data || {};
-}
-
-async function searchItemsPageCatalog(titleId, os, filter, orderBy, skip, top) {
-    const payload = buildSearchPayload({
-        filter,
-        search: "",
-        top,
-        skip,
-        orderBy,
-        expandFields: "",
-        selectFields: "images,startDate,creationDate,lastModifiedDate,displayProperties"
-    });
-    const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, os);
+    const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, os);
     return data || {};
 }
 
@@ -142,12 +124,6 @@ async function getItemsCompat(titleId, os, ids) {
     const list = Array.from(new Set((ids || []).filter(Boolean)));
     if (!list.length) return [];
     const payload = {Ids: list, Expand: "Images"};
-    try {
-        const r = await sendPlayFabRequest(titleId, "Economy/GetItems", payload, "X-EntityToken", 3, os);
-        const items = r?.Items || r?.items || [];
-        if (items && items.length) return items;
-    } catch {
-    }
     try {
         const r = await sendPlayFabRequest(titleId, "Catalog/GetItems", payload, "X-EntityToken", 3, os);
         const items = r?.Items || r?.items || [];
@@ -157,36 +133,17 @@ async function getItemsCompat(titleId, os, ids) {
     return await getItemsByIds(titleId, list, os, 100, 5);
 }
 
-async function requestItems(titleId, os, filter, orderBy, continuationToken, skip, count) {
-    let data;
-    try {
-        data = await searchItemsPageEconomy(titleId, os, filter, orderBy, continuationToken, count);
-    } catch {
-        data = null;
-    }
+async function requestItems(titleId, os, filter, orderBy, continuationToken, count) {
+    const data = await searchItemsPage(titleId, os, filter, orderBy, continuationToken, count);
+    const hits = data.Items || data.items || [];
+    const nextToken = data.ContinuationToken || data.continuationToken || null;
+    if (!hits.length) return {items: [], continuationToken: nextToken};
 
-    if (data) {
-        const hits = data.Items || data.items || [];
-        const nextToken = data.ContinuationToken || data.continuationToken || null;
-        if (!hits.length) return {
-            items: [], continuationToken: nextToken, nextSkip: skip + count, usedEconomy: true
-        };
-        const ids = hits.map(idOfSearchHit).filter(Boolean);
-        const full = await getItemsCompat(titleId, os, ids);
-        const fallbackItems = hits.map(itemFromSearchHit).filter(Boolean);
-        const items = ((full && full.length) ? full : fallbackItems).filter(isValidItem);
-        return {items, continuationToken: nextToken, nextSkip: skip + count, usedEconomy: true};
-    }
-
-    const cat = await searchItemsPageCatalog(titleId, os, filter, orderBy, skip, count);
-    const hits = cat.Items || cat.items || [];
-    const nextSkip = skip + count;
-    if (!hits.length) return {items: [], continuationToken: null, nextSkip, usedEconomy: false};
     const ids = hits.map(idOfSearchHit).filter(Boolean);
     const full = await getItemsCompat(titleId, os, ids);
     const fallbackItems = hits.map(itemFromSearchHit).filter(Boolean);
     const items = ((full && full.length) ? full : fallbackItems).filter(isValidItem);
-    return {items, continuationToken: null, nextSkip, usedEconomy: false};
+    return {items, continuationToken: nextToken};
 }
 
 async function fetchItemsSince(titleId, os, field, sinceIso, itemsPerRequest, maxItems) {
@@ -199,21 +156,18 @@ async function fetchItemsSince(titleId, os, field, sinceIso, itemsPerRequest, ma
         const orderBy = `${f} asc`;
         const allItems = [];
         let continuationToken = null;
-        let skip = 0;
 
         try {
             while (allItems.length < maxItems) {
                 const remaining = maxItems - allItems.length;
                 const count = Math.min(itemsPerRequest, remaining);
-                const page = await requestItems(titleId, os, filter, orderBy, continuationToken, skip, count);
+                const page = await requestItems(titleId, os, filter, orderBy, continuationToken, count);
                 const pageItems = page.items || [];
                 if (!pageItems.length) break;
                 allItems.push(...pageItems);
                 if (pageItems.length < count) break;
                 continuationToken = page.continuationToken || null;
-                skip = typeof page.nextSkip === "number" ? page.nextSkip : skip + count;
-                if (page.usedEconomy && !continuationToken) break;
-                if (!continuationToken && skip >= maxItems) break;
+                if (!continuationToken) break;
             }
             return allItems;
         } catch (e) {
@@ -256,8 +210,6 @@ class ItemWatcher {
 
         const os = process.env.OS || "iOS";
         const intervalMs = Math.max(10000, parseInt(process.env.ITEM_WATCH_INTERVAL_MS || "30000", 10));
-        const pageTop = Math.max(50, parseInt(process.env.ITEM_WATCH_TOP || "150", 10));
-        const pages = Math.max(1, parseInt(process.env.ITEM_WATCH_PAGES || "3", 10));
         const itemsPerRequest = Math.max(10, parseInt(process.env.ITEM_WATCH_ITEMS_PER_REQUEST || "200", 10));
         const maxItems = Math.max(itemsPerRequest, parseInt(process.env.ITEM_WATCH_MAX_ITEMS || "10000", 10));
         const overlapMs = Math.max(0, parseInt(process.env.ITEM_WATCH_OVERLAP_MS || "60000", 10));
@@ -266,7 +218,7 @@ class ItemWatcher {
             const titleId = getTitleId();
 
             if (!this.bootstrapped) {
-                const recent = await fetchRecentItems(titleId, os, pageTop, pages);
+                const recent = await fetchRecentItems(titleId, os, itemsPerRequest, maxItems);
                 const bootstrapMap = new Map();
                 for (const it of recent) {
                     const id = it.Id || it.id;

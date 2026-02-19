@@ -290,20 +290,26 @@ class ItemWatcher {
                 const creationTs = tsOf(creationDateOf(it));
                 const startTs = tsOf(startDateOf(it));
                 const modTs = tsOf(lastModifiedDateOf(it));
+                const nextHash = hashItemCore(it);
 
-                const isNew = (creationTs && creationTs >= sinceTs) || (startTs && startTs >= sinceTs);
                 const prev = this.state.get(id) || null;
+                const isFirstSeen = !prev;
+                const looksRecentlyCreated = (creationTs && creationTs >= sinceTs) || (startTs && startTs >= sinceTs);
+                const hasChanged = !prev || prev.hash !== nextHash;
+                const looksRecentlyUpdated = (modTs && modTs >= sinceTs) || (startTs && startTs >= sinceTs);
+                const isCreated = isFirstSeen && looksRecentlyCreated;
+                const isUpdated = !isCreated && hasChanged && (looksRecentlyUpdated || isFirstSeen);
 
-                if (isNew) {
+                if (isCreated) {
                     created.push(it);
-                } else if ((modTs && modTs >= sinceTs) || (startTs && startTs >= sinceTs)) {
+                } else if (isUpdated) {
                     updated.push({
                         id, before: prev ? prev.raw : null, after: it
                     });
                 }
 
                 this.state.set(id, {
-                    hash: hashItemCore(it), raw: it
+                    hash: nextHash, raw: it
                 });
             }
 

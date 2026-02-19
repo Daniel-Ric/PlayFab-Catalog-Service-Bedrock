@@ -111,6 +111,11 @@ function idOfSearchHit(hit) {
     return hit.Id || hit.id || hit.Item?.Id || hit.Item?.id || hit.ItemId || hit.itemId || null;
 }
 
+function itemFromSearchHit(hit) {
+    if (!hit) return null;
+    return hit.Item || hit.item || hit;
+}
+
 async function searchItemsPageEconomy(titleId, os, filter, orderBy, continuationToken, count) {
     const payload = {
         Filter: filter, OrderBy: orderBy, ContinuationToken: continuationToken, Count: count
@@ -168,7 +173,8 @@ async function requestItems(titleId, os, filter, orderBy, continuationToken, ski
         };
         const ids = hits.map(idOfSearchHit).filter(Boolean);
         const full = await getItemsCompat(titleId, os, ids);
-        const items = ((full && full.length) ? full : hits).filter(isValidItem);
+        const fallbackItems = hits.map(itemFromSearchHit).filter(Boolean);
+        const items = ((full && full.length) ? full : fallbackItems).filter(isValidItem);
         return {items, continuationToken: nextToken, nextSkip: skip + count, usedEconomy: true};
     }
 
@@ -178,7 +184,8 @@ async function requestItems(titleId, os, filter, orderBy, continuationToken, ski
     if (!hits.length) return {items: [], continuationToken: null, nextSkip, usedEconomy: false};
     const ids = hits.map(idOfSearchHit).filter(Boolean);
     const full = await getItemsCompat(titleId, os, ids);
-    const items = ((full && full.length) ? full : hits).filter(isValidItem);
+    const fallbackItems = hits.map(itemFromSearchHit).filter(Boolean);
+    const items = ((full && full.length) ? full : fallbackItems).filter(isValidItem);
     return {items, continuationToken: null, nextSkip, usedEconomy: false};
 }
 

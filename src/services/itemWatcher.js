@@ -168,7 +168,7 @@ async function requestItems(titleId, os, filter, orderBy, continuationToken, ski
         };
         const ids = hits.map(idOfSearchHit).filter(Boolean);
         const full = await getItemsCompat(titleId, os, ids);
-        const items = (full || []).filter(isValidItem);
+        const items = ((full && full.length) ? full : hits).filter(isValidItem);
         return {items, continuationToken: nextToken, nextSkip: skip + count, usedEconomy: true};
     }
 
@@ -178,7 +178,7 @@ async function requestItems(titleId, os, filter, orderBy, continuationToken, ski
     if (!hits.length) return {items: [], continuationToken: null, nextSkip, usedEconomy: false};
     const ids = hits.map(idOfSearchHit).filter(Boolean);
     const full = await getItemsCompat(titleId, os, ids);
-    const items = (full || []).filter(isValidItem);
+    const items = ((full && full.length) ? full : hits).filter(isValidItem);
     return {items, continuationToken: null, nextSkip, usedEconomy: false};
 }
 

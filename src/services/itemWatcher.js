@@ -46,6 +46,12 @@ function tsOf(v) {
     return Number.isFinite(t) ? t : 0;
 }
 
+function toFilterDateLiteral(iso) {
+    const parsed = new Date(iso);
+    if (!Number.isFinite(parsed.getTime())) return "\"1970-01-01T00:00:00.000Z\"";
+    return `\"${parsed.toISOString()}\"`;
+}
+
 function hashItemCore(it) {
     const core = {
         Id: it.Id || it.id,
@@ -182,7 +188,7 @@ async function fetchItemsSince(titleId, os, field, sinceIso, itemsPerRequest, ma
     let lastErr = null;
 
     for (const f of candidates) {
-        const filter = `(${f} ge ${sinceIso})`;
+        const filter = `(${f} ge ${toFilterDateLiteral(sinceIso)})`;
         const orderBy = `${f} asc`;
         const allItems = [];
         let continuationToken = null;
@@ -294,11 +300,11 @@ class ItemWatcher {
 
                 const prev = this.state.get(id) || null;
                 const isFirstSeen = !prev;
-                const looksRecentlyCreated = (creationTs && creationTs >= sinceTs) || (startTs && startTs >= sinceTs);
+                const looksRecentlyCreated = (startTs && startTs >= sinceTs) || (!startTs && creationTs && creationTs >= sinceTs);
                 const hasChanged = !prev || prev.hash !== nextHash;
-                const looksRecentlyUpdated = (modTs && modTs >= sinceTs) || (startTs && startTs >= sinceTs);
+                const looksRecentlyUpdated = modTs && modTs >= sinceTs;
                 const isCreated = isFirstSeen && looksRecentlyCreated;
-                const isUpdated = !isCreated && hasChanged && (looksRecentlyUpdated || isFirstSeen);
+                const isUpdated = !isCreated && hasChanged && looksRecentlyUpdated;
 
                 if (isCreated) {
                     created.push(it);

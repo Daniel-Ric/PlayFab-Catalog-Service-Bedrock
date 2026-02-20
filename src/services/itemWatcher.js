@@ -48,8 +48,8 @@ function tsOf(v) {
 
 function toFilterDateLiteral(iso) {
     const parsed = new Date(iso);
-    if (!Number.isFinite(parsed.getTime())) return "\"1970-01-01T00:00:00.000Z\"";
-    return `\"${parsed.toISOString()}\"`;
+    if (!Number.isFinite(parsed.getTime())) return "1970-01-01T00:00:00.000Z";
+    return `${parsed.toISOString()}`;
 }
 
 function hashItemCore(it) {

@@ -52,6 +52,28 @@ function andFilter(a, b) {
     return A || B || "";
 }
 
+const ORDERABLE_FIELDS = new Set([
+    "creationdate",
+    "lastmodifieddate",
+    "startdate",
+    "rating/totalcount"
+]);
+
+function resolveOrderBy(orderByParam, fallback) {
+    const raw = String(orderByParam || "").trim();
+    if (!raw) return fallback;
+
+    const normalized = raw.replace(/\s+/g, " ").toLowerCase();
+    const parts = normalized.split(" ");
+    if (!parts.length) return fallback;
+
+    const field = parts[0];
+    if (!ORDERABLE_FIELDS.has(field)) return fallback;
+
+    const dir = parts[1] === "asc" ? "asc" : "desc";
+    return `${field} ${dir}`;
+}
+
 async function searchLoop(titleId, {
     filter = "", orderBy = "creationDate desc", batch = 300, maxBatches = Number(process.env.MAX_SEARCH_BATCHES || 10)
 }) {
@@ -486,7 +508,8 @@ module.exports = {
         const tagClause = query.tag ? `tags/any(t:t eq '${String(query.tag).replace(/'/g, "''")}')` : "";
         const base = buildFilter({query}, creatorsArr);
         const filter = andFilter(base, tagClause);
-        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5);
+        const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
         const enriched = await enrichWithFullItems(titleId, list);
         const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
         return withRefs;
@@ -495,8 +518,9 @@ module.exports = {
     async fetchLatest(alias, count, query = {}) {
         const titleId = resolveTitle(alias);
         const filter = buildFilter({query}, creatorsArr);
+        const orderBy = resolveOrderBy(query.orderBy, "creationDate desc");
         const payload = buildSearchPayload({
-            filter, search: "", top: Math.min(Number(count) || 10, 50), skip: 0, orderBy: "creationDate desc"
+            filter, search: "", top: Math.min(Number(count) || 10, 50), skip: 0, orderBy
         });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
         let items = (data.Items || []).filter(isValidItem);
@@ -555,16 +579,18 @@ module.exports = {
     async fetchPopular(alias, query = {}) {
         const titleId = resolveTitle(alias);
         const filter = buildFilter({query}, creatorsArr);
-        let items = await searchLoop(titleId, {filter, orderBy: "rating/totalcount desc", batch: 300});
+        const orderBy = resolveOrderBy(query.orderBy, "rating/totalcount desc");
+        let items = await searchLoop(titleId, {filter, orderBy, batch: 300});
         items = await enrichWithFullItems(titleId, items);
         items = await enrichItemsWithResolvedReferences(titleId, items);
         return items;
     },
 
-    async fetchByTag(alias, tag) {
+    async fetchByTag(alias, tag, query = {}) {
         const titleId = resolveTitle(alias);
         const tagClause = `tags/any(t:t eq '${String(tag).replace(/'/g, "''")}')`;
-        const list = await fetchAllMarketplaceItemsEfficiently(titleId, tagClause, OS, 300, 5);
+        const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, tagClause, OS, 300, 5, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
         const enriched = await enrichWithFullItems(titleId, list);
         const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
         return withRefs;
@@ -575,7 +601,8 @@ module.exports = {
         const base = buildFilter({query}, creatorsArr);
         const freeClause = "displayProperties/price eq 0";
         const filter = andFilter(base, freeClause);
-        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5);
+        const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
         const enriched = await enrichWithFullItems(titleId, list);
         const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
         return withRefs;

@@ -227,7 +227,7 @@ function transformItem(item) {
     };
 }
 
-async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSize = 300, concurrency = 5, maxBatches = Number(process.env.MAX_FETCH_BATCHES || 20)) {
+async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSize = 300, concurrency = 5, maxBatches = Number(process.env.MAX_FETCH_BATCHES || 20), orderBy = "startDate desc") {
     const all = [];
 
     let nextBatchIndex = 0;
@@ -240,7 +240,7 @@ async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSiz
             if (batchIndex >= stopAtBatch || batchIndex >= maxBatches) break;
 
             const payload = buildSearchPayload({
-                filter, search: "", top: batchSize, skip: batchIndex * batchSize, orderBy: "startDate desc"
+                filter, search: "", top: batchSize, skip: batchIndex * batchSize, orderBy
             });
             const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, os);
             const items = data.Items || [];

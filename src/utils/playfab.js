@@ -38,6 +38,7 @@ const mutex = new Mutex();
 const SESSION_SOFT_TTL_MS = 25 * 60 * 1000;
 const UPSTREAM_RESPONSE_CACHE_TTL_MS = Math.max(1000, Number(process.env.UPSTREAM_RESPONSE_CACHE_TTL_MS || 45000));
 const UPSTREAM_CACHEABLE_ENDPOINTS = new Set(["Catalog/Search", "Catalog/GetItems", "Catalog/SearchStores", "Catalog/GetStoreItems"]);
+const ITEM_BY_ID_CACHE_TTL_MS = Math.max(1000, Number(process.env.ITEM_BY_ID_CACHE_TTL_MS || 5 * 60 * 1000));
 
 function sleep(ms) {
     return new Promise(r => setTimeout(r, ms));
@@ -263,9 +264,25 @@ async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSiz
 async function getItemsByIds(titleId, ids, os, batchSize = 100, concurrency = 5) {
     const list = Array.from(new Set((ids || []).filter(Boolean)));
     if (!list.length) return [];
-    const out = [];
-    for (let i = 0; i < list.length; i += batchSize * concurrency) {
-        const window = list.slice(i, i + batchSize * concurrency);
+
+    const byId = new Map();
+    const missing = [];
+    for (const id of list) {
+        const cacheKey = `pf:item:${titleId}:${os || "default"}:${id}`;
+        const cached = dataCache.get(cacheKey);
+        if (cached) {
+            byId.set(id, cached);
+        } else {
+            missing.push(id);
+        }
+    }
+
+    if (!missing.length) {
+        return list.map(id => byId.get(id)).filter(Boolean);
+    }
+
+    for (let i = 0; i < missing.length; i += batchSize * concurrency) {
+        const window = missing.slice(i, i + batchSize * concurrency);
         const groups = [];
         for (let j = 0; j < window.length; j += batchSize) {
             groups.push(window.slice(j, j + batchSize));
@@ -277,9 +294,17 @@ async function getItemsByIds(titleId, ids, os, batchSize = 100, concurrency = 5)
             }, "X-EntityToken", 3, os);
             return r.Items || r.items || [];
         }));
-        for (const arr of res) out.push(...arr);
+        for (const arr of res) {
+            for (const item of arr) {
+                const id = item?.Id || item?.id;
+                if (!id) continue;
+                byId.set(id, item);
+                dataCache.set(`pf:item:${titleId}:${os || "default"}:${id}`, item, {ttl: ITEM_BY_ID_CACHE_TTL_MS});
+            }
+        }
     }
-    return out;
+
+    return list.map(id => byId.get(id)).filter(Boolean);
 }
 
 async function getStoreItems(titleId, storeId, os) {

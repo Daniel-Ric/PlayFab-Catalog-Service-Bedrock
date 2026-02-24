@@ -304,8 +304,10 @@ async function enrichItemWithStorePrices(titleId, itemId) {
 }
 
 async function enrichItemWithReviews(titleId, itemId, take = 10) {
-    const summary = await getItemReviewSummary(titleId, itemId, OS);
-    const reviews = await getItemReviews(titleId, itemId, take, 0, OS);
+    const [summary, reviews] = await Promise.all([
+        getItemReviewSummary(titleId, itemId, OS),
+        getItemReviews(titleId, itemId, take, 0, OS)
+    ]);
     return {summary: summary || {}, reviews: reviews?.Reviews || reviews?.reviews || []};
 }
 
@@ -619,9 +621,11 @@ module.exports = {
             throw e;
         }
         const base = items[0];
-        const withRefs = expand.refs ? await enrichItemsWithResolvedReferences(titleId, [base]) : [base];
-        const prices = expand.prices ? await enrichItemWithStorePrices(titleId, itemId) : [];
-        const reviews = expand.reviews ? await enrichItemWithReviews(titleId, itemId, 10) : {summary: {}, reviews: []};
+        const [withRefs, prices, reviews] = await Promise.all([
+            expand.refs ? enrichItemsWithResolvedReferences(titleId, [base]) : Promise.resolve([base]),
+            expand.prices ? enrichItemWithStorePrices(titleId, itemId) : Promise.resolve([]),
+            expand.reviews ? enrichItemWithReviews(titleId, itemId, 10) : Promise.resolve({summary: {}, reviews: []})
+        ]);
         return {...withRefs[0], StorePrices: prices, Reviews: reviews};
     },
 

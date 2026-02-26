@@ -38,11 +38,13 @@ const PROD_TITLE_ID = process.env.TITLE_ID || "20CA2";
 const MULTILANG_ALL = process.env.MULTILANG_ALL === "true";
 const ENRICH_BATCH = Math.max(10, parseInt(process.env.MULTILANG_ENRICH_BATCH || "100", 10));
 const ENRICH_CONCURRENCY = Math.max(1, parseInt(process.env.MULTILANG_ENRICH_CONCURRENCY || "5", 10));
+const FETCH_CONCURRENCY = Math.max(1, parseInt(process.env.FETCH_CONCURRENCY || "5", 10));
 const STORE_CONCURRENCY = Math.max(1, parseInt(process.env.STORE_CONCURRENCY || "4", 10));
 const STORE_MAX_FOR_PRICE_ENRICH = Math.max(1, parseInt(process.env.STORE_MAX_FOR_PRICE_ENRICH || "12", 10));
 
 const creatorsArr = loadCreators();
 const creatorsByNormalized = new Map(creatorsArr.map(c => [String(c.creatorName).replace(/\s/g, "").toLowerCase(), c]));
+const creatorsById = new Map(creatorsArr.map(c => [String(c.id), c]));
 const {loadTitles} = require("../utils/titles");
 
 function andFilter(a, b) {
@@ -77,16 +79,7 @@ function resolveOrderBy(orderByParam, fallback) {
 async function searchLoop(titleId, {
     filter = "", orderBy = "creationDate desc", batch = 300, maxBatches = Number(process.env.MAX_SEARCH_BATCHES || 10)
 }) {
-    const out = [];
-    for (let i = 0, skip = 0; i < maxBatches; i += 1, skip += batch) {
-        const payload = buildSearchPayload({filter, search: "", top: batch, skip, orderBy});
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        const items = (data.Items || []).filter(isValidItem).map(transformItem);
-        if (!items.length) break;
-        out.push(...items);
-        if (items.length < batch) break;
-    }
-    return out;
+    return fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, batch, FETCH_CONCURRENCY, maxBatches, orderBy);
 }
 
 async function searchLoopAllItems(titleId, {
@@ -317,11 +310,8 @@ function parseExpand(expandParam) {
 }
 
 function creatorMetaById(cid) {
-    for (const c of creatorsArr) {
-        if (String(c.id) === String(cid)) {
-            return {id: c.id, displayName: c.displayName || c.creatorName || ""};
-        }
-    }
+    const entry = creatorsById.get(String(cid));
+    if (entry) return {id: entry.id, displayName: entry.displayName || entry.creatorName || ""};
     return {id: cid, displayName: ""};
 }
 

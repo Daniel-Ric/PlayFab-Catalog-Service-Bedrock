@@ -14,6 +14,23 @@
 
 const crypto = require("crypto");
 
+const etagMemo = new WeakMap();
+
+function buildEtagPayload(result) {
+    if (!result || (typeof result !== "object" && !Array.isArray(result))) {
+        const body = JSON.stringify(result);
+        const hash = crypto.createHash("sha1").update(body).digest("hex");
+        return {body, tag: `W/"${body.length.toString(16)}-${hash.slice(0, 16)}"`};
+    }
+    const cached = etagMemo.get(result);
+    if (cached) return cached;
+    const body = JSON.stringify(result);
+    const hash = crypto.createHash("sha1").update(body).digest("hex");
+    const payload = {body, tag: `W/"${body.length.toString(16)}-${hash.slice(0, 16)}"`};
+    etagMemo.set(result, payload);
+    return payload;
+}
+
 function withETag(handler) {
     return async (req, res, next) => {
         try {
@@ -23,9 +40,7 @@ function withETag(handler) {
                 res.status(204).end();
                 return;
             }
-            const body = JSON.stringify(result);
-            const hash = crypto.createHash("sha1").update(body).digest("hex");
-            const tag = `W/"${body.length.toString(16)}-${hash.slice(0, 16)}"`;
+            const {body, tag} = buildEtagPayload(result);
             res.setHeader("ETag", tag);
             if (req.headers["if-none-match"] === tag) {
                 res.status(304).end();

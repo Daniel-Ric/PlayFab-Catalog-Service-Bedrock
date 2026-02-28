@@ -259,7 +259,7 @@ class ItemWatcher {
 
                 const prev = this.state.get(id) || null;
                 const isFirstSeen = !prev;
-                const looksRecentlyCreated = (startTs && startTs >= sinceTs) || (!startTs && creationTs && creationTs >= sinceTs);
+                const looksRecentlyCreated = (startTs && startTs >= sinceTs) || (creationTs && creationTs >= sinceTs);
                 const hasChanged = !prev || prev.hash !== nextHash;
                 const looksRecentlyUpdated = modTs && modTs >= sinceTs;
                 const isCreated = isFirstSeen && looksRecentlyCreated;

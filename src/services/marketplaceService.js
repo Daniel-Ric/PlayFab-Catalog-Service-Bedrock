@@ -54,25 +54,25 @@ function andFilter(a, b) {
     return A || B || "";
 }
 
-const ORDERABLE_FIELDS = new Set([
-    "creationdate",
-    "lastmodifieddate",
-    "startdate",
-    "rating/totalcount"
+const ORDERABLE_FIELDS = new Map([
+    ["creationdate", "CreationDate"],
+    ["lastmodifieddate", "LastModifiedDate"],
+    ["startdate", "StartDate"],
+    ["rating/totalcount", "rating/totalcount"]
 ]);
 
 function resolveOrderBy(orderByParam, fallback) {
     const raw = String(orderByParam || "").trim();
     if (!raw) return fallback;
 
-    const normalized = raw.replace(/\s+/g, " ").toLowerCase();
-    const parts = normalized.split(" ");
-    if (!parts.length) return fallback;
+    const match = raw.match(/^([^,\s]+)(?:\s+(asc|desc))?$/i);
+    if (!match) return fallback;
 
-    const field = parts[0];
-    if (!ORDERABLE_FIELDS.has(field)) return fallback;
+    const fieldKey = String(match[1] || "").toLowerCase();
+    const field = ORDERABLE_FIELDS.get(fieldKey);
+    if (!field) return fallback;
 
-    const dir = parts[1] === "asc" ? "asc" : "desc";
+    const dir = String(match[2] || "desc").toLowerCase() === "asc" ? "asc" : "desc";
     return `${field} ${dir}`;
 }
 
@@ -560,7 +560,7 @@ module.exports = {
             search: typeof payload.search === "string" ? payload.search : "",
             top,
             skip,
-            orderBy: typeof payload.orderBy === "string" && payload.orderBy.trim() ? payload.orderBy : "creationDate desc",
+            orderBy: resolveOrderBy(payload.orderBy, "CreationDate desc"),
             selectFields: typeof payload.select === "string" ? payload.select : "",
             expandFields: typeof payload.expand === "string" ? payload.expand : ""
         });

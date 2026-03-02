@@ -332,7 +332,9 @@ function summarizeItem(it) {
 
 function ratingCountOf(it) {
     const r = it.Rating || it.rating || {};
-    return r.totalcount || r.TotalCount || r.count || r.Count || 0;
+    const value = r.totalcount ?? r.TotalCount ?? r.count ?? r.Count ?? 0;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function buildPriceBuckets(items) {
@@ -575,6 +577,13 @@ module.exports = {
         let items = await searchLoop(titleId, {filter, orderBy, batch: 300});
         items = await enrichWithFullItems(titleId, items);
         items = await enrichItemsWithResolvedReferences(titleId, items);
+        items.sort((a, b) => {
+            const diff = ratingCountOf(b) - ratingCountOf(a);
+            if (diff !== 0) return diff;
+            const bDate = Date.parse(b.StartDate || b.startDate || b.CreationDate || "") || 0;
+            const aDate = Date.parse(a.StartDate || a.startDate || a.CreationDate || "") || 0;
+            return bDate - aDate;
+        });
         return items;
     },
 

@@ -85,13 +85,40 @@ async function searchLoop(titleId, {
 async function searchLoopAllItems(titleId, {
     filter = "", orderBy = "creationDate desc", batch = 300, maxBatches = Number(process.env.MAX_SEARCH_BATCHES || 10)
 }) {
+    const batches = [];
+    let nextBatchIndex = 0;
+    let stopAtBatch = maxBatches;
+
+    async function worker() {
+        while (true) {
+            const batchIndex = nextBatchIndex;
+            nextBatchIndex += 1;
+            if (batchIndex >= stopAtBatch || batchIndex >= maxBatches) break;
+
+            const payload = buildSearchPayload({
+                filter,
+                search: "",
+                top: batch,
+                skip: batchIndex * batch,
+                orderBy
+            });
+            const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
+            const itemsRaw = data.Items || [];
+            batches[batchIndex] = itemsRaw;
+
+            if (itemsRaw.length < batch) {
+                const discoveredStop = batchIndex + 1;
+                if (discoveredStop < stopAtBatch) stopAtBatch = discoveredStop;
+            }
+        }
+    }
+
+    await Promise.all(Array.from({length: Math.max(1, FETCH_CONCURRENCY)}, () => worker()));
+
     const out = [];
-    for (let i = 0, skip = 0; i < maxBatches; i += 1, skip += batch) {
-        const payload = buildSearchPayload({filter, search: "", top: batch, skip, orderBy});
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        const itemsRaw = data.Items || [];
-        out.push(...itemsRaw);
-        if (!itemsRaw.length || itemsRaw.length < batch) break;
+    const limit = Math.min(stopAtBatch, maxBatches);
+    for (let i = 0; i < limit; i += 1) {
+        out.push(...(batches[i] || []));
     }
     return out;
 }

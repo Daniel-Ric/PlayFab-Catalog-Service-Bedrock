@@ -14,8 +14,31 @@
 
 const logger = require("../config/logger");
 const {resolveTitle} = require("../utils/titles");
-const {stableHash} = require("../utils/hash");
 const {fetchFeaturedPersona} = require("./featuredPersonaService");
+
+function collectFeaturedItems(payload) {
+    const out = [];
+
+    const visit = node => {
+        if (!node || typeof node !== "object") return;
+
+        if (Array.isArray(node)) {
+            for (const entry of node) visit(entry);
+            return;
+        }
+
+        if (Array.isArray(node.items)) {
+            for (const item of node.items) {
+                if (item && typeof item === "object" && item.id) out.push(item);
+            }
+        }
+
+        for (const value of Object.values(node)) visit(value);
+    };
+
+    visit(payload);
+    return out;
+}
 
 function getTitleId() {
     const alias = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || "").trim();
@@ -32,7 +55,7 @@ class FeaturedContentWatcher {
     constructor() {
         this.running = false;
         this.timer = null;
-        this.lastHash = null;
+        this.lastItemIds = null;
     }
 
     start(eventBus) {
@@ -45,21 +68,27 @@ class FeaturedContentWatcher {
             try {
                 const titleId = getTitleId();
                 const payload = await fetchFeaturedPersona(titleId);
-                const hash = stableHash(payload || {});
+                const items = collectFeaturedItems(payload);
+                const itemIds = new Set(items.map(item => String(item.id)));
 
-                if (!this.lastHash) {
-                    this.lastHash = hash;
+                if (!this.lastItemIds) {
+                    this.lastItemIds = itemIds;
                     return;
                 }
 
-                if (hash !== this.lastHash) {
-                    this.lastHash = hash;
+                const newItems = items.filter(item => !this.lastItemIds.has(String(item.id)));
+                if (newItems.length) {
+                    this.lastItemIds = itemIds;
                     eventBus.emit("featured.content.updated", {
                         ts: Date.now(),
-                        hash,
+                        addedItemIds: newItems.map(item => item.id),
+                        addedItems: newItems,
                         content: payload
                     });
+                    return;
                 }
+
+                this.lastItemIds = itemIds;
             } catch (e) {
                 logger.debug(`[FeaturedContentWatcher] error ${e.message || "err"}`);
             }

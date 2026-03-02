@@ -1,0 +1,67 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE/**"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-please-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Release Please
+        id: rp
+        uses: googleapis/release-please-action@v4
+        with:
+          release-type: node
+          package-name: PlayFab-Catalog-Service-Bedrock
+          target-branch: main
+          changelog-types: |
+            [
+              {"type":"feat","section":"Features","hidden":false},
+              {"type":"fix","section":"Fixes","hidden":false},
+              {"type":"perf","section":"Performance","hidden":false},
+              {"type":"refactor","section":"Refactors","hidden":false},
+              {"type":"docs","section":"Documentation","hidden":false},
+              {"type":"chore","section":"Chores","hidden":true},
+              {"type":"test","section":"Tests","hidden":true},
+              {"type":"ci","section":"CI","hidden":true},
+              {"type":"build","section":"Build","hidden":true}
+            ]
+
+      - name: Checkout
+        if: ${{ steps.rp.outputs.release_created == 'true' }}
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        if: ${{ steps.rp.outputs.release_created == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install
+        if: ${{ steps.rp.outputs.release_created == 'true' }}
+        run: npm ci
+
+      - name: Test
+        if: ${{ steps.rp.outputs.release_created == 'true' }}
+        run: npm test --if-present
+
+      - name: Build
+        if: ${{ steps.rp.outputs.release_created == 'true' }}
+        run: npm run build --if-present

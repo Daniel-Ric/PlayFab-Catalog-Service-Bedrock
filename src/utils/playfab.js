@@ -185,17 +185,44 @@ async function sendPlayFabRequestWithEntityToken(titleId, endpoint, payload = {}
     throw lastErr || new Error("sendPlayFabRequestWithEntityToken failed");
 }
 
+const ORDER_BY_ALIASES = new Map([
+    ["creationdate", "CreationDate"],
+    ["lastmodifieddate", "LastModifiedDate"],
+    ["startdate", "StartDate"],
+    ["rating/totalcount", "rating/totalcount"]
+]);
+
+function normalizeOrderBy(orderBy, fallback = "StartDate desc") {
+    const candidate = String(orderBy || "").trim() || String(fallback || "").trim();
+    if (!candidate) return "StartDate desc";
+
+    const clauses = candidate.split(",").map(part => part.trim()).filter(Boolean);
+    if (!clauses.length) return "StartDate desc";
+
+    return clauses.map(clause => {
+        const match = clause.match(/^([^,\s]+)(?:\s+(asc|desc))?$/i);
+        if (!match) return clause;
+        const fieldRaw = String(match[1] || "");
+        const field = ORDER_BY_ALIASES.get(fieldRaw.toLowerCase()) || fieldRaw;
+        const dir = String(match[2] || "desc").toLowerCase() === "asc" ? "asc" : "desc";
+        return `${field} ${dir}`;
+    }).join(", ");
+}
+
 function buildSearchPayload({
                                 filter = "",
                                 search = "",
                                 top = 100,
                                 skip = 0,
-                                orderBy = "startDate desc",
+                                orderBy = "StartDate desc",
                                 selectFields = "images,startDate",
                                 expandFields = "images"
                             }) {
     const p = {
-        Search: search || "", Top: top, Skip: skip, OrderBy: orderBy || "startDate desc"
+        Search: search || "",
+        Top: top,
+        Skip: skip,
+        OrderBy: normalizeOrderBy(orderBy, "StartDate desc")
     };
     const f = (filter || "").trim();
     if (f) p.Filter = f;
@@ -228,8 +255,8 @@ function transformItem(item) {
     };
 }
 
-async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSize = 300, concurrency = 5, maxBatches = Number(process.env.MAX_FETCH_BATCHES || 20), orderBy = "startDate desc") {
-    const all = [];
+async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSize = 300, concurrency = 5, maxBatches = Number(process.env.MAX_FETCH_BATCHES || 20), orderBy = "StartDate desc") {
+    const batches = new Map();
 
     let nextBatchIndex = 0;
     let stopAtBatch = maxBatches;
@@ -251,13 +278,22 @@ async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSiz
                 if (discoveredStop < stopAtBatch) stopAtBatch = discoveredStop;
             }
 
+            const transformed = [];
             for (const item of items) {
-                if (isValidItem(item)) all.push(transformItem(item));
+                if (isValidItem(item)) transformed.push(transformItem(item));
             }
+            batches.set(batchIndex, transformed);
         }
     }
 
     await Promise.all(Array.from({length: Math.max(1, concurrency)}, () => worker()));
+
+    const all = [];
+    const orderedIndexes = Array.from(batches.keys()).sort((a, b) => a - b);
+    for (const idx of orderedIndexes) {
+        const chunk = batches.get(idx);
+        if (Array.isArray(chunk) && chunk.length) all.push(...chunk);
+    }
     return all;
 }
 

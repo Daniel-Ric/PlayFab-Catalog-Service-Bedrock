@@ -31,6 +31,7 @@ const {resolveMarketplaceEntityInput} = require("../utils/marketplaceTokens");
 const {buildPlayerMarketplaceFilter} = require("../utils/marketplaceFilters");
 const featuredServers = require("../config/featuredServers");
 const logger = require("../config/logger");
+const {normalizeParams} = require("../utils/pagination");
 
 const OS = process.env.OS || "iOS";
 const PAGE_SIZE = 100;
@@ -74,6 +75,24 @@ function resolveOrderBy(orderByParam, fallback) {
 
     const dir = String(match[2] || "desc").toLowerCase() === "asc" ? "asc" : "desc";
     return `${field} ${dir}`;
+}
+
+function resolveCatalogPagination(query = {}, fallbackTop, maxTop = PAGE_SIZE) {
+    const params = normalizeParams(query);
+    return {
+        params,
+        top: params.apply ? params.limit : Math.min(Number(fallbackTop) || maxTop, maxTop),
+        skip: params.apply ? params.skip : 0
+    };
+}
+
+function resolveCatalogTotal(data, skip, itemCount) {
+    const candidates = [data?.TotalCount, data?.totalCount, data?.Total, data?.total];
+    for (const candidate of candidates) {
+        const total = Number(candidate);
+        if (Number.isFinite(total) && total >= 0) return total;
+    }
+    return skip + itemCount;
 }
 
 async function searchLoop(titleId, {

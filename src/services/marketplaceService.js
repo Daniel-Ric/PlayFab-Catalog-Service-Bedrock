@@ -511,30 +511,44 @@ module.exports = {
 
     async fetchLatest(alias, count, query = {}) {
         const titleId = resolveTitle(alias);
+        const {params, top, skip} = resolveCatalogPagination(query, count, 50);
         const filter = buildFilter({query}, creatorsArr);
         const orderBy = resolveOrderBy(query.orderBy, "creationDate desc");
         const payload = buildSearchPayload({
-            filter, search: "", top: Math.min(Number(count) || 10, 50), skip: 0, orderBy
+            filter, search: "", top, skip, orderBy
         });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
         let items = (data.Items || []).filter(isValidItem);
         items = await enrichWithFullItems(titleId, items);
         items = await enrichItemsWithResolvedReferences(titleId, items);
-        return items.map(transformItem);
+        const transformed = items.map(transformItem);
+        if (!params.apply) return transformed;
+        return {
+            items: transformed,
+            total: resolveCatalogTotal(data, skip, transformed.length),
+            serverPaginated: true
+        };
     },
 
-    async search(alias, creatorName, keyword) {
+    async search(alias, creatorName, keyword, query = {}) {
         const titleId = resolveTitle(alias);
+        const {params, top, skip} = resolveCatalogPagination(query, PAGE_SIZE, PAGE_SIZE);
         const cid = resolveCreatorId(creatorsArr, creatorName);
         const filter = `creatorId eq '${cid.replace(/'/g, "''")}'`;
         const payload = buildSearchPayload({
-            filter, search: `"${keyword}"`, top: PAGE_SIZE, skip: 0, orderBy: "creationDate desc"
+            filter, search: `"${keyword}"`, top, skip, orderBy: "creationDate desc"
         });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
         let items = (data.Items || []).filter(isValidItem);
         items = await enrichWithFullItems(titleId, items);
         items = await enrichItemsWithResolvedReferences(titleId, items);
-        return items.map(transformItem);
+        const transformed = items.map(transformItem);
+        if (!params.apply) return transformed;
+        return {
+            items: transformed,
+            total: resolveCatalogTotal(data, skip, transformed.length),
+            serverPaginated: true
+        };
     },
 
     async searchPlayerMarketplace(alias, payload = {}) {
@@ -1074,3 +1088,4 @@ module.exports = {
         return {items: out};
     }
 };
+

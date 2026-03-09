@@ -307,7 +307,7 @@ app.use("/marketplace/resolve", enforceAuth, authLimiter, marketplaceLimiter, ca
 app.use("/marketplace/compare", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpCompare);
 app.use("/marketplace/featured-servers", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(300, 1200), mpFeaturedServers);
 app.use("/marketplace/featured-content", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(300, 1200), mpFeaturedPersona);
-app.use("/marketplace/mc-token", marketplaceLimiter, cacheHeaders(60, 300), mpMcToken);
+app.use("/marketplace/mc-token", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpMcToken);
 app.use("/marketplace/sales", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpSales);
 app.use("/marketplace/search/advanced", enforceAuth, authLimiter, marketplaceLimiter, mpSearchAdvanced);
 app.use("/marketplace/player/search", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(30, 180), mpPlayerSearch);

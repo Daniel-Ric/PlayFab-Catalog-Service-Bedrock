@@ -42,15 +42,14 @@ function normalizeParams(query, opts = {}) {
     return {apply, page, pageSize, skip: effectiveSkip, limit};
 }
 
-function sliceArray(items, params) {
-    const total = typeof params.totalOverride === "number" ? params.totalOverride : items.length;
-    const start = Math.min(params.skip, total);
-    const end = Math.min(start + params.limit, total);
-    const sliced = items.slice(start, end);
-    const hasNext = end < total;
-    const nextPage = hasNext ? Math.floor(end / params.pageSize) + 1 : null;
-    const meta = {
-        total,
+function buildPaginationMeta(params, total) {
+    const safeTotal = Math.max(0, Number(total) || 0);
+    const start = Math.min(params.skip, safeTotal);
+    const endExclusive = Math.min(start + params.limit, safeTotal);
+    const hasNext = endExclusive < safeTotal;
+    const nextPage = hasNext ? Math.floor(endExclusive / params.pageSize) + 1 : null;
+    return {
+        total: safeTotal,
         page: params.page,
         pageSize: params.pageSize,
         skip: params.skip,
@@ -58,8 +57,21 @@ function sliceArray(items, params) {
         hasNext,
         nextPage,
         start,
-        end: end - 1
+        end: endExclusive - 1
     };
+}
+
+function buildPaginatedResult(items, params, total) {
+    const meta = buildPaginationMeta(params, total);
+    return {items, total: meta.total, meta};
+}
+
+function sliceArray(items, params) {
+    const total = typeof params.totalOverride === "number" ? params.totalOverride : items.length;
+    const start = Math.min(params.skip, total);
+    const end = Math.min(start + params.limit, total);
+    const sliced = items.slice(start, end);
+    const meta = buildPaginationMeta(params, total);
     return {items: sliced, meta};
 }
 
@@ -68,4 +80,4 @@ function setPaginationHeaders(res, meta) {
     res.setHeader("Content-Range", `items ${meta.start}-${meta.end >= meta.start ? meta.end : meta.start}/${meta.total}`);
 }
 
-module.exports = {normalizeParams, sliceArray, setPaginationHeaders};
+module.exports = {normalizeParams, buildPaginatedResult, sliceArray, setPaginationHeaders};

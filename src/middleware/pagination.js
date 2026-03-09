@@ -12,7 +12,7 @@
 //
 // -----------------------------------------------------------------------------
 
-const { normalizeParams, sliceArray, setPaginationHeaders } = require("../utils/pagination");
+const {normalizeParams, buildPaginatedResult, sliceArray, setPaginationHeaders} = require("../utils/pagination");
 
 function withPagination(handler, opts = {}) {
     return async (req, res, next) => {
@@ -26,16 +26,19 @@ function withPagination(handler, opts = {}) {
             }
 
             if (Array.isArray(result)) {
-                const { items, meta } = sliceArray(result, params);
+                const {items, meta} = sliceArray(result, params);
                 setPaginationHeaders(res, meta);
-                return { items, meta };
+                return {items, meta};
             }
 
             if (result && Array.isArray(result.items)) {
                 const total = typeof result.total === "number" ? result.total : result.items.length;
-                const { items, meta } = sliceArray(result.items, { ...params, totalOverride: total });
-                setPaginationHeaders(res, meta);
-                return { ...result, items, meta, total: meta.total };
+                const {serverPaginated, ...rest} = result;
+                const paginated = serverPaginated
+                    ? buildPaginatedResult(rest.items, params, total)
+                    : {...rest, ...sliceArray(rest.items, {...params, totalOverride: total}), total};
+                setPaginationHeaders(res, paginated.meta);
+                return paginated;
             }
 
             return result;

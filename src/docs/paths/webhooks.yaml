@@ -78,7 +78,7 @@
             schema:
               $ref: "#/components/schemas/Error"
 
-  /webhooks/{id}:
+/webhooks/{id}:
     get:
       tags:
         - Admin
@@ -250,7 +250,7 @@
               schema:
                 $ref: "#/components/schemas/Error"
 
-  /webhooks/{id}/test:
+/webhooks/{id}/test:
     post:
       tags:
         - Admin

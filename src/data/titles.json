@@ -19,6 +19,10 @@
     "id": "E99B0",
     "notes": "Minecraft: Java Edition (PlayFab web title)"
   },
+  "education": {
+    "id": "6955f",
+    "notes": "Minecraft: Education Edition"
+  },
   "market_player_access": {
     "id": "e9d1",
     "notes": "Minecraft: title_player Marketplace (This marketplace title ID is used with the user’s `title_player_account` to access the player marketplace.\n)"

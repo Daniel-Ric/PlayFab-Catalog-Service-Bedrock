@@ -561,8 +561,9 @@ module.exports = {
         const {params, top, skip} = resolveCatalogPagination(query, PAGE_SIZE, PAGE_SIZE);
         const cid = resolveCreatorId(creatorsArr, creatorName);
         const filter = `creatorId eq '${cid.replace(/'/g, "''")}'`;
+        const orderBy = resolveOrderBy(query.orderBy, "creationDate desc");
         const payload = buildSearchPayload({
-            filter, search: `"${keyword}"`, top, skip, orderBy: "creationDate desc"
+            filter, search: `"${keyword}"`, top, skip, orderBy
         });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
         let items = (data.Items || []).filter(isValidItem);

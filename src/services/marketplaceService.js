@@ -65,16 +65,23 @@ const ORDERABLE_FIELDS = new Map([
 function resolveOrderBy(orderByParam, fallback) {
     const raw = String(orderByParam || "").trim();
     if (!raw) return fallback;
+    const clauses = raw.split(",").map(part => part.trim()).filter(Boolean);
+    if (!clauses.length) return fallback;
 
-    const match = raw.match(/^([^,\s]+)(?:\s+(asc|desc))?$/i);
-    if (!match) return fallback;
+    const normalized = [];
+    for (const clause of clauses) {
+        const match = clause.match(/^([^,\s]+)(?:\s+(asc|desc))?$/i);
+        if (!match) return fallback;
 
-    const fieldKey = String(match[1] || "").toLowerCase();
-    const field = ORDERABLE_FIELDS.get(fieldKey);
-    if (!field) return fallback;
+        const fieldKey = String(match[1] || "").toLowerCase();
+        const field = ORDERABLE_FIELDS.get(fieldKey);
+        if (!field) return fallback;
 
-    const dir = String(match[2] || "desc").toLowerCase() === "asc" ? "asc" : "desc";
-    return `${field} ${dir}`;
+        const dir = String(match[2] || "desc").toLowerCase() === "asc" ? "asc" : "desc";
+        normalized.push(`${field} ${dir}`);
+    }
+
+    return normalized.join(", ");
 }
 
 function resolveCatalogPagination(query = {}, fallbackTop, maxTop = PAGE_SIZE) {

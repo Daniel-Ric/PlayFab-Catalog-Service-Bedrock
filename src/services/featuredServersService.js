@@ -56,6 +56,15 @@ const DISCOVERY_ORDER = process.env.MC_FEATURED_ORDER || "startDate desc";
 const DISCOVERY_SELECT = process.env.MC_FEATURED_SELECT || "images";
 const DISCOVERY_TOP = Math.max(1, parseInt(process.env.MC_FEATURED_TOP || "75", 10));
 
+function normalizeDiscoveryFilter(filter) {
+    const value = String(filter || "").trim();
+    if (!value) return DEFAULT_DISCOVERY_FILTER;
+    return value.replace(
+        /platforms\/any\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*:\s*\1\s+eq\s+'([^']+)'\s+and\s+\1\s+eq\s+'([^']+)'\s*\)/gi,
+        (_match, token, left, right) => `platforms/any(${token}: ${token} eq '${left}') and platforms/any(${token}: ${token} eq '${right}')`
+    );
+}
+
 function extractClientVersion(data) {
     const full = data?.Product?.DisplaySkuAvailabilities?.[0]?.Sku?.Properties?.Packages?.[0]?.PackageFullName;
     const match = String(full || "").match(/(\d+\.\d+\.\d+)\.\d+/);

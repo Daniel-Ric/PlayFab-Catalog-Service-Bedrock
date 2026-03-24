@@ -50,7 +50,8 @@ const MC_APPLICATION_TYPE = process.env.MC_APPLICATION_TYPE || "MinecraftPE";
 const MC_PLATFORM = process.env.MC_PLATFORM || "Windows10";
 const MC_STORE_PLATFORM = process.env.MC_STORE_PLATFORM || "uwp.store";
 
-const DISCOVERY_FILTER = process.env.MC_FEATURED_FILTER || "(contentType eq '3PP_V2.0') and platforms/any(tp: tp eq 'android.googleplay' and tp eq 'title.bedrockvanilla')";
+const DEFAULT_DISCOVERY_FILTER = "(contentType eq '3PP_V2.0') and platforms/any(tp: tp eq 'android.googleplay') and platforms/any(tp: tp eq 'title.bedrockvanilla')";
+const DISCOVERY_FILTER = process.env.MC_FEATURED_FILTER || DEFAULT_DISCOVERY_FILTER;
 const DISCOVERY_SCID = process.env.MC_FEATURED_SCID || "4fc10100-5f7a-4470-899b-280835760c07";
 const DISCOVERY_ORDER = process.env.MC_FEATURED_ORDER || "startDate desc";
 const DISCOVERY_SELECT = process.env.MC_FEATURED_SELECT || "images";

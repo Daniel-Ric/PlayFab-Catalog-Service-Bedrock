@@ -200,4 +200,11 @@ async function fetchFeaturedServers(titleId) {
     return r.data;
 }
 
-module.exports = {fetchFeaturedServers, fetchMCToken};
+module.exports = {
+    fetchFeaturedServers,
+    fetchMCToken,
+    _internals: {
+        buildDiscoveryPayload,
+        normalizeDiscoveryFilter
+    }
+};

@@ -171,7 +171,7 @@ async function fetchMCToken(titleId) {
 function buildDiscoveryPayload() {
     return {
         count: true,
-        filter: DISCOVERY_FILTER,
+        filter: normalizeDiscoveryFilter(DISCOVERY_FILTER),
         orderBy: DISCOVERY_ORDER,
         scid: DISCOVERY_SCID,
         select: DISCOVERY_SELECT,

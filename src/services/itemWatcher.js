@@ -46,6 +46,50 @@ function tsOf(v) {
     return Number.isFinite(t) ? t : 0;
 }
 
+function createdAnchorTs(creationTs, startTs) {
+    return Math.max(creationTs || 0, startTs || 0);
+}
+
+function createdCutoffTs(sinceTs, nowTs, createdGraceMs) {
+    const since = Number.isFinite(sinceTs) ? sinceTs : nowTs;
+    const grace = Number.isFinite(createdGraceMs) ? createdGraceMs : 0;
+    return Math.max(0, Math.min(since, nowTs - grace));
+}
+
+function isRecentlyCreated(creationTs, startTs, cutoffTs) {
+    const anchorTs = createdAnchorTs(creationTs, startTs);
+    return !!(anchorTs && anchorTs >= cutoffTs);
+}
+
+function hasMeaningfulPostCreateUpdate(creationTs, startTs, modTs) {
+    const anchorTs = createdAnchorTs(creationTs, startTs);
+    if (!modTs) return false;
+    if (!anchorTs) return true;
+    return modTs > anchorTs;
+}
+
+function classifyItemTransition({prev, creationTs, startTs, modTs, nextHash, sinceTs, nowTs, createdGraceMs}) {
+    const isFirstSeen = !prev;
+    const hasChanged = !prev || prev.hash !== nextHash;
+    const recentCreationCutoffTs = createdCutoffTs(sinceTs, nowTs, createdGraceMs);
+    const looksRecentlyCreated = isRecentlyCreated(creationTs, startTs, recentCreationCutoffTs);
+    const looksRecentlyUpdated = !!(modTs && modTs >= sinceTs);
+    const isCreated = isFirstSeen && looksRecentlyCreated;
+    const shouldAlsoEmitUpdated = isCreated && looksRecentlyUpdated && hasMeaningfulPostCreateUpdate(creationTs, startTs, modTs);
+    const isUpdated = hasChanged && looksRecentlyUpdated && (!isCreated || shouldAlsoEmitUpdated);
+
+    return {isCreated, isUpdated};
+}
+
+function collectBootstrapCreatedItems(items, nowTs, createdGraceMs) {
+    const cutoffTs = Math.max(0, nowTs - createdGraceMs);
+    return (items || []).filter(it => {
+        const creationTs = tsOf(creationDateOf(it));
+        const startTs = tsOf(startDateOf(it));
+        return isRecentlyCreated(creationTs, startTs, cutoffTs);
+    });
+}
+
 function toFilterDateLiteral(iso) {
     const parsed = new Date(iso);
     if (!Number.isFinite(parsed.getTime())) return "1970-01-01T00:00:00.000Z";
@@ -312,4 +356,13 @@ class ItemWatcher {
 }
 
 const itemWatcher = new ItemWatcher();
-module.exports = {itemWatcher};
+module.exports = {
+    itemWatcher, _internals: {
+        createdAnchorTs,
+        createdCutoffTs,
+        isRecentlyCreated,
+        hasMeaningfulPostCreateUpdate,
+        classifyItemTransition,
+        collectBootstrapCreatedItems
+    }
+};

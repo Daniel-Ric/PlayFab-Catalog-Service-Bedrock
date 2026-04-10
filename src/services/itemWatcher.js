@@ -257,9 +257,11 @@ class ItemWatcher {
         const itemsPerRequest = Math.max(10, parseInt(process.env.ITEM_WATCH_ITEMS_PER_REQUEST || "200", 10));
         const maxItems = Math.max(itemsPerRequest, parseInt(process.env.ITEM_WATCH_MAX_ITEMS || "10000", 10));
         const overlapMs = Math.max(0, parseInt(process.env.ITEM_WATCH_OVERLAP_MS || "60000", 10));
+        const createdGraceMs = Math.max(overlapMs, parseInt(process.env.ITEM_WATCH_CREATED_GRACE_MS || "600000", 10));
 
         const run = async () => {
             const titleId = getTitleId();
+            const nowTs = Date.now();
 
             if (!this.bootstrapped) {
                 const recent = await fetchRecentItems(titleId, os, itemsPerRequest, maxItems);
@@ -272,20 +274,26 @@ class ItemWatcher {
                     });
                 }
                 this.state = bootstrapMap;
-                this.lastRunTs = Date.now();
+                this.lastRunTs = nowTs;
                 this.bootstrapped = true;
                 eventBus.emit("item.snapshot", {
-                    ts: Date.now(), count: recent.length, items: projectCatalogItems(recent)
+                    ts: nowTs, count: recent.length, items: projectCatalogItems(recent)
                 });
+                const bootstrapCreated = collectBootstrapCreatedItems(recent, nowTs, createdGraceMs);
+                if (bootstrapCreated.length > 0) {
+                    eventBus.emit("item.created", {
+                        ts: nowTs, count: bootstrapCreated.length, items: projectCatalogItems(bootstrapCreated)
+                    });
+                }
                 return;
             }
 
-            const sinceTs = Math.max(0, (this.lastRunTs || Date.now()) - overlapMs);
+            const sinceTs = Math.max(0, (this.lastRunTs || nowTs) - overlapMs);
             const sinceIso = new Date(sinceTs).toISOString();
 
             const changed = await requestChangedItems(titleId, os, sinceIso, itemsPerRequest, maxItems);
             if (!changed.length) {
-                this.lastRunTs = Date.now();
+                this.lastRunTs = nowTs;
                 return;
             }
 
@@ -302,16 +310,14 @@ class ItemWatcher {
                 const nextHash = hashItemCore(it);
 
                 const prev = this.state.get(id) || null;
-                const isFirstSeen = !prev;
-                const looksRecentlyCreated = (startTs && startTs >= sinceTs) || (creationTs && creationTs >= sinceTs);
-                const hasChanged = !prev || prev.hash !== nextHash;
-                const looksRecentlyUpdated = modTs && modTs >= sinceTs;
-                const isCreated = isFirstSeen && looksRecentlyCreated;
-                const isUpdated = !isCreated && hasChanged && looksRecentlyUpdated;
+                const {isCreated, isUpdated} = classifyItemTransition({
+                    prev, creationTs, startTs, modTs, nextHash, sinceTs, nowTs, createdGraceMs
+                });
 
                 if (isCreated) {
                     created.push(it);
-                } else if (isUpdated) {
+                }
+                if (isUpdated) {
                     updated.push({
                         id, before: prev ? prev.raw : null, after: it
                     });
@@ -324,13 +330,13 @@ class ItemWatcher {
 
             if (created.length > 0) {
                 eventBus.emit("item.created", {
-                    ts: Date.now(), count: created.length, items: projectCatalogItems(created)
+                    ts: nowTs, count: created.length, items: projectCatalogItems(created)
                 });
             }
 
             if (updated.length > 0) {
                 eventBus.emit("item.updated", {
-                    ts: Date.now(), count: updated.length, items: updated.map(pair => ({
+                    ts: nowTs, count: updated.length, items: updated.map(pair => ({
                         id: pair.id,
                         before: pair.before ? projectCatalogItem(pair.before) : null,
                         after: projectCatalogItem(pair.after)
@@ -338,7 +344,7 @@ class ItemWatcher {
                 });
             }
 
-            this.lastRunTs = Date.now();
+            this.lastRunTs = nowTs;
         };
 
         run().catch(() => {

@@ -30,14 +30,19 @@ const CONTENT_KIND_ALIASES = {
     persona: "persona",
     personas: "persona",
     addon: "addon",
-    addons: "addon"
+    addons: "addon",
+    resourcepack: "resourcepack",
+    resourcepacks: "resourcepack",
+    texturepack: "resourcepack",
+    texturepacks: "resourcepack"
 };
 
 const CONTENT_KIND_DEFS = {
     skinpack: {contentTypes: ["MarketplaceDurableCatalog_V1.2"], tagsAll: ["skinpack"]},
     world: {contentTypes: ["MarketplaceDurableCatalog_V1.2"], tagsAll: ["worldtemplate"]},
     persona: {contentTypes: ["PersonaDurable"]},
-    addon: {contentTypes: ["MarketplaceDurableCatalog_V1.2"], tagsAll: ["addon"]}
+    addon: {contentTypes: ["MarketplaceDurableCatalog_V1.2"], tagsAll: ["addon"]},
+    resourcepack: {contentTypes: ["MarketplaceDurableCatalog_V1.2"], tagsAll: ["resourcepack"]}
 };
 
 function esc(v) {
@@ -199,7 +204,7 @@ function buildContentKindFilter(values) {
     if (unknown.length) {
         const e = new Error("Unknown contentKinds.");
         e.status = 400;
-        e.publicMessage = `Unknown contentKinds: ${unknown.join(", ")}. Supported values: skinpack, world, persona, addon.`;
+        e.publicMessage = `Unknown contentKinds: ${unknown.join(", ")}. Supported values: skinpack, world, persona, addon, resourcepack.`;
         throw e;
     }
 

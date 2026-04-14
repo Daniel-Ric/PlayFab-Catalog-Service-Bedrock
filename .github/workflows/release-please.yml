@@ -46,7 +46,7 @@ jobs:
     steps:
       - name: Release Please
         id: rp
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@c2a5a2bd6a758a0937f1ddb1e8950609867ed15c
         with:
           release-type: node
           package-name: PlayFab-Catalog-Service-Bedrock

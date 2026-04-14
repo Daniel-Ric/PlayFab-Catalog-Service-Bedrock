@@ -53,5 +53,7 @@ exports.stream = (req, res) => {
         heartbeatMs: Number.isFinite(heartbeatMsRaw) ? heartbeatMsRaw : undefined
     };
 
-    sseHub.addClient(res, filters);
+    if (!sseHub.addClient(res, filters)) {
+        res.status(503).json({error: "Too many event stream clients."});
+    }
 };

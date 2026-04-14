@@ -39,11 +39,11 @@
     "yamljs": "^0.3.0"
   },
   "overrides": {
-    "axios": "^1.13.6",
-    "follow-redirects": "^1.15.11",
-    "multer": "^2.0.2",
-    "path-to-regexp": "^8.3.0",
-    "minimatch": "^3.1.2",
-    "brace-expansion": "^1.1.12"
+    "axios": "^1.15.0",
+    "follow-redirects": "^1.15.12",
+    "multer": "^2.1.1",
+    "path-to-regexp": "^8.4.0",
+    "minimatch": "^3.1.4",
+    "brace-expansion": "^1.1.13"
   }
 }

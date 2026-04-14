@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -37,7 +39,7 @@ jobs:
         run: npm ci
 
       - name: Test
-        run: node --test --test-isolation=none
+        run: npm test
 
   release-please:
     needs: validate
@@ -68,6 +70,7 @@ jobs:
         if: ${{ steps.rp.outputs.release_created == 'true' }}
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           ref: ${{ steps.rp.outputs.sha }}
 
       - name: Setup Node
@@ -83,8 +86,25 @@ jobs:
 
       - name: Test
         if: ${{ steps.rp.outputs.release_created == 'true' }}
-        run: node --test --test-isolation=none
+        run: npm test
 
       - name: Build
         if: ${{ steps.rp.outputs.release_created == 'true' }}
         run: npm run build --if-present
+
+      - name: Ensure release tag exists in repository
+        if: ${{ steps.rp.outputs.release_created == 'true' && steps.rp.outputs.tag_name != '' }}
+        env:
+          TAG_NAME: ${{ steps.rp.outputs.tag_name }}
+          TAG_SHA: ${{ steps.rp.outputs.sha }}
+        run: |
+          git fetch --tags --force
+          if git rev-parse "${TAG_NAME}" >/dev/null 2>&1; then
+            echo "Tag ${TAG_NAME} already exists."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${TAG_NAME}" "${TAG_SHA}" -m "Release ${TAG_NAME}"
+          git push origin "refs/tags/${TAG_NAME}"

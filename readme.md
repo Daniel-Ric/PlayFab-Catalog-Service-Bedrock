@@ -102,6 +102,9 @@ NODE_ENV=production LOG_LEVEL=info node src/index.js
 
 **Base URL** (default): `http://localhost:3000`
 
+> [!WARNING]
+> This service can generate sustained upstream traffic through watchers, enrichment, retries, and webhook delivery. Before using it against a public or production-like environment, review polling intervals, concurrency limits, cache settings, and timeout values to avoid unnecessary load on upstream services.
+
 ---
 
 ## Configuration (Environment)
@@ -777,6 +780,9 @@ def verify(sig, body, secret):
 
 * **Spec**: `GET /openapi.json` (always available)
 * **Swagger UI**: `GET /docs` (when `ENABLE_DOCS=true`)
+
+> [!NOTE]
+> `/openapi.json` is always exposed, but the interactive Swagger UI at `/docs` is disabled by default. If you enable docs in a public environment, make sure the rest of your deployment and authentication settings match your intended exposure model.
 
 **Spec composition**
 

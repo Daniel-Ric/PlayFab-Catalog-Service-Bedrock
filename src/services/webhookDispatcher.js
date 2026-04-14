@@ -17,6 +17,7 @@ const crypto = require("crypto");
 const logger = require("../config/logger");
 const {findMatchingWebhooks} = require("./webhookService");
 const {EVENT_NAMES} = require("../config/eventNames");
+const {assertSafeWebhookUrl} = require("../utils/webhookSecurity");
 
 let initialized = false;
 
@@ -125,7 +126,7 @@ async function deliver(job) {
     }
 
     try {
-        const res = await axios.post(job.webhook.url, json, {
+        const res = await axios.post(assertSafeWebhookUrl(job.webhook.url), json, {
             headers,
             timeout: timeoutMs,
             maxBodyLength: 2 * 1024 * 1024,

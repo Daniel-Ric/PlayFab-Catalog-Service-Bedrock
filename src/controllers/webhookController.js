@@ -15,6 +15,7 @@
 const axios = require("axios");
 const crypto = require("crypto");
 const service = require("../services/webhookService");
+const {assertSafeWebhookUrl} = require("../utils/webhookSecurity");
 
 const timeoutMs = Math.max(1000, parseInt(process.env.WEBHOOK_TIMEOUT_MS || "6000", 10));
 
@@ -112,7 +113,7 @@ exports.test = async (req, res, next) => {
             headers["X-View-Signature"] = "sha256=" + sig;
         }
 
-        const response = await axios.post(w.url, json, {
+        const response = await axios.post(assertSafeWebhookUrl(w.url), json, {
             headers,
             timeout: timeoutMs,
             maxBodyLength: 2 * 1024 * 1024,

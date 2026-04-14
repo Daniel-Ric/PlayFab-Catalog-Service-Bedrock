@@ -17,6 +17,7 @@ const path = require("path");
 const {readJson, writeJsonAtomic} = require("../utils/storage");
 const {getCreatorNamesFromPayload} = require("../utils/eventPayload");
 const {EVENT_NAME_SET} = require("../config/eventNames");
+const {assertSafeWebhookUrl} = require("../utils/webhookSecurity");
 
 const filePath = path.join(__dirname, "../data/webhooks.json");
 
@@ -46,7 +47,7 @@ function generateId() {
 
 function normalizeInput(input) {
     const now = new Date().toISOString();
-    const url = String(input.url || "").trim();
+    const url = assertSafeWebhookUrl(input.url);
 
     const rawEvents = Array.isArray(input.events) ? input.events : [];
     const cleanedEvents = rawEvents.map(e => String(e).trim()).filter(Boolean).filter(e => e === "*" || EVENT_NAME_SET.has(e));
@@ -102,7 +103,7 @@ function updateWebhook(id, patch) {
     const now = new Date().toISOString();
     const next = {...existing};
 
-    if (typeof patch.url === "string" && patch.url.trim()) next.url = patch.url.trim();
+    if (typeof patch.url === "string" && patch.url.trim()) next.url = assertSafeWebhookUrl(patch.url);
 
     if (Array.isArray(patch.events) && patch.events.length) {
         const ev = patch.events.map(e => String(e).trim()).filter(Boolean).filter(e => e === "*" || EVENT_NAME_SET.has(e));

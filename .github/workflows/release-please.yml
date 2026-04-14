@@ -9,17 +9,38 @@ on:
       - "docs/**"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/PULL_REQUEST_TEMPLATE/**"
+  workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
 
 concurrency:
-  group: release-please-${{ github.ref }}
+  group: release-please-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: node --test --test-isolation=none
+
   release-please:
+    needs: validate
     runs-on: ubuntu-latest
 
     steps:
@@ -46,12 +67,14 @@ jobs:
       - name: Checkout
         if: ${{ steps.rp.outputs.release_created == 'true' }}
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.rp.outputs.sha }}
 
       - name: Setup Node
         if: ${{ steps.rp.outputs.release_created == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install
@@ -60,7 +83,7 @@ jobs:
 
       - name: Test
         if: ${{ steps.rp.outputs.release_created == 'true' }}
-        run: npm test --if-present
+        run: node --test --test-isolation=none
 
       - name: Build
         if: ${{ steps.rp.outputs.release_created == 'true' }}

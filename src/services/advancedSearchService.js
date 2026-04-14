@@ -214,6 +214,54 @@ function buildContentKindFilter(values) {
     return orJoin(clauses.filter(Boolean));
 }
 
+function buildFilter(_alias, body) {
+    const raw = body?.filters?.raw;
+    if (typeof raw === "string" && raw.trim()) {
+        throw new Error("Raw filters are not supported.");
+    }
+
+    const normalized = validateRequestBody(body || {});
+    const kinds = normalizeArray(normalized.filters.contentKinds);
+    if (!kinds.length) {
+        return buildPlayFabFilter(normalized.filters);
+    }
+
+    const mappedKinds = kinds.map(value => {
+        const normalizedKind = normalizeKindName(value);
+        const kind = CONTENT_KIND_ALIASES[normalizedKind];
+        if (!kind) {
+            const e = new Error("Unknown contentKinds.");
+            e.status = 400;
+            e.publicMessage = `Unknown contentKinds: ${value}. Supported values: skinpack, world, persona, addon, resourcepack, mashup.`;
+            throw e;
+        }
+        return kind;
+    });
+
+    if (mappedKinds.every(kind => kind === "persona")) {
+        return "not (tags/any(t:t eq 'worldtemplate') or tags/any(t:t eq 'skinpack'))";
+    }
+
+    const tagMap = {
+        skinpack: "skinpack",
+        world: "worldtemplate",
+        addon: "addon",
+        resourcepack: "resourcepack",
+        mashup: "mashup"
+    };
+    const tagClauses = mappedKinds
+        .filter(kind => kind !== "persona")
+        .map(kind => tagMap[kind])
+        .filter(Boolean)
+        .map(tag => `tags/any(t:t eq '${esc(tag)}')`);
+
+    if (!tagClauses.length) {
+        return "";
+    }
+
+    return orJoin(tagClauses);
+}
+
 function buildSearchText(query) {
     const text = typeof query?.text === "string" ? query.text.trim() : "";
     return text.slice(0, 200);
@@ -563,6 +611,7 @@ exports.advancedSearch = async (alias, body, {page, pageSize}) => {
 };
 
 exports._internals = {
+    buildFilter,
     buildPlayFabFilter,
     parseSort,
     buildSearchText,

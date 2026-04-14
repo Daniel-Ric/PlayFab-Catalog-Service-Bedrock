@@ -2,11 +2,21 @@ name: Discord Notifications
 
 on:
   push:
-    branches: [master]
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: discord-notifications-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   notify:
+    if: ${{ secrets.DISCORD_WEBHOOK_URL != '' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
     steps:
       - name: Send Discord embed
         env:
@@ -87,4 +97,4 @@ jobs:
               ]
             }')"
 
-          curl -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"
+          curl --fail-with-body -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"

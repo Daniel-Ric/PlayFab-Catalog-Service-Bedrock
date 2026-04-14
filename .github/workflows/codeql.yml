@@ -4,9 +4,15 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
   schedule:
     - cron: "28 16 * * 4"
   workflow_dispatch:
@@ -48,6 +54,7 @@ jobs:
               - node_modules/**
               - src/data/**
               - src/docs/**
+              - docs/**
               - .idea/**
               - "*.iml"
               - "*.postman_collection.json"

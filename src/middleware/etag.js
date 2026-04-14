@@ -19,13 +19,13 @@ const etagMemo = new WeakMap();
 function buildEtagPayload(result) {
     if (!result || (typeof result !== "object" && !Array.isArray(result))) {
         const body = JSON.stringify(result);
-        const hash = crypto.createHash("sha1").update(body).digest("hex");
+        const hash = crypto.createHash("sha256").update(body).digest("hex");
         return {body, tag: `W/"${body.length.toString(16)}-${hash.slice(0, 16)}"`};
     }
     const cached = etagMemo.get(result);
     if (cached) return cached;
     const body = JSON.stringify(result);
-    const hash = crypto.createHash("sha1").update(body).digest("hex");
+    const hash = crypto.createHash("sha256").update(body).digest("hex");
     const payload = {body, tag: `W/"${body.length.toString(16)}-${hash.slice(0, 16)}"`};
     etagMemo.set(result, payload);
     return payload;

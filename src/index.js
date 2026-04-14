@@ -69,7 +69,7 @@ const {featuredContentWatcher} = require("./services/featuredContentWatcher");
 const {initSseHub} = require("./services/sseHub");
 const {initWebhookDispatcher} = require("./services/webhookDispatcher");
 const {eventBus} = require("./services/eventBus");
-const {createRateLimiter, createOptionalRateLimiter} = require("./config/rateLimiter");
+const {resolveRateLimitConfig} = require("./config/rateLimiter");
 
 const artLines = [
     " __                 ___       __      __       ___            __   __           __",
@@ -128,7 +128,7 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
     process.exit(1);
 }
 
-app.use(helmet({contentSecurityPolicy: false, crossOriginResourcePolicy: {policy: "cross-origin"}}));
+app.use(helmet());
 
 const allowed = new Set(getConfiguredCorsOrigins());
 
@@ -156,16 +156,95 @@ const openapi = getOpenApiSpec();
 app.get("/openapi.json", (_, res) => res.json(openapi));
 
 if (process.env.ENABLE_DOCS === "true") {
-    app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, {explorer: true}));
+    app.use("/docs", (req, res, next) => {
+        res.setHeader("Content-Security-Policy", "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'");
+        res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+        next();
+    }, swaggerUi.serve, swaggerUi.setup(openapi, {explorer: true}));
 }
 
 app.get("/", (_req, res) => res.json({ok: true, name: "View Marketplace API"}));
 
-const loginLimiter = createRateLimiter("LOGIN", {windowMs: 15 * 60 * 1000, max: 20});
-const marketplaceLimiter = createOptionalRateLimiter("MARKETPLACE", {windowMs: 60 * 60 * 1000, max: 2000});
-const playerMarketplaceLimiter = createRateLimiter("MARKETPLACE_PLAYER", {windowMs: 60 * 60 * 1000, max: 2000});
-const adminLimiter = createOptionalRateLimiter("ADMIN", {windowMs: 60 * 60 * 1000, max: 1000});
-const healthLimiter = createOptionalRateLimiter("HEALTH", {windowMs: 5 * 60 * 1000, max: 500});
+const loginLimiterConfig = resolveRateLimitConfig("LOGIN", {windowMs: 15 * 60 * 1000, max: 20});
+const loginLimiter = rateLimit({
+    windowMs: loginLimiterConfig.windowMs,
+    max: loginLimiterConfig.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many requests - please try again later."
+});
+const marketplaceLimiterConfig = resolveRateLimitConfig("MARKETPLACE", {windowMs: 60 * 60 * 1000, max: 2000});
+const marketplaceLimiter = rateLimit({
+    windowMs: marketplaceLimiterConfig.windowMs,
+    max: marketplaceLimiterConfig.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many requests - please try again later."
+});
+const playerMarketplaceLimiterConfig = resolveRateLimitConfig("MARKETPLACE_PLAYER", {windowMs: 60 * 60 * 1000, max: 2000});
+const playerMarketplaceLimiter = rateLimit({
+    windowMs: playerMarketplaceLimiterConfig.windowMs,
+    max: playerMarketplaceLimiterConfig.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many requests - please try again later."
+});
+const adminLimiterConfig = resolveRateLimitConfig("ADMIN", {windowMs: 60 * 60 * 1000, max: 1000});
+const adminLimiter = rateLimit({
+    windowMs: adminLimiterConfig.windowMs,
+    max: adminLimiterConfig.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many requests - please try again later."
+});
+const healthLimiterConfig = resolveRateLimitConfig("HEALTH", {windowMs: 5 * 60 * 1000, max: 500});
+const healthLimiter = rateLimit({
+    windowMs: healthLimiterConfig.windowMs,
+    max: healthLimiterConfig.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many requests - please try again later."
+});
+const eventsLimiterConfig = resolveRateLimitConfig("EVENTS", {windowMs: 5 * 60 * 1000, max: 300});
+const eventsLimiter = rateLimit({
+    windowMs: eventsLimiterConfig.windowMs,
+    max: eventsLimiterConfig.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many requests - please try again later."
+});
+const creatorsLimiterConfig = resolveRateLimitConfig("CREATORS", {windowMs: 60 * 60 * 1000, max: 1000});
+const creatorsLimiter = rateLimit({
+    windowMs: creatorsLimiterConfig.windowMs,
+    max: creatorsLimiterConfig.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many requests - please try again later."
+});
+const titlesLimiterConfig = resolveRateLimitConfig("TITLES", {windowMs: 60 * 60 * 1000, max: 1000});
+const titlesLimiter = rateLimit({
+    windowMs: titlesLimiterConfig.windowMs,
+    max: titlesLimiterConfig.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many requests - please try again later."
+});
+const sessionLimiterConfig = resolveRateLimitConfig("SESSION", {windowMs: 60 * 60 * 1000, max: 1000});
+const sessionLimiter = rateLimit({
+    windowMs: sessionLimiterConfig.windowMs,
+    max: sessionLimiterConfig.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many requests - please try again later."
+});
+const webhookLimiterConfig = resolveRateLimitConfig("WEBHOOKS", {windowMs: 60 * 60 * 1000, max: 1000});
+const webhookLimiter = rateLimit({
+    windowMs: webhookLimiterConfig.windowMs,
+    max: webhookLimiterConfig.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many requests - please try again later."
+});
 
 app.post(["/login", "/login/"], loginLimiter, express.json({limit: "100kb"}), (req, res) => {
     const {username, password} = req.body || {};
@@ -289,10 +368,10 @@ function cacheHeaders(seconds = 60, smax = 300) {
     };
 }
 
-app.use("/session", enforceAuth, requireRole("admin"), adminLimiter, sessionRoutes);
+app.use("/session", enforceAuth, requireRole("admin"), sessionLimiter, adminLimiter, sessionRoutes);
 
-app.use("/titles", enforceAuth, adminLimiter, titlesRoutes);
-app.use("/creators", enforceAuth, adminLimiter, creatorsRoutes);
+app.use("/titles", enforceAuth, titlesLimiter, adminLimiter, titlesRoutes);
+app.use("/creators", enforceAuth, creatorsLimiter, adminLimiter, creatorsRoutes);
 
 app.use("/marketplace/all", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpAll);
 app.use("/marketplace/latest", enforceAuth, marketplaceLimiter, cacheHeaders(30, 180), mpLatest);
@@ -310,12 +389,12 @@ app.use("/marketplace/featured-content", enforceAuth, authLimiter, marketplaceLi
 app.use("/marketplace/mc-token", marketplaceLimiter, cacheHeaders(60, 300), mpMcToken);
 app.use("/marketplace/sales", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpSales);
 app.use("/marketplace/search/advanced", enforceAuth, authLimiter, marketplaceLimiter, mpSearchAdvanced);
-app.use("/marketplace/player/search", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(30, 180), mpPlayerSearch);
+app.use("/marketplace/player/search", enforceAuth, authLimiter, playerMarketplaceLimiter, marketplaceLimiter, cacheHeaders(30, 180), mpPlayerSearch);
 app.use("/marketplace/recommendations", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpRecommendations);
 app.use("/marketplace", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpStats);
 
-app.use("/events", enforceAuth, authLimiter, marketplaceLimiter, eventsRoutes);
-app.use("/webhooks", enforceAuth, authLimiter, requireRole("admin"), adminLimiter, webhookRoutes);
+app.use("/events", enforceAuth, authLimiter, eventsLimiter, marketplaceLimiter, eventsRoutes);
+app.use("/webhooks", enforceAuth, authLimiter, webhookLimiter, requireRole("admin"), adminLimiter, webhookRoutes);
 
 app.use("/health", enforceAuth, authLimiter, healthLimiter, cacheHeaders(5, 5), healthRoutes);
 

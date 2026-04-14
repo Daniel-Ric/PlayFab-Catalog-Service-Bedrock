@@ -46,8 +46,6 @@ const STORE_MAX_FOR_PRICE_ENRICH = Math.max(1, parseInt(process.env.STORE_MAX_FO
 const creatorsArr = loadCreators();
 const creatorsByNormalized = new Map(creatorsArr.map(c => [String(c.creatorName).replace(/\s/g, "").toLowerCase(), c]));
 const creatorsById = new Map(creatorsArr.map(c => [String(c.id), c]));
-const {loadTitles} = require("../utils/titles");
-
 function andFilter(a, b) {
     const A = (a || "").trim();
     const B = (b || "").trim();
@@ -363,42 +361,6 @@ function ratingCountOf(it) {
     return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function buildPriceBuckets(items) {
-    const prices = [0, 310, 620, 990, 1990, 3990];
-    const buckets = new Map();
-    for (const it of items) {
-        const p = it.DisplayProperties && typeof it.DisplayProperties.price === "number" ? it.DisplayProperties.price : null;
-        if (typeof p !== "number") continue;
-        let bucket = `${prices[0]}-${prices[1]}`;
-        for (let i = 0; i < prices.length - 1; i++) {
-            if (p >= prices[i] && p < prices[i + 1]) {
-                bucket = `${prices[i]}-${prices[i + 1] - 1}`;
-                break;
-            }
-            if (p >= prices[prices.length - 1]) bucket = `${prices[prices.length - 1]}+`;
-        }
-        buckets.set(bucket, (buckets.get(bucket) || 0) + 1);
-    }
-    return Array.from(buckets.entries()).map(([bucket, count]) => ({bucket, count}));
-}
-
-function buildTypeCounts(items) {
-    const map = new Map();
-    for (const it of items) {
-        const ct = it.ContentType || it.contentType || "";
-        if (!ct) continue;
-        map.set(ct, (map.get(ct) || 0) + 1);
-    }
-    return Array.from(map.entries()).map(([value, count]) => ({value, count})).sort((a, b) => b.count - a.count);
-}
-
-function buildOrClausesFromTags(tags) {
-    if (!Array.isArray(tags) || !tags.length) return "";
-    const parts = tags.slice(0, 5).map(t => `tags/any(t:t eq '${esc(t)}')`);
-    if (parts.length === 1) return parts[0];
-    return `(${parts.join(" or ")})`;
-}
-
 function buildRecommendationsFilter(base) {
     const cid = base.CreatorId || base.creatorId;
     if (cid) return `creatorId eq '${esc(cid)}'`;
@@ -437,11 +399,9 @@ function starFromAvg(avg) {
 function bucketForPrice(p) {
     if (typeof p !== "number") return null;
     const edges = [0, 310, 620, 990, 1990, 3990];
-    let label = `${edges[0]}-${edges[1] - 1}`;
     for (let i = 0; i < edges.length - 1; i++) {
         if (p >= edges[i] && p < edges[i + 1]) {
-            label = `${edges[i]}-${edges[i + 1] - 1}`;
-            return label;
+            return `${edges[i]}-${edges[i + 1] - 1}`;
         }
     }
     return `${edges[edges.length - 1]}+`;

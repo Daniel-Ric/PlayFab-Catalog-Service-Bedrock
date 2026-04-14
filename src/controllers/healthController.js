@@ -158,9 +158,7 @@ function watcherDetails(w, envPrefix, enabledBool) {
     const msSinceLastRun = lastRunTs ? Date.now() - lastRunTs : null;
 
     let status = "disabled";
-    if (!enabledBool) {
-        status = "disabled";
-    } else if (enabledBool && !running) {
+    if (enabledBool && !running) {
         status = "not_running";
     } else if (enabledBool && running) {
         if (!intervalMs || msSinceLastRun == null) {
@@ -295,11 +293,10 @@ function getRoutesInfo() {
 function getConfigInfo() {
     const corsList = getConfiguredCorsOrigins();
 
-    const rateLimitEnvEnabled = String(process.env.RATE_LIMIT_ENABLE || process.env.RATE_LIMIT_ENABLED || "").toLowerCase() === "true";
     const loginWindowDefault = 15 * 60 * 1000;
     const loginMaxDefault = 20;
-    const loginWindowMs = rateLimitEnvEnabled ? readIntEnv("RATE_LIMIT_LOGIN_WINDOW_MS", readIntEnv("RATE_LIMIT_WINDOW_MS", loginWindowDefault)) : loginWindowDefault;
-    const loginMax = rateLimitEnvEnabled ? readIntEnv("RATE_LIMIT_LOGIN_MAX", readIntEnv("RATE_LIMIT_MAX", loginMaxDefault)) : loginMaxDefault;
+    const loginWindowMs = readIntEnv("RATE_LIMIT_LOGIN_WINDOW_MS", readIntEnv("RATE_LIMIT_WINDOW_MS", loginWindowDefault));
+    const loginMax = readIntEnv("RATE_LIMIT_LOGIN_MAX", readIntEnv("RATE_LIMIT_MAX", loginMaxDefault));
 
     return {
         service: {

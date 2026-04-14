@@ -24,7 +24,7 @@ function readIntEnv(key, def) {
     return n;
 }
 
-function resolveConfig(name, defaults) {
+function resolveRateLimitConfig(name, defaults) {
     const baseWindow = typeof defaults.windowMs === "number" ? defaults.windowMs : 60 * 60 * 1000;
     const baseMax = typeof defaults.max === "number" ? defaults.max : 2000;
     if (!rateLimitEnabled) return {windowMs: baseWindow, max: baseMax};
@@ -56,7 +56,7 @@ function createRateLimiter(nameOrDefaults, maybeDefaults) {
     }
 
     if (String(cfgName).toUpperCase() === "LOGIN") {
-        const cfg = resolveConfig("LOGIN", defaults);
+        const cfg = resolveRateLimitConfig("LOGIN", defaults);
         if (!rateLimitEnabled) {
             return hardLoginLimiter;
         }
@@ -79,7 +79,7 @@ function createRateLimiter(nameOrDefaults, maybeDefaults) {
         return (_req, _res, next) => next();
     }
 
-    const cfg = resolveConfig(cfgName, defaults);
+    const cfg = resolveRateLimitConfig(cfgName, defaults);
     return rateLimit({
         windowMs: cfg.windowMs,
         max: cfg.max,
@@ -93,7 +93,7 @@ function createOptionalRateLimiter(name, defaults = {}) {
     if (!rateLimitEnabled) {
         return (_req, _res, next) => next();
     }
-    const cfg = resolveConfig(name, defaults);
+    const cfg = resolveRateLimitConfig(name, defaults);
     return rateLimit({
         windowMs: cfg.windowMs,
         max: cfg.max,
@@ -103,4 +103,4 @@ function createOptionalRateLimiter(name, defaults = {}) {
     });
 }
 
-module.exports = {createRateLimiter, createOptionalRateLimiter, rateLimitEnabled};
+module.exports = {createRateLimiter, createOptionalRateLimiter, rateLimitEnabled, resolveRateLimitConfig};

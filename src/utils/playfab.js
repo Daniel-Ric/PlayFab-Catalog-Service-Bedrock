@@ -15,10 +15,12 @@
 const axios = require("axios");
 const http = require("http");
 const https = require("https");
+const crypto = require("crypto");
 const {Mutex} = require("async-mutex");
 const stringify = require("fast-json-stable-stringify");
 const {sessionCache, dataCache} = require("../config/cache");
 const logger = require("../config/logger");
+const {buildPlayFabUrl, assertPlayFabTitleId, assertPlayFabEndpoint} = require("./outboundSecurity");
 
 const httpAgent = new http.Agent({
     keepAlive: true, maxSockets: Number(process.env.HTTP_MAX_SOCKETS || 512), keepAliveMsecs: 60000, scheduling: "lifo"
@@ -57,9 +59,10 @@ function jitter(base, attempt, max) {
 }
 
 async function loginWithIOSDeviceID(titleId, os) {
-    const deviceId = `ios-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-    const r = await api.post(`https://${titleId}.playfabapi.com/Client/LoginWithIOSDeviceID`, {
-        CreateAccount: true, TitleId: titleId, DeviceId: deviceId, OS: os
+    const safeTitleId = assertPlayFabTitleId(titleId);
+    const deviceId = `ios-${Date.now()}-${crypto.randomUUID()}`;
+    const r = await api.post(buildPlayFabUrl(safeTitleId, "Client/LoginWithIOSDeviceID"), {
+        CreateAccount: true, TitleId: safeTitleId, DeviceId: deviceId, OS: os
     });
     if (r.status >= 200 && r.status < 300) return r.data.data;
     const e = new Error("Login failed");
@@ -68,7 +71,8 @@ async function loginWithIOSDeviceID(titleId, os) {
 }
 
 async function getEntityToken(titleId, ticket, pfId) {
-    const r = await api.post(`https://${titleId}.playfabapi.com/Authentication/GetEntityToken`, {
+    const safeTitleId = assertPlayFabTitleId(titleId);
+    const r = await api.post(buildPlayFabUrl(safeTitleId, "Authentication/GetEntityToken"), {
         Entity: {Id: pfId, Type: "master_player_account"}
     }, {
         headers: {"X-Authorization": ticket}
@@ -80,14 +84,15 @@ async function getEntityToken(titleId, ticket, pfId) {
 }
 
 async function getSession(titleId, os) {
-    const key = `session_${titleId}`;
+    const safeTitleId = assertPlayFabTitleId(titleId);
+    const key = `session_${safeTitleId}`;
     const cached = sessionCache.get(key);
     if (cached && (!cached.expiresAt || cached.expiresAt > Date.now())) return cached;
     return mutex.runExclusive(async () => {
         const again = sessionCache.get(key);
         if (again && (!again.expiresAt || again.expiresAt > Date.now())) return again;
-        const {SessionTicket, PlayFabId} = await loginWithIOSDeviceID(titleId, os);
-        const EntityToken = await getEntityToken(titleId, SessionTicket, PlayFabId);
+        const {SessionTicket, PlayFabId} = await loginWithIOSDeviceID(safeTitleId, os);
+        const EntityToken = await getEntityToken(safeTitleId, SessionTicket, PlayFabId);
         const session = {
             SessionTicket, PlayFabId, EntityToken, expiresAt: Date.now() + SESSION_SOFT_TTL_MS
         };
@@ -97,12 +102,14 @@ async function getSession(titleId, os) {
 }
 
 async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-EntityToken", maxRetries = 3, os) {
-    const cacheable = UPSTREAM_CACHEABLE_ENDPOINTS.has(endpoint);
-    const cacheKey = cacheable ? `pf:${titleId}:${endpoint}:${auth}:${stringify(payload || {})}` : null;
+    const safeTitleId = assertPlayFabTitleId(titleId);
+    const safeEndpoint = assertPlayFabEndpoint(endpoint);
+    const cacheable = UPSTREAM_CACHEABLE_ENDPOINTS.has(safeEndpoint);
+    const cacheKey = cacheable ? `pf:${safeTitleId}:${safeEndpoint}:${auth}:${stringify(payload || {})}` : null;
     if (cacheKey) {
-        return dataCache.getOrSetAsync(cacheKey, async () => sendPlayFabRequestInternal(titleId, endpoint, payload, auth, maxRetries, os), UPSTREAM_RESPONSE_CACHE_TTL_MS);
+        return dataCache.getOrSetAsync(cacheKey, async () => sendPlayFabRequestInternal(safeTitleId, safeEndpoint, payload, auth, maxRetries, os), UPSTREAM_RESPONSE_CACHE_TTL_MS);
     }
-    return sendPlayFabRequestInternal(titleId, endpoint, payload, auth, maxRetries, os);
+    return sendPlayFabRequestInternal(safeTitleId, safeEndpoint, payload, auth, maxRetries, os);
 }
 
 async function sendPlayFabRequestInternal(titleId, endpoint, payload = {}, auth = "X-EntityToken", maxRetries = 3, os) {
@@ -115,7 +122,7 @@ async function sendPlayFabRequestInternal(titleId, endpoint, payload = {}, auth 
             const headers = {
                 [auth]: auth === "X-EntityToken" ? ses.EntityToken : ses.SessionTicket
             };
-            const r = await api.post(`https://${titleId}.playfabapi.com/${endpoint}`, payload, {headers});
+            const r = await api.post(buildPlayFabUrl(titleId, endpoint), payload, {headers});
             if (r.status >= 200 && r.status < 300) {
                 return r.data.data ?? r.data;
             }
@@ -152,13 +159,15 @@ async function sendPlayFabRequestInternal(titleId, endpoint, payload = {}, auth 
 }
 
 async function sendPlayFabRequestWithEntityToken(titleId, endpoint, payload = {}, entityToken, maxRetries = 2) {
+    const safeTitleId = assertPlayFabTitleId(titleId);
+    const safeEndpoint = assertPlayFabEndpoint(endpoint);
     let attempt = 0;
     let lastErr;
     const budget = Number(process.env.RETRY_BUDGET || maxRetries);
     while (attempt <= budget) {
         try {
             const headers = {"X-EntityToken": entityToken};
-            const r = await api.post(`https://${titleId}.playfabapi.com/${endpoint}`, payload, {headers});
+            const r = await api.post(buildPlayFabUrl(safeTitleId, safeEndpoint), payload, {headers});
             if (r.status >= 200 && r.status < 300) {
                 return r.data.data ?? r.data;
             }

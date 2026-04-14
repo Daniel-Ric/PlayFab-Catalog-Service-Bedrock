@@ -14,12 +14,16 @@
 
 const logger = require("../config/logger");
 
+function sanitizeLogValue(value) {
+    return String(value || "").replace(/[\r\n]+/g, " ").trim();
+}
+
 module.exports = (req, res, next) => {
     req.startTime = Date.now();
-    logger.debug(`→ ${req.method} ${req.originalUrl}`);
+    logger.debug(`-> ${sanitizeLogValue(req.method)} ${sanitizeLogValue(req.originalUrl)}`);
     res.on("finish", () => {
         const ms = Date.now() - req.startTime;
-        logger.debug(`← ${req.method} ${req.originalUrl} ${res.statusCode} – ${ms}ms`);
+        logger.debug(`<- ${sanitizeLogValue(req.method)} ${sanitizeLogValue(req.originalUrl)} ${sanitizeLogValue(res.statusCode)} - ${sanitizeLogValue(ms)}ms`);
     });
     next();
 };

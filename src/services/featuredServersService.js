@@ -19,6 +19,7 @@ const {randomUUID} = require("crypto");
 const {dataCache} = require("../config/cache");
 const logger = require("../config/logger");
 const {getSession} = require("../utils/playfab");
+const {normalizeHttpsUrl, joinUrl, assertPlayFabTitleId} = require("../utils/outboundSecurity");
 
 const httpAgent = new http.Agent({
     keepAlive: true, maxSockets: Number(process.env.HTTP_MAX_SOCKETS || 512), keepAliveMsecs: 60000, scheduling: "lifo"
@@ -34,9 +35,9 @@ const api = axios.create({
     }, validateStatus: () => true
 });
 
-const AUTH_BASE = process.env.MC_AUTH_BASE || "https://authorization.franchise.minecraft-services.net";
-const DISCOVERY_BASE = process.env.MC_DISCOVERY_BASE || "https://gatherings-secondary.franchise.minecraft-services.net";
-const CLIENT_VERSION_URL = process.env.MC_CLIENT_VERSION_URL || "https://displaycatalog.mp.microsoft.com/v7.0/products/9NBLGGH2JHXJ/?market=CA&languages=en-CA,en,neutral";
+const AUTH_BASE = normalizeHttpsUrl(process.env.MC_AUTH_BASE || "https://authorization.franchise.minecraft-services.net", ["minecraft-services.net"]);
+const DISCOVERY_BASE = normalizeHttpsUrl(process.env.MC_DISCOVERY_BASE || "https://gatherings-secondary.franchise.minecraft-services.net", ["minecraft-services.net"]);
+const CLIENT_VERSION_URL = normalizeHttpsUrl(process.env.MC_CLIENT_VERSION_URL || "https://displaycatalog.mp.microsoft.com/v7.0/products/9NBLGGH2JHXJ/?market=CA&languages=en-CA,en,neutral", ["mp.microsoft.com"]);
 const CLIENT_VERSION_OVERRIDE = (process.env.MC_CLIENT_VERSION || "").trim();
 
 const CLIENT_VERSION_TTL_MS = Number(process.env.MC_CLIENT_VERSION_TTL_MS || 12 * 60 * 60 * 1000);
@@ -127,10 +128,11 @@ async function fetchClientVersion() {
 }
 
 async function fetchMCToken(titleId) {
-    const cacheKey = `mc-token:${titleId}`;
+    const safeTitleId = assertPlayFabTitleId(titleId);
+    const cacheKey = `mc-token:${safeTitleId}`;
     return dataCache.getOrSetAsync(cacheKey, async () => {
         const os = process.env.OS || "iOS";
-        const session = await getSession(titleId, os);
+        const session = await getSession(safeTitleId, os);
         const version = await fetchClientVersion();
         const payload = {
             user: {
@@ -141,17 +143,17 @@ async function fetchMCToken(titleId) {
                 tokentype: MC_TOKEN_TYPE
             }, device: {
                 applicationType: MC_APPLICATION_TYPE,
-                memory: Math.floor(Math.random() * 10 ** 12) + 1,
+                memory: 8589934592,
                 id: randomUUID(),
                 gameVersion: version,
                 platform: MC_PLATFORM,
-                playFabTitleId: titleId,
+                playFabTitleId: safeTitleId,
                 storePlatform: MC_STORE_PLATFORM,
                 treatmentOverrides: null,
                 type: MC_PLATFORM
             }
         };
-        const r = await api.post(`${AUTH_BASE}/api/v1.0/session/start`, payload, {
+        const r = await api.post(joinUrl(AUTH_BASE, "/api/v1.0/session/start"), payload, {
             headers: {"accept-language": MC_LANGUAGE_CODE}
         });
         if (r.status < 200 || r.status >= 300) {
@@ -181,9 +183,10 @@ function buildDiscoveryPayload() {
 }
 
 async function fetchFeaturedServers(titleId) {
-    const token = await fetchMCToken(titleId);
+    const safeTitleId = assertPlayFabTitleId(titleId);
+    const token = await fetchMCToken(safeTitleId);
     const payload = buildDiscoveryPayload();
-    const r = await api.post(`${DISCOVERY_BASE}/api/v2.0/discovery/blob/client`, payload, {
+    const r = await api.post(joinUrl(DISCOVERY_BASE, "/api/v2.0/discovery/blob/client"), payload, {
         headers: {
             "accept-language": MC_LANGUAGE_CODE,
             "authorization": token,

@@ -23,7 +23,7 @@ function stableStringify(obj) {
 
 function stableHash(obj) {
     const s = typeof obj === "string" ? obj : stableStringify(obj);
-    return crypto.createHash("sha1").update(s).digest("hex");
+    return crypto.createHash("sha256").update(s).digest("hex");
 }
 
 module.exports = {stableHash};

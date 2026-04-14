@@ -21,6 +21,7 @@ class SseHub {
         this.clients = new Set();
         this.initialized = false;
         this.seq = 0;
+        this.maxClients = Math.max(1, parseInt(process.env.SSE_MAX_CLIENTS || "250", 10));
     }
 
     init(eventBus) {
@@ -32,6 +33,7 @@ class SseHub {
     }
 
     addClient(res, filters) {
+        if (this.clients.size >= this.maxClients) return false;
         const client = {res, filters, heartbeat: null};
         const envHeartbeatMs = Math.max(5000, parseInt(process.env.SSE_HEARTBEAT_MS || "15000", 10));
         const hbMs = filters && typeof filters.heartbeatMs === "number" && filters.heartbeatMs >= 5000 ? filters.heartbeatMs : envHeartbeatMs;
@@ -52,14 +54,17 @@ class SseHub {
                 this.removeClient(client);
             }
         }, hbMs);
+        if (typeof client.heartbeat.unref === "function") client.heartbeat.unref();
 
         this.clients.add(client);
         res.write("event: ready\ndata: {}\n\n");
         if (typeof res.flush === "function") res.flush();
+        return true;
     }
 
     removeClient(client) {
         if (client.heartbeat) clearInterval(client.heartbeat);
+        client.heartbeat = null;
         this.clients.delete(client);
     }
 

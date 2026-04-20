@@ -1,0 +1,85 @@
+## Describe the bug
+
+Provide a clear and concise description of the problem.
+
+## To Reproduce
+
+Steps to reproduce the behavior:
+
+1. Go to `...`
+2. Send request to `...`
+3. Use payload/query `...`
+4. Observe the error
+
+## Expected behavior
+
+Describe what you expected to happen.
+
+## Actual behavior
+
+Describe what actually happened.
+
+## Endpoint / Feature affected
+
+Specify the affected area, for example:
+
+- `/marketplace/search`
+- `/events/stream`
+- `/webhooks`
+- authentication / rate limiting / caching / SSE / OpenAPI validation
+
+## Request details
+
+If applicable, include:
+
+- HTTP method:
+- URL:
+- Query parameters:
+- Request body:
+- Headers used:
+- Auth type/token used:
+
+## Response details
+
+If applicable, include:
+
+- Status code:
+- Response body:
+- Error message:
+- Stack trace or log output:
+
+```text
+Paste logs or error output here
+```
+
+## Environment
+
+Please complete the following information:
+
+- Node.js version:
+- npm version:
+- OS:
+- Deployment type: local / Docker / server / other
+- `NODE_ENV`:
+- Relevant feature flags or env vars:
+
+## Additional context
+
+Add any other context about the problem here.
+
+## Possible impact
+
+Describe the impact briefly, for example:
+
+- endpoint unusable
+- wrong data returned
+- cache not invalidated
+- auth bypass risk
+- webhook delivery broken
+
+## Checklist
+
+- [ ] I checked existing issues for duplicates
+- [ ] I can reproduce this consistently
+- [ ] I included enough information to investigate
+- [ ] I removed secrets, tokens, and private data from logs/screenshots

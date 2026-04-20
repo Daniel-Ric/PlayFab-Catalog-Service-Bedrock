@@ -9,23 +9,46 @@ on:
       - "docs/**"
       - ".github/ISSUE_TEMPLATE/**"
       - ".github/PULL_REQUEST_TEMPLATE/**"
+  workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: write
 
 concurrency:
-  group: release-please-${{ github.ref }}
+  group: release-please-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
   release-please:
+    needs: validate
     runs-on: ubuntu-latest
 
     steps:
       - name: Release Please
         id: rp
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@c2a5a2bd6a758a0937f1ddb1e8950609867ed15c
         with:
           release-type: node
           package-name: PlayFab-Catalog-Service-Bedrock
@@ -46,12 +69,15 @@ jobs:
       - name: Checkout
         if: ${{ steps.rp.outputs.release_created == 'true' }}
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.rp.outputs.sha }}
 
       - name: Setup Node
         if: ${{ steps.rp.outputs.release_created == 'true' }}
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: "npm"
 
       - name: Install
@@ -60,8 +86,25 @@ jobs:
 
       - name: Test
         if: ${{ steps.rp.outputs.release_created == 'true' }}
-        run: npm test --if-present
+        run: npm test
 
       - name: Build
         if: ${{ steps.rp.outputs.release_created == 'true' }}
         run: npm run build --if-present
+
+      - name: Ensure release tag exists in repository
+        if: ${{ steps.rp.outputs.release_created == 'true' && steps.rp.outputs.tag_name != '' }}
+        env:
+          TAG_NAME: ${{ steps.rp.outputs.tag_name }}
+          TAG_SHA: ${{ steps.rp.outputs.sha }}
+        run: |
+          git fetch --tags --force
+          if git rev-parse "${TAG_NAME}" >/dev/null 2>&1; then
+            echo "Tag ${TAG_NAME} already exists."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${TAG_NAME}" "${TAG_SHA}" -m "Release ${TAG_NAME}"
+          git push origin "refs/tags/${TAG_NAME}"

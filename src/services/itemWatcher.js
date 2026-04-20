@@ -12,10 +12,12 @@
 //
 // -----------------------------------------------------------------------------
 
+const logger = require("../config/logger");
 const {sendPlayFabRequest, isValidItem, getItemsByIds} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
 const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
+const SEARCH_ITEMS_MAX_COUNT = 50;
 
 function getTitleId() {
     const alias = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || "").trim();
@@ -71,7 +73,7 @@ function hashItemCore(it) {
 }
 
 async function fetchRecentItems(titleId, os, itemsPerRequest, maxItems) {
-    const field = "LastModifiedDate";
+    const field = "lastModifiedDate";
     const orderBy = `${field} desc`;
     const filter = "";
 
@@ -96,9 +98,9 @@ async function fetchRecentItems(titleId, os, itemsPerRequest, maxItems) {
 
 function normalizeFieldSpec(field) {
     const f = String(field || "");
-    if (f === "CreationDate") return {primary: "CreationDate", fallback: "creationDate"};
-    if (f === "StartDate") return {primary: "StartDate", fallback: "startDate"};
-    if (f === "LastModifiedDate") return {primary: "LastModifiedDate", fallback: "lastModifiedDate"};
+    if (f === "CreationDate" || f === "creationDate") return {primary: "creationDate", fallback: "CreationDate"};
+    if (f === "StartDate" || f === "startDate") return {primary: "startDate", fallback: "StartDate"};
+    if (f === "LastModifiedDate" || f === "lastModifiedDate") return {primary: "lastModifiedDate", fallback: "LastModifiedDate"};
     return {primary: f, fallback: f.toLowerCase()};
 }
 
@@ -113,11 +115,42 @@ function itemFromSearchHit(hit) {
 }
 
 async function searchItemsPage(titleId, os, filter, orderBy, continuationToken, count) {
+    const safeCount = Math.max(1, Math.min(SEARCH_ITEMS_MAX_COUNT, parseInt(count, 10) || SEARCH_ITEMS_MAX_COUNT));
     const payload = {
-        Filter: filter, OrderBy: orderBy, ContinuationToken: continuationToken, Count: count
+        Filter: filter, OrderBy: orderBy, ContinuationToken: continuationToken, Count: safeCount
     };
-    const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, os);
-    return data || {};
+
+    try {
+        const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, os);
+        return data || {};
+    } catch (err) {
+        const offset = parseFallbackOffset(continuationToken);
+        logger.warn(`[ItemWatcher] Catalog/SearchItems failed, falling back to Catalog/Search: ${err.message}`);
+        const data = await sendPlayFabRequest(titleId, "Catalog/Search", {
+            Filter: filter,
+            OrderBy: orderBy,
+            Top: safeCount,
+            Skip: offset,
+            Expand: "Images"
+        }, "X-EntityToken", 3, os);
+
+        const items = data?.Items || data?.items || [];
+        return {
+            Items: items,
+            ContinuationToken: items.length >= safeCount ? makeFallbackOffset(offset + items.length) : null
+        };
+    }
+}
+
+function parseFallbackOffset(token) {
+    const raw = String(token || "");
+    if (!raw.startsWith("offset:")) return 0;
+    const n = parseInt(raw.slice("offset:".length), 10);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+function makeFallbackOffset(offset) {
+    return `offset:${Math.max(0, offset)}`;
 }
 
 async function getItemsCompat(titleId, os, ids) {
@@ -195,6 +228,37 @@ async function requestChangedItems(titleId, os, instantSinceIso, itemsPerRequest
     return Array.from(itemMap.values());
 }
 
+function classifyItemChange(it, prev, sinceTs) {
+    const creationTs = tsOf(creationDateOf(it));
+    const startTs = tsOf(startDateOf(it));
+    const modTs = tsOf(lastModifiedDateOf(it));
+    const nextHash = hashItemCore(it);
+
+    const isFirstSeen = !prev;
+    const hasChanged = !prev || prev.hash !== nextHash;
+    const looksRecentlyCreated = (startTs && startTs >= sinceTs) || (creationTs && creationTs >= sinceTs);
+    const looksRecentlyUpdated = modTs && modTs >= sinceTs;
+
+    if (isFirstSeen) {
+        if (looksRecentlyCreated) {
+            return {kind: "created", nextHash};
+        }
+        if (looksRecentlyUpdated) {
+            return {kind: "updated", nextHash};
+        }
+        if (hasChanged) {
+            return {kind: "created", nextHash};
+        }
+        return {kind: null, nextHash};
+    }
+
+    if (hasChanged && looksRecentlyUpdated) {
+        return {kind: "updated", nextHash};
+    }
+
+    return {kind: null, nextHash};
+}
+
 class ItemWatcher {
     constructor() {
         this.running = false;
@@ -212,13 +276,15 @@ class ItemWatcher {
         const intervalMs = Math.max(10000, parseInt(process.env.ITEM_WATCH_INTERVAL_MS || "30000", 10));
         const itemsPerRequest = Math.max(10, parseInt(process.env.ITEM_WATCH_ITEMS_PER_REQUEST || "200", 10));
         const maxItems = Math.max(itemsPerRequest, parseInt(process.env.ITEM_WATCH_MAX_ITEMS || "10000", 10));
+        const bootstrapItemsPerRequest = Math.max(10, parseInt(process.env.ITEM_WATCH_BOOTSTRAP_ITEMS_PER_REQUEST || String(itemsPerRequest), 10));
+        const bootstrapMaxItems = Math.max(bootstrapItemsPerRequest, parseInt(process.env.ITEM_WATCH_BOOTSTRAP_MAX_ITEMS || String(maxItems), 10));
         const overlapMs = Math.max(0, parseInt(process.env.ITEM_WATCH_OVERLAP_MS || "60000", 10));
 
         const run = async () => {
             const titleId = getTitleId();
 
             if (!this.bootstrapped) {
-                const recent = await fetchRecentItems(titleId, os, itemsPerRequest, maxItems);
+                const recent = await fetchRecentItems(titleId, os, bootstrapItemsPerRequest, bootstrapMaxItems);
                 const bootstrapMap = new Map();
                 for (const it of recent) {
                     const id = it.Id || it.id;
@@ -252,22 +318,12 @@ class ItemWatcher {
                 const id = it.Id || it.id;
                 if (!id) continue;
 
-                const creationTs = tsOf(creationDateOf(it));
-                const startTs = tsOf(startDateOf(it));
-                const modTs = tsOf(lastModifiedDateOf(it));
-                const nextHash = hashItemCore(it);
-
                 const prev = this.state.get(id) || null;
-                const isFirstSeen = !prev;
-                const looksRecentlyCreated = (startTs && startTs >= sinceTs) || (creationTs && creationTs >= sinceTs);
-                const hasChanged = !prev || prev.hash !== nextHash;
-                const looksRecentlyUpdated = modTs && modTs >= sinceTs;
-                const isCreated = isFirstSeen && looksRecentlyCreated;
-                const isUpdated = !isCreated && hasChanged && looksRecentlyUpdated;
+                const {kind, nextHash} = classifyItemChange(it, prev, sinceTs);
 
-                if (isCreated) {
+                if (kind === "created") {
                     created.push(it);
-                } else if (isUpdated) {
+                } else if (kind === "updated") {
                     updated.push({
                         id, before: prev ? prev.raw : null, after: it
                     });
@@ -297,9 +353,11 @@ class ItemWatcher {
             this.lastRunTs = Date.now();
         };
 
-        run().catch(() => {
+        run().catch(err => {
+            logger.error(`[ItemWatcher] initial run failed: ${err.stack || err.message}`);
         });
-        this.timer = setInterval(() => run().catch(() => {
+        this.timer = setInterval(() => run().catch(err => {
+            logger.error(`[ItemWatcher] scheduled run failed: ${err.stack || err.message}`);
         }), intervalMs);
     }
 
@@ -312,4 +370,11 @@ class ItemWatcher {
 }
 
 const itemWatcher = new ItemWatcher();
-module.exports = {itemWatcher};
+module.exports = {
+    itemWatcher,
+    _internals: {
+        classifyItemChange,
+        parseFallbackOffset,
+        makeFallbackOffset
+    }
+};

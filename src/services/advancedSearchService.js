@@ -214,6 +214,60 @@ function buildContentKindFilter(values) {
     return orJoin(clauses.filter(Boolean));
 }
 
+function buildFilter(_alias, body = {}) {
+    const filters = body && typeof body === "object" && !Array.isArray(body) && body.filters
+        && typeof body.filters === "object" && !Array.isArray(body.filters)
+        ? body.filters
+        : {};
+
+    if (typeof filters.raw === "string" && filters.raw.trim()) {
+        const e = new Error("Raw filters are not supported.");
+        e.status = 400;
+        throw e;
+    }
+
+    const contentKinds = normalizeArray(filters.contentKinds);
+    if (!contentKinds.length) {
+        return "";
+    }
+
+    const normalizedKinds = contentKinds.map(value => {
+        const normalized = normalizeKindName(value);
+        const kind = CONTENT_KIND_ALIASES[normalized];
+        if (!kind) {
+            const e = new Error("Unknown contentKinds.");
+            e.status = 400;
+            throw e;
+        }
+        return kind;
+    });
+
+    const nonPersonaKinds = normalizedKinds.filter(kind => kind !== "persona");
+    if (normalizedKinds.length === 1 && normalizedKinds[0] === "persona") {
+        return "not (tags/any(t:t eq 'worldtemplate') or tags/any(t:t eq 'skinpack'))";
+    }
+
+    const kindTagMap = {
+        skinpack: "skinpack",
+        world: "worldtemplate",
+        addon: "addon",
+        resourcepack: "resourcepack",
+        mashup: "mashup"
+    };
+
+    const clauses = nonPersonaKinds.map(kind => {
+        const tag = kindTagMap[kind];
+        if (!tag) {
+            const e = new Error("Unknown contentKinds.");
+            e.status = 400;
+            throw e;
+        }
+        return `tags/any(t:t eq '${esc(tag)}')`;
+    });
+
+    return orJoin(clauses);
+}
+
 function buildSearchText(query) {
     const text = typeof query?.text === "string" ? query.text.trim() : "";
     return text.slice(0, 200);
@@ -563,6 +617,7 @@ exports.advancedSearch = async (alias, body, {page, pageSize}) => {
 };
 
 exports._internals = {
+    buildFilter,
     buildPlayFabFilter,
     parseSort,
     buildSearchText,

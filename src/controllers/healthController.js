@@ -241,14 +241,6 @@ function getCacheInfo() {
     };
 }
 
-function getSecretsInfo() {
-    return {
-        jwtSecretLength: process.env.JWT_SECRET ? process.env.JWT_SECRET.length : 0,
-        adminUserPresent: !!process.env.ADMIN_USER,
-        adminPassPresent: !!process.env.ADMIN_PASS
-    };
-}
-
 function getRoutesInfo() {
     return {
         auth: {
@@ -316,9 +308,9 @@ function getConfigInfo() {
             validateResponses: readBoolEnv("VALIDATE_RESPONSES"),
             enableDocs: readBoolEnv("ENABLE_DOCS"),
             corsEnabled: corsList.length > 0,
-            corsOrigins: corsList,
             corsOriginCount: corsList.length,
-            jwtSecretConfigured: !!process.env.JWT_SECRET
+            jwtSecretConfigured: !!process.env.JWT_SECRET,
+            adminCredentialsConfigured: !!process.env.ADMIN_USER && !!process.env.ADMIN_PASS
         }, paginationDefaults: {
             pageDefault: 1, pageSizeDefault: 24, pageSizeMax: 100, limitMax: 1000
         }, rateLimits: {
@@ -433,7 +425,6 @@ exports.getHealth = async (_req, res, next) => {
 
         const runtime = getRuntimeInfo();
         const cacheInfo = getCacheInfo();
-        const secretsInfo = getSecretsInfo();
         const routesInfo = getRoutesInfo();
         const flags = buildStatusFlags({upstream, session: sessionInfo});
 
@@ -457,7 +448,6 @@ exports.getHealth = async (_req, res, next) => {
             cache: cacheInfo,
             runtime,
             config: configInfo,
-            secretsMeta: secretsInfo,
             routes: routesInfo
         };
 

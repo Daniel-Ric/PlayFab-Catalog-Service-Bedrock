@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.3 (2026-04-21)
+
+### Summary
+
+- PlayFab - Add changelog generation and auto-update logic (7188f60)
+- Version bump: patch
+- Files changed: 2
+- Line changes: +86 / -0
+- Scope: This release mainly updates CI and workflow automation.
 ## 1.0.0 (2026-03-02)
 
 
@@ -14,3 +23,4 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+

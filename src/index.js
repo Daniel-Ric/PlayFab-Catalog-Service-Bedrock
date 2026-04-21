@@ -294,9 +294,9 @@ app.use("/session", enforceAuth, requireRole("admin"), adminLimiter, sessionRout
 app.use("/titles", enforceAuth, adminLimiter, titlesRoutes);
 app.use("/creators", enforceAuth, adminLimiter, creatorsRoutes);
 
-app.use("/marketplace/all", enforceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpAll);
-app.use("/marketplace/latest", enforceAuth, marketplaceLimiter, cacheHeaders(30, 180), mpLatest);
-app.use("/marketplace/search", enforceAuth, marketplaceLimiter, cacheHeaders(30, 180), mpSearch);
+app.use("/marketplace/all", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpAll);
+app.use("/marketplace/latest", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(30, 180), mpLatest);
+app.use("/marketplace/search", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(30, 180), mpSearch);
 app.use("/marketplace/popular", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(45, 240), mpPopular);
 app.use("/marketplace/tag", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpTag);
 app.use("/marketplace/free", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpFree);

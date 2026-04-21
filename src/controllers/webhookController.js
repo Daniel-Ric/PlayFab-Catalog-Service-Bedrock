@@ -15,6 +15,7 @@
 const axios = require("axios");
 const crypto = require("crypto");
 const service = require("../services/webhookService");
+const {assertSafeWebhookUrl} = require("../utils/webhookTarget");
 
 const timeoutMs = Math.max(1000, parseInt(process.env.WEBHOOK_TIMEOUT_MS || "6000", 10));
 
@@ -45,18 +46,23 @@ exports.getOne = (req, res, next) => {
     }
 };
 
-exports.create = (req, res, next) => {
+exports.create = async (req, res, next) => {
     try {
-        const w = service.createWebhook(req.body);
+        const url = await assertSafeWebhookUrl(req.body && req.body.url);
+        const w = service.createWebhook({...req.body, url});
         res.status(201).json(w);
     } catch (e) {
         next(e);
     }
 };
 
-exports.update = (req, res, next) => {
+exports.update = async (req, res, next) => {
     try {
-        const w = service.updateWebhook(req.params.id, req.body);
+        const nextPatch = {...req.body};
+        if (typeof nextPatch.url === "string" && nextPatch.url.trim()) {
+            nextPatch.url = await assertSafeWebhookUrl(nextPatch.url);
+        }
+        const w = service.updateWebhook(req.params.id, nextPatch);
         res.json(w);
     } catch (e) {
         next(e);
@@ -77,6 +83,7 @@ exports.test = async (req, res, next) => {
     try {
         const w = service.getWebhook(req.params.id);
         if (!w) return res.status(404).json({error: "Webhook not found"});
+        const safeUrl = await assertSafeWebhookUrl(w.url);
 
         const deliveryId = crypto.randomBytes(16).toString("hex");
         const eventName = "webhook.test";
@@ -112,7 +119,7 @@ exports.test = async (req, res, next) => {
             headers["X-View-Signature"] = "sha256=" + sig;
         }
 
-        const response = await axios.post(w.url, json, {
+        const response = await axios.post(safeUrl, json, {
             headers,
             timeout: timeoutMs,
             maxBodyLength: 2 * 1024 * 1024,

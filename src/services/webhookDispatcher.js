@@ -17,6 +17,7 @@ const crypto = require("crypto");
 const logger = require("../config/logger");
 const {findMatchingWebhooks} = require("./webhookService");
 const {EVENT_NAMES} = require("../config/eventNames");
+const {assertSafeWebhookUrl} = require("../utils/webhookTarget");
 
 let initialized = false;
 
@@ -109,6 +110,7 @@ function scheduleRetry(job, retryAfterMs) {
 }
 
 async function deliver(job) {
+    const safeUrl = await assertSafeWebhookUrl(job.webhook.url);
     const payload = isDiscordWebhook(job.webhook) ? buildDiscordPayload(job) : job.body;
     const json = JSON.stringify(payload);
 
@@ -125,7 +127,7 @@ async function deliver(job) {
     }
 
     try {
-        const res = await axios.post(job.webhook.url, json, {
+        const res = await axios.post(safeUrl, json, {
             headers,
             timeout: timeoutMs,
             maxBodyLength: 2 * 1024 * 1024,
@@ -136,11 +138,11 @@ async function deliver(job) {
         const status = res.status;
 
         if (status >= 200 && status < 300) {
-            logger.debug(`[Webhook] delivery ok id=${job.deliveryId} url=${job.webhook.url} status=${status}`);
+            logger.debug(`[Webhook] delivery ok id=${job.deliveryId} status=${status}`);
             return;
         }
 
-        logger.debug(`[Webhook] delivery status=${status} id=${job.deliveryId} url=${job.webhook.url}`);
+        logger.debug(`[Webhook] delivery status=${status} id=${job.deliveryId}`);
 
         if (job.attempt >= maxRetries) return;
 
@@ -148,7 +150,7 @@ async function deliver(job) {
             scheduleRetry(job, parseRetryAfterMs(res.headers));
         }
     } catch {
-        logger.debug(`[Webhook] delivery error id=${job.deliveryId} url=${job.webhook.url} attempt=${job.attempt}`);
+        logger.debug(`[Webhook] delivery error id=${job.deliveryId} attempt=${job.attempt}`);
         if (job.attempt >= maxRetries) return;
         scheduleRetry(job, 0);
     }

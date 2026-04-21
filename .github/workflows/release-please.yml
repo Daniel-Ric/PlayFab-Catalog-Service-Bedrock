@@ -1,23 +1,17 @@
-name: Release Please
+name: Automated Version Tags
 
 on:
   push:
     branches:
       - main
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - ".github/ISSUE_TEMPLATE/**"
-      - ".github/PULL_REQUEST_TEMPLATE/**"
   workflow_dispatch:
 
 permissions:
   contents: write
-  pull-requests: write
 
 concurrency:
-  group: release-please-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: automated-version-tags-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   validate:
@@ -41,70 +35,25 @@ jobs:
       - name: Test
         run: npm test
 
-  release-please:
+  release:
     needs: validate
     runs-on: ubuntu-latest
 
     steps:
-      - name: Release Please
-        id: rp
-        uses: googleapis/release-please-action@c2a5a2bd6a758a0937f1ddb1e8950609867ed15c
-        with:
-          release-type: node
-          package-name: PlayFab-Catalog-Service-Bedrock
-          target-branch: main
-          changelog-types: |
-            [
-              {"type":"feat","section":"Features","hidden":false},
-              {"type":"fix","section":"Fixes","hidden":false},
-              {"type":"perf","section":"Performance","hidden":false},
-              {"type":"refactor","section":"Refactors","hidden":false},
-              {"type":"docs","section":"Documentation","hidden":false},
-              {"type":"chore","section":"Chores","hidden":true},
-              {"type":"test","section":"Tests","hidden":true},
-              {"type":"ci","section":"CI","hidden":true},
-              {"type":"build","section":"Build","hidden":true}
-            ]
-
       - name: Checkout
-        if: ${{ steps.rp.outputs.release_created == 'true' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ steps.rp.outputs.sha }}
 
       - name: Setup Node
-        if: ${{ steps.rp.outputs.release_created == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
 
-      - name: Install
-        if: ${{ steps.rp.outputs.release_created == 'true' }}
-        run: npm ci
-
-      - name: Test
-        if: ${{ steps.rp.outputs.release_created == 'true' }}
-        run: npm test
-
-      - name: Build
-        if: ${{ steps.rp.outputs.release_created == 'true' }}
-        run: npm run build --if-present
-
-      - name: Ensure release tag exists in repository
-        if: ${{ steps.rp.outputs.release_created == 'true' && steps.rp.outputs.tag_name != '' }}
+      - name: Create version tags and releases
         env:
-          TAG_NAME: ${{ steps.rp.outputs.tag_name }}
-          TAG_SHA: ${{ steps.rp.outputs.sha }}
-        run: |
-          git fetch --tags --force
-          if git rev-parse "${TAG_NAME}" >/dev/null 2>&1; then
-            echo "Tag ${TAG_NAME} already exists."
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "${TAG_NAME}" "${TAG_SHA}" -m "Release ${TAG_NAME}"
-          git push origin "refs/tags/${TAG_NAME}"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: node .github/scripts/create-version-release.js

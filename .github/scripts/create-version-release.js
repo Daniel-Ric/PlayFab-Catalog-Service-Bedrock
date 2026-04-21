@@ -2,6 +2,9 @@
 
 const fs = require("fs");
 const { execFileSync } = require("child_process");
+const path = require("path");
+
+const CHANGELOG_PATH = path.resolve(process.cwd(), "CHANGELOG.md");
 
 function runGit(args, options = {}) {
   return execFileSync("git", args, {
@@ -190,6 +193,76 @@ function buildReleaseBody({ sha, subject, stats, bump }) {
   ].join("\n");
 }
 
+function getTodayIsoDate() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function buildChangelogEntry({ tagName, sha, subject, stats, bump }) {
+  const versionLabel = tagName.replace(/^v/, "");
+  const shortSha = sha.slice(0, 7);
+  const areas = summarizeAreas(stats.files);
+  const scopeLine = areas.length
+    ? `This release mainly updates ${areas.join(", ")}.`
+    : "This release updates the repository state.";
+
+  return [
+    `## ${versionLabel} (${getTodayIsoDate()})`,
+    "",
+    "### Summary",
+    "",
+    `- ${subject || "Repository update"} (${shortSha})`,
+    `- Version bump: ${bump}`,
+    `- Files changed: ${stats.filesChanged}`,
+    `- Line changes: +${stats.additions} / -${stats.deletions}`,
+    `- Scope: ${scopeLine}`,
+    "",
+  ].join("\n");
+}
+
+function updateChangelog(entries) {
+  if (!entries.length) {
+    return false;
+  }
+
+  const existing = fs.existsSync(CHANGELOG_PATH)
+    ? fs.readFileSync(CHANGELOG_PATH, "utf8")
+    : "# Changelog\n\n";
+
+  const normalizedExisting = existing.trimStart().startsWith("# Changelog")
+    ? existing
+    : `# Changelog\n\n${existing}`;
+
+  const withoutHeader = normalizedExisting.replace(/^# Changelog\s*/u, "").replace(/^\s+/, "");
+  const nextContent = `# Changelog\n\n${entries.join("\n")}${withoutHeader ? `${withoutHeader.trimStart()}\n` : ""}`;
+
+  if (nextContent === existing) {
+    return false;
+  }
+
+  fs.writeFileSync(CHANGELOG_PATH, nextContent, "utf8");
+  return true;
+}
+
+function commitAndPushChangelog(branchName) {
+  if (!branchName) {
+    console.log("No branch name provided. Skipping changelog commit.");
+    return;
+  }
+
+  runGit(["config", "user.name", "github-actions[bot]"]);
+  runGit(["config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"]);
+  runGit(["add", "CHANGELOG.md"]);
+
+  const staged = tryGit(["diff", "--cached", "--name-only"]);
+  if (!staged) {
+    console.log("No changelog changes staged.");
+    return;
+  }
+
+  runGit(["commit", "-m", "chore(release): update changelog [skip release]"]);
+  runGit(["push", "origin", `HEAD:${branchName}`]);
+}
+
 async function githubRequest(path, method, body) {
   const response = await fetch(`https://api.github.com${path}`, {
     method,
@@ -238,6 +311,7 @@ async function createRelease(repo, tagName, targetCommitish, body, subject) {
 async function main() {
   const eventPath = process.env.GITHUB_EVENT_PATH;
   const repository = process.env.GITHUB_REPOSITORY;
+  const branchName = process.env.GITHUB_REF_NAME || "";
 
   if (!process.env.GITHUB_TOKEN) {
     throw new Error("GITHUB_TOKEN is required.");
@@ -255,6 +329,7 @@ async function main() {
 
   let { version: currentVersion } = getLatestVersionTag();
   const commits = getCommitsToRelease(before, after);
+  const changelogEntries = [];
 
   if (commits.length === 0) {
     console.log("No new untagged commits found.");
@@ -271,8 +346,16 @@ async function main() {
 
     const tagName = formatVersion(currentVersion);
     const body = buildReleaseBody({ sha, subject, stats, bump });
+    changelogEntries.push(buildChangelogEntry({ tagName, sha, subject, stats, bump }));
 
     await createRelease(repository, tagName, sha, body, subject);
+  }
+
+  const changelogUpdated = updateChangelog(changelogEntries);
+  if (changelogUpdated) {
+    commitAndPushChangelog(branchName);
+  } else {
+    console.log("CHANGELOG.md already up to date.");
   }
 }
 

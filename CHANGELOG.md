@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.0.0 (2026-04-23)
+
+### Summary
+
+- PlayFab - Add project disclaimers to all code files that were missing them (5d7c478)
+- Version bump: major
+- Files changed: 52
+- Line changes: +683 / -0
+- Scope: This release mainly updates application logic, test coverage.
+
+## 2.0.1 (2026-04-23)
+
+### Summary
+
+- Merge remote-tracking branch 'origin/main' (87ddd01)
+- Version bump: patch
+- Files changed: 1
+- Line changes: +10 / -0
+- Scope: This release mainly updates repository files.
 ## 1.1.0 (2026-04-23)
 
 ### Summary
@@ -32,5 +51,6 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 

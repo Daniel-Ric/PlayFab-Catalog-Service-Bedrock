@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 (2026-04-23)
+
+### Summary
+
+- PlayFab - Add tests for webhook validation and itemWatcher (8a3e7d3)
+- Version bump: minor
+- Files changed: 2
+- Line changes: +237 / -0
+- Scope: This release mainly updates test coverage.
 ## 1.0.3 (2026-04-21)
 
 ### Summary
@@ -23,4 +32,5 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 

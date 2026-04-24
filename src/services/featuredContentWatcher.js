@@ -16,28 +16,207 @@ const logger = require("../config/logger");
 const {resolveTitle} = require("../utils/titles");
 const {fetchFeaturedPersona} = require("./featuredPersonaService");
 
-function collectFeaturedItems(payload) {
-    const out = [];
+function featuredItemId(item) {
+    if (!item || typeof item !== "object") return null;
+    return item.id || item.Id || item.itemId || item.ItemId || null;
+}
+
+function normalizeId(id) {
+    if (id === undefined || id === null || id === "") return null;
+    return String(id);
+}
+
+function firstTextValue(components) {
+    if (!Array.isArray(components)) return null;
+    for (const component of components) {
+        const value = component?.text?.value;
+        if (value) return value;
+    }
+    return null;
+}
+
+function summarizePage(page) {
+    if (!page || typeof page !== "object") return null;
+    return {
+        id: page.id || null,
+        pageId: page.pageId || null,
+        pageName: page.pageName || null
+    };
+}
+
+function summarizeComponent(component, componentIndex) {
+    return {
+        index: componentIndex,
+        type: component?.type || null,
+        controlType: component?.$type || null,
+        totalItems: typeof component?.totalItems === "number" ? component.totalItems : null,
+        linksTo: component?.linksTo || null,
+        linksToInfo: component?.linksToInfo || null,
+        customStoreRowConfiguration: component?.customStoreRowConfiguration || null
+    };
+}
+
+function collectFeaturedItemEntries(payload) {
+    const page = payload?.result && typeof payload.result === "object" ? payload.result : payload;
+    const rows = Array.isArray(page?.rows) ? page.rows : [];
+    const entries = [];
+    const pageInfo = summarizePage(page);
+
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+        const row = rows[rowIndex];
+        const components = Array.isArray(row?.components) ? row.components : [];
+        const rowInfo = {
+            index: rowIndex,
+            controlId: row?.controlId || null,
+            telemetryId: row?.telemetryId || null,
+            header: firstTextValue(components)
+        };
+
+        for (let componentIndex = 0; componentIndex < components.length; componentIndex++) {
+            const component = components[componentIndex];
+            if (!Array.isArray(component?.items)) continue;
+
+            const componentInfo = summarizeComponent(component, componentIndex);
+            for (let itemIndex = 0; itemIndex < component.items.length; itemIndex++) {
+                const item = component.items[itemIndex];
+                const id = normalizeId(featuredItemId(item));
+                if (!id) continue;
+                entries.push({
+                    id,
+                    item,
+                    itemIndex,
+                    page: pageInfo,
+                    row: rowInfo,
+                    component: componentInfo
+                });
+            }
+        }
+    }
+
+    if (entries.length) return entries;
+
+    return collectFeaturedItemEntriesFallback(payload);
+}
+
+function collectFeaturedItemEntriesFallback(payload) {
+    const entries = [];
 
     const visit = node => {
         if (!node || typeof node !== "object") return;
-
         if (Array.isArray(node)) {
             for (const entry of node) visit(entry);
             return;
         }
-
         if (Array.isArray(node.items)) {
-            for (const item of node.items) {
-                if (item && typeof item === "object" && item.id) out.push(item);
+            for (let itemIndex = 0; itemIndex < node.items.length; itemIndex++) {
+                const item = node.items[itemIndex];
+                const id = normalizeId(featuredItemId(item));
+                if (!id) continue;
+                entries.push({
+                    id,
+                    item,
+                    itemIndex,
+                    page: null,
+                    row: null,
+                    component: null
+                });
             }
         }
-
         for (const value of Object.values(node)) visit(value);
     };
 
     visit(payload);
-    return out;
+    return entries;
+}
+
+function collectFeaturedItems(payload) {
+    return collectFeaturedItemEntries(payload).map(entry => entry.item);
+}
+
+function uniqueIdsFromEntries(entries) {
+    const seen = new Set();
+    const ids = [];
+    for (const entry of entries || []) {
+        const id = normalizeId(entry?.id || featuredItemId(entry?.item || entry));
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        ids.push(id);
+    }
+    return ids;
+}
+
+function uniqueIdsFromItems(items) {
+    return uniqueIdsFromEntries((items || []).map(item => ({id: featuredItemId(item), item})));
+}
+
+function entryMapById(entries) {
+    const map = new Map();
+    for (const entry of entries || []) {
+        const id = normalizeId(entry?.id || featuredItemId(entry?.item));
+        if (id && !map.has(id)) map.set(id, entry);
+    }
+    return map;
+}
+
+function entriesForIds(ids, entryMap) {
+    return (ids || []).map(id => entryMap.get(normalizeId(id))).filter(Boolean);
+}
+
+function detailsFromEntries(entries) {
+    return (entries || []).map(entry => ({
+        ...(entry.item || {}),
+        featuredContext: {
+            page: entry.page || null,
+            row: entry.row || null,
+            component: entry.component || null,
+            itemIndex: typeof entry.itemIndex === "number" ? entry.itemIndex : null
+        }
+    }));
+}
+
+function buildFeaturedContentChangePayload({
+                                               titleId,
+                                               previousEntries,
+                                               currentEntries,
+                                               previousItems,
+                                               currentItems,
+                                               content,
+                                               ts = Date.now()
+                                           }) {
+    const prevEntries = previousEntries || (previousItems || []).map(item => ({id: featuredItemId(item), item}));
+    const currEntries = currentEntries || (currentItems || []).map(item => ({id: featuredItemId(item), item}));
+    const previousItemIds = uniqueIdsFromEntries(prevEntries);
+    const currentItemIds = uniqueIdsFromEntries(currEntries);
+    const previousSet = new Set(previousItemIds);
+    const currentSet = new Set(currentItemIds);
+
+    const addedItemIds = currentItemIds.filter(id => !previousSet.has(id));
+    const removedItemIds = previousItemIds.filter(id => !currentSet.has(id));
+
+    if (!addedItemIds.length && !removedItemIds.length) return null;
+
+    const previousMap = entryMapById(prevEntries);
+    const currentMap = entryMapById(currEntries);
+    const addedEntries = entriesForIds(addedItemIds, currentMap);
+    const removedEntries = entriesForIds(removedItemIds, previousMap);
+    const currentEntriesOrdered = entriesForIds(currentItemIds, currentMap);
+    const previousEntriesOrdered = entriesForIds(previousItemIds, previousMap);
+
+    return {
+        ts,
+        titleId,
+        addedItemIds,
+        removedItemIds,
+        addedItems: addedEntries.map(entry => entry.item),
+        removedItems: removedEntries.map(entry => entry.item),
+        addedItemDetails: detailsFromEntries(addedEntries),
+        removedItemDetails: detailsFromEntries(removedEntries),
+        currentItemIds,
+        previousItemIds,
+        currentItemDetails: detailsFromEntries(currentEntriesOrdered),
+        previousItemDetails: detailsFromEntries(previousEntriesOrdered),
+        content
+    };
 }
 
 function getTitleId() {
@@ -56,6 +235,7 @@ class FeaturedContentWatcher {
         this.running = false;
         this.timer = null;
         this.lastItemIds = null;
+        this.lastEntries = [];
     }
 
     start(eventBus) {
@@ -68,27 +248,39 @@ class FeaturedContentWatcher {
             try {
                 const titleId = getTitleId();
                 const payload = await fetchFeaturedPersona(titleId);
-                const items = collectFeaturedItems(payload);
-                const itemIds = new Set(items.map(item => String(item.id)));
+                const entries = collectFeaturedItemEntries(payload);
+                const currentItemIds = uniqueIdsFromEntries(entries);
+                const currentItemIdsSet = new Set(currentItemIds);
 
                 if (!this.lastItemIds) {
-                    this.lastItemIds = itemIds;
+                    this.lastItemIds = currentItemIdsSet;
+                    this.lastEntries = entries;
                     return;
                 }
 
-                const newItems = items.filter(item => !this.lastItemIds.has(String(item.id)));
-                if (newItems.length) {
-                    this.lastItemIds = itemIds;
-                    eventBus.emit("featured.content.updated", {
-                        ts: Date.now(),
-                        addedItemIds: newItems.map(item => item.id),
-                        addedItems: newItems,
+                const previousItemIds = Array.from(this.lastItemIds);
+                const addedItemIds = currentItemIds.filter(id => !this.lastItemIds.has(id));
+                const removedItemIds = previousItemIds.filter(id => !currentItemIdsSet.has(id));
+
+                if (addedItemIds.length || removedItemIds.length) {
+                    const eventPayload = buildFeaturedContentChangePayload({
+                        titleId,
+                        previousEntries: this.lastEntries,
+                        currentEntries: entries,
                         content: payload
                     });
+
+                    this.lastItemIds = currentItemIdsSet;
+                    this.lastEntries = entries;
+
+                    if (eventPayload) {
+                        eventBus.emit("featured.content.updated", eventPayload);
+                    }
                     return;
                 }
 
-                this.lastItemIds = itemIds;
+                this.lastItemIds = currentItemIdsSet;
+                this.lastEntries = entries;
             } catch (e) {
                 logger.debug(`[FeaturedContentWatcher] error ${e.message || "err"}`);
             }
@@ -107,4 +299,13 @@ class FeaturedContentWatcher {
 }
 
 const featuredContentWatcher = new FeaturedContentWatcher();
-module.exports = {featuredContentWatcher};
+module.exports = {
+    featuredContentWatcher,
+    _internals: {
+        collectFeaturedItemEntries,
+        collectFeaturedItems,
+        uniqueIdsFromItems,
+        uniqueIdsFromEntries,
+        buildFeaturedContentChangePayload
+    }
+};

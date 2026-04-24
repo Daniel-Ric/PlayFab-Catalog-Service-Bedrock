@@ -14,7 +14,13 @@
 
 function creatorNameOf(item) {
     if (!item || typeof item !== "object") return null;
-    return item.creatorName || item.creator || item.DisplayProperties?.creatorName || null;
+    return item.creatorName
+        || item.creator
+        || item.DisplayProperties?.creatorName
+        || item.rawItem?.creatorName
+        || item.rawItem?.creator
+        || item.rawItem?.DisplayProperties?.creatorName
+        || null;
 }
 
 function getCreatorNamesFromPayload(eventName, payload) {
@@ -40,6 +46,25 @@ function getCreatorNamesFromPayload(eventName, payload) {
         } else if (ev === "item.created" || ev === "item.snapshot") {
             for (const it of payload.items) {
                 const creator = creatorNameOf(it);
+                if (creator) names.add(String(creator).toLowerCase());
+            }
+        }
+    }
+
+    if (ev === "featured.content.updated") {
+        const lists = [
+            payload.addedItemDetails,
+            payload.removedItemDetails,
+            payload.currentItemDetails,
+            payload.previousItemDetails,
+            payload.addedItems,
+            payload.removedItems
+        ];
+
+        for (const list of lists) {
+            if (!Array.isArray(list)) continue;
+            for (const item of list) {
+                const creator = creatorNameOf(item);
                 if (creator) names.add(String(creator).toLowerCase());
             }
         }

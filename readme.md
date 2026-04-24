@@ -160,10 +160,12 @@ NODE_ENV=production LOG_LEVEL=info node src/index.js
 | `ENABLE_ITEM_WATCHER`     | `true`  | Enable item watcher                         |
 | `ENABLE_PRICE_WATCHER`    | `true`  | Enable price watcher                        |
 | `ENABLE_TRENDING_WATCHER` | `true`  | Enable trending watcher                     |
+| `ENABLE_FEATURED_CONTENT_WATCHER` | `true` | Enable featured content watcher      |
 | `SSE_HEARTBEAT_MS`        | `15000` | SSE heartbeat interval (min 5000)           |
 | `SALES_WATCH_INTERVAL_MS` | `30000` | Sales watcher interval                      |
 | `PRICE_WATCH_INTERVAL_MS` | `30000` | Price watcher interval                      |
 | `ITEM_WATCH_INTERVAL_MS`  | `30000` | Item watcher interval                       |
+| `FEATURED_CONTENT_WATCH_INTERVAL_MS` | `21600000` | Featured content watcher interval |
 | `ITEM_WATCH_TOP`          | `150`   | Items per page scanned in item watcher      |
 | `ITEM_WATCH_PAGES`        | `3`     | Pages scanned per cycle in item watcher     |
 | `TRENDING_INTERVAL_MS`    | `60000` | Trending watcher interval                   |
@@ -600,6 +602,7 @@ Not allowed (returns `400`):
 
 * `/events/stream` (optional query `events=<comma-separated-event-names>`):
   `item.snapshot`, `item.created`, `item.updated`, `sale.snapshot`, `sale.update`, `price.changed`, `creator.trending`, `featured.content.updated`.
+* `featured.content.updated` includes changed `/marketplace/featured-content` layout entries in `addedItems` / `removedItems`. `addedItemDetails` / `removedItemDetails` contain the same endpoint item details plus `featuredContext` (`page`, `row`, `component`, `itemIndex`); `currentItemDetails` and `previousItemDetails` provide the full after/before featured item lists.
 
 #### Admin Webhooks
 
@@ -721,7 +724,7 @@ Rate limiting is controlled via the `RATE_LIMIT_*` environment variables.
 * **Backpressure**: events are small JSON payloads; consumers should be idempotent.
 * Watchers are toggled with:
 
-  * `ENABLE_ITEM_WATCHER`, `ENABLE_PRICE_WATCHER`, `ENABLE_SALES_WATCHER`, `ENABLE_TRENDING_WATCHER`.
+  * `ENABLE_ITEM_WATCHER`, `ENABLE_PRICE_WATCHER`, `ENABLE_SALES_WATCHER`, `ENABLE_TRENDING_WATCHER`, `ENABLE_FEATURED_CONTENT_WATCHER`.
 
 ---
 
@@ -939,6 +942,8 @@ TRENDING_WINDOW_HOURS=24
 TRENDING_PAGE_TOP=200
 TRENDING_PAGES=3
 TRENDING_TOP_N=20
+ENABLE_FEATURED_CONTENT_WATCHER=true
+FEATURED_CONTENT_WATCH_INTERVAL_MS=21600000
 SSE_HEARTBEAT_MS=15000
 
 ADV_SEARCH_TTL_MS=60000

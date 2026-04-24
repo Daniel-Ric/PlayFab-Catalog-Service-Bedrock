@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.1.2 (2026-04-24)
+
+### Summary
+
+- PlayFab - Add featured content watcher configuration (0e100a1)
+- Version bump: patch
+- Files changed: 1
+- Line changes: +6 / -1
+- Scope: This release mainly updates repository files.
+
+## 2.1.3 (2026-04-24)
+
+### Summary
+
+- Merge remote-tracking branch 'origin/main' (2bbf109)
+- Version bump: patch
+- Files changed: 1
+- Line changes: +30 / -0
+- Scope: This release mainly updates repository files.
 ## 2.0.6 (2026-04-24)
 
 ### Summary
@@ -99,6 +118,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

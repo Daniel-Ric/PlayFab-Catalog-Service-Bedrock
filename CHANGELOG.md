@@ -1,5 +1,24 @@
 # Changelog
 
+## 4.0.1 (2026-04-26)
+
+### Summary
+
+- PlayFab - Update GitHub Wiki sync and ignore files (b828bc9)
+- Version bump: patch
+- Files changed: 2
+- Line changes: +9 / -6
+- Scope: This release mainly updates CI and workflow automation, repository files.
+
+## 5.0.0 (2026-04-26)
+
+### Summary
+
+- Merge remote-tracking branch 'origin/main' (f2e4089)
+- Version bump: major
+- Files changed: 12
+- Line changes: +30 / -1085
+- Scope: This release mainly updates repository files.
 ## 4.0.0 (2026-04-26)
 
 ### Summary
@@ -146,6 +165,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

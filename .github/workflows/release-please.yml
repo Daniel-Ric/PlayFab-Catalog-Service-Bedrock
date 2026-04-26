@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validate:
-    if: ${{ github.actor != 'github-actions[bot]' && !contains(github.event.head_commit.message, '[skip release]') }}
+    if: ${{ github.actor != 'github-actions[bot]' && (github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip release]')) }}
     runs-on: ubuntu-latest
 
     steps:
@@ -37,7 +37,7 @@ jobs:
         run: npm test
 
   release:
-    if: ${{ github.actor != 'github-actions[bot]' && !contains(github.event.head_commit.message, '[skip release]') }}
+    if: ${{ github.actor != 'github-actions[bot]' && (github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, '[skip release]')) }}
     needs: validate
     runs-on: ubuntu-latest
 

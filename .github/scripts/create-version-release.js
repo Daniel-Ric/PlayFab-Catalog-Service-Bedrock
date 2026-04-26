@@ -260,7 +260,19 @@ function commitAndPushChangelog(branchName) {
   }
 
   runGit(["commit", "-m", "chore(release): update changelog [skip release]"]);
-  runGit(["push", "origin", `HEAD:${branchName}`]);
+  try {
+    runGit(["push", "origin", `HEAD:${branchName}`]);
+  } catch (error) {
+    const stderr = String(error.stderr || "");
+    if (!stderr.includes("non-fast-forward")) {
+      throw error;
+    }
+
+    console.log(`Remote ${branchName} advanced before changelog push. Rebasing and retrying.`);
+    runGit(["fetch", "origin", branchName]);
+    runGit(["rebase", `origin/${branchName}`], { stdio: "inherit" });
+    runGit(["push", "origin", `HEAD:${branchName}`]);
+  }
 }
 
 async function githubRequest(path, method, body) {

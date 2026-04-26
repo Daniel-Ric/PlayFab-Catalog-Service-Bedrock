@@ -46,18 +46,20 @@ jobs:
       - name: Generate wiki pages
         run: npm run wiki:generate
 
-      - name: Checkout wiki
-        uses: actions/checkout@v4
-        with:
-          repository: Daniel-Ric/PlayFab-Catalog-Service-Bedrock.wiki
-          path: wiki-repo
-          token: ${{ secrets.WIKI_PUSH_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Clone wiki repository
+        env:
+          WIKI_TOKEN: ${{ secrets.WIKI_PUSH_TOKEN || secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          git clone "https://x-access-token:${WIKI_TOKEN}@github.com/${{ github.repository }}.wiki.git" wiki-repo
+          test -d wiki-repo/.git
 
       - name: Publish generated wiki
         shell: bash
         run: |
           rsync -a --delete build/wiki/ wiki-repo/
           cd wiki-repo
+          test "$(git rev-parse --show-toplevel)" = "$(pwd)"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .

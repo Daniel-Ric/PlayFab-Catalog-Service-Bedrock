@@ -1,5 +1,33 @@
 # Changelog
 
+## 4.0.0 (2026-04-26)
+
+### Summary
+
+- Delete wiki-repo directory (43cfd0d)
+- Version bump: major
+- Files changed: 11
+- Line changes: +0 / -1085
+- Scope: This release mainly updates repository files.
+## 2.2.1 (2026-04-26)
+
+### Summary
+
+- PlayFab - Handle non-fast-forward errors during changelog push (4e193c6)
+- Version bump: patch
+- Files changed: 2
+- Line changes: +15 / -3
+- Scope: This release mainly updates CI and workflow automation.
+
+## 3.0.0 (2026-04-26)
+
+### Summary
+
+- Merge remote-tracking branch 'origin/main' (676d357)
+- Version bump: major
+- Files changed: 11
+- Line changes: +1085 / -0
+- Scope: This release mainly updates repository files.
 ## 2.1.2 (2026-04-24)
 
 ### Summary
@@ -118,6 +146,8 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
+
 
 
 

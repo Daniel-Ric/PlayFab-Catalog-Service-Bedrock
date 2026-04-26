@@ -1,5 +1,24 @@
 # Changelog
 
+## 5.1.0 (2026-04-26)
+
+### Summary
+
+- PlayFab - Enhance GitHub Wiki generation script (c5d0aff)
+- Version bump: minor
+- Files changed: 1
+- Line changes: +230 / -6
+- Scope: This release mainly updates CI and workflow automation.
+
+## 5.1.1 (2026-04-26)
+
+### Summary
+
+- Merge remote-tracking branch 'origin/main' (0c1685a)
+- Version bump: patch
+- Files changed: 1
+- Line changes: +20 / -0
+- Scope: This release mainly updates repository files.
 ## 5.0.1 (2026-04-26)
 
 ### Summary
@@ -184,6 +203,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

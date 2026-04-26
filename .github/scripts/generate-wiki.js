@@ -15,7 +15,6 @@ const {getOpenApiSpec} = require(path.join(repoRoot, "src", "config", "swagger")
 
 const repoUrl = "https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock";
 const wikiUrl = `${repoUrl}/wiki`;
-const generatedAt = new Date().toISOString();
 const packageJson = readJson("package.json");
 const openapi = getOpenApiSpec();
 
@@ -241,11 +240,120 @@ function dependencyRows(deps) {
         .map(([name, version]) => [code(name), code(version)]);
 }
 
+function operations() {
+    const list = [];
+    for (const [route, methods] of Object.entries(openapi.paths || {}).sort(([a], [b]) => a.localeCompare(b))) {
+        for (const [method, operation] of Object.entries(methods).sort(([a], [b]) => a.localeCompare(b))) {
+            if (!["get", "post", "put", "patch", "delete"].includes(method)) continue;
+            list.push({route, method, operation, tag: (operation.tags || ["Other"])[0]});
+        }
+    }
+    return list;
+}
+
+function authLabel(operation) {
+    return operation.security === undefined
+        ? "Bearer JWT"
+        : Array.isArray(operation.security) && operation.security.length === 0
+            ? "Public"
+            : "Bearer JWT";
+}
+
+function tagOverviewRows() {
+    const groups = new Map();
+    for (const item of operations()) {
+        if (!groups.has(item.tag)) groups.set(item.tag, []);
+        groups.get(item.tag).push(item);
+    }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([tag, items]) => {
+        const publicCount = items.filter((item) => authLabel(item.operation) === "Public").length;
+        const methods = [...new Set(items.map((item) => item.method.toUpperCase()))].sort().map(code).join(", ");
+        return [tag, String(items.length), methods, publicCount ? `${publicCount} public` : "Protected"];
+    });
+}
+
+function authMatrixRows() {
+    return operations().map(({route, method, operation, tag}) => [
+        method.toUpperCase(),
+        code(route),
+        tag,
+        authLabel(operation),
+        operation.summary || operation.description || "-",
+    ]);
+}
+
+function envCategory(name) {
+    if (/^(JWT|ADMIN|CORS|TRUST_PROXY|NODE_ENV|LOG_LEVEL|PORT|ENABLE_DOCS|VALIDATE_)/.test(name)) return "Runtime and security";
+    if (/^(RATE_LIMIT)/.test(name)) return "Rate limiting";
+    if (/^(SESSION_|DATA_|.*TTL|.*CACHE|PAGE_SIZE|DETAILS_|SUMMARY_|RECOMMENDATIONS_|CREATOR_STATS_)/.test(name)) return "Caching and pagination";
+    if (/^(ENABLE_|.*WATCH|TRENDING_|PRICE_|SALES_|ITEM_|FEATURED_)/.test(name)) return "Watchers and events";
+    if (/^(WEBHOOK_)/.test(name)) return "Webhooks";
+    if (/^(PLAYFAB_|TITLE_ID|DEFAULT_ALIAS|OS|MAX_|FETCH_|STORE_|MULTILANG_|ADV_SEARCH_|FX_)/.test(name)) return "PlayFab and marketplace";
+    if (/^(MC_)/.test(name)) return "Minecraft service integration";
+    return "Other";
+}
+
+function envCategoryRows() {
+    const variables = extractEnvVariables().map(([name, files]) => ({
+        name: name.replace(/`/g, ""),
+        files,
+    }));
+    const groups = new Map();
+    for (const variable of variables) {
+        const category = envCategory(variable.name);
+        if (!groups.has(category)) groups.set(category, []);
+        groups.get(category).push(variable);
+    }
+    return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([category, vars]) => [
+        category,
+        String(vars.length),
+        vars.map((v) => code(v.name)).join(", "),
+    ]);
+}
+
+function testRows() {
+    return walkFiles(path.join(repoRoot, "test"), (file) => file.endsWith(".js"))
+        .map((file) => {
+            const text = fs.readFileSync(file, "utf8");
+            const cases = (text.match(/\btest\s*\(/g) || []).length;
+            return [code(relative(file)), String(cases), summarizeTestArea(relative(file))];
+        });
+}
+
+function summarizeTestArea(file) {
+    if (file.includes("webhook")) return "Webhook URL safety and target validation";
+    if (file.includes("title")) return "Title alias resolution and title data behavior";
+    if (file.includes("marketplaceTokens")) return "Marketplace entity token input handling";
+    if (file.includes("marketplaceFilters")) return "Advanced marketplace filter building";
+    if (file.includes("itemWatcher")) return "Item watcher change classification";
+    if (file.includes("featuredContentWatcher")) return "Featured content watcher payload generation";
+    if (file.includes("eventPayload")) return "Event payload shaping";
+    return "Project behavior";
+}
+
+function inventorySummaryRows() {
+    const dirs = [
+        ["Routes", "src/routes"],
+        ["Controllers", "src/controllers"],
+        ["Services", "src/services"],
+        ["Middleware", "src/middleware"],
+        ["Utilities", "src/utils"],
+        ["OpenAPI path files", "src/docs/paths"],
+        ["OpenAPI schema files", "src/docs/schemas"],
+        ["Tests", "test"],
+    ];
+    return dirs.map(([label, dir]) => [
+        label,
+        code(dir),
+        String(walkFiles(path.join(repoRoot, dir), () => true).length),
+    ]);
+}
+
 function generatedNotice() {
     return [
         "> [!NOTE]",
-        `> This page is generated from repository source files. Last generated: ${generatedAt}.`,
-        "> Manual edits in the wiki may be overwritten by the next sync.",
+        "> This documentation is rebuilt from the repository's source of truth: OpenAPI files, runtime code, package metadata, tests, and the wiki generator.",
+        "> To make durable documentation changes, update the source files or `.github/scripts/generate-wiki.js`; direct wiki edits are replaced during the next sync.",
     ].join("\n");
 }
 
@@ -256,7 +364,7 @@ writePage("Home", `
 
 ${generatedNotice()}
 
-This wiki documents the PlayFab Catalog Service Bedrock repository in English. It is generated from the current source tree, OpenAPI specification, package metadata, tests, and runtime configuration references.
+This wiki documents the PlayFab Catalog Service Bedrock repository from the current source tree, OpenAPI specification, package metadata, tests, and runtime configuration references.
 
 ## Project Snapshot
 
@@ -274,12 +382,22 @@ ${table(["Field", "Value"], [
 - ${linkPage("Getting Started", "Getting-Started")} explains installation, local startup, authentication, and first requests.
 - ${linkPage("Configuration", "Configuration")} lists runtime environment variables discovered in source code.
 - ${linkPage("Architecture", "Architecture")} describes the application layers, request lifecycle, caching, watchers, and external integrations.
-- ${linkPage("API Reference", "API-Reference")} is generated from the OpenAPI path files.
+- ${linkPage("API Reference", "API-Reference")} is built from the OpenAPI path files.
 - ${linkPage("Schemas", "Schemas")} summarizes OpenAPI component schemas.
+- ${linkPage("Security and Authentication", "Security-and-Authentication")} documents bearer tokens, admin-only routes, CORS, validation, and webhook safety.
+- ${linkPage("Runtime Data Flow", "Runtime-Data-Flow")} explains how requests, upstream calls, caches, events, SSE, and webhooks interact.
 - ${linkPage("Events and Webhooks", "Events-and-Webhooks")} covers SSE, internal event flow, webhook registration, and delivery behavior.
 - ${linkPage("Operations", "Operations")} covers deployment, security, rate limits, observability, and maintenance.
 - ${linkPage("Development", "Development")} covers scripts, tests, and contribution workflow.
 - ${linkPage("Repository Inventory", "Repository-Inventory")} lists the generated module inventory.
+
+## Repository Composition
+
+${table(["Area", "Directory", "Files"], inventorySummaryRows())}
+
+## API Groups
+
+${table(["Tag", "Operations", "Methods", "Exposure"], tagOverviewRows())}
 
 ## Endpoint Overview
 
@@ -293,6 +411,8 @@ writePage("_Sidebar", `
 - [Architecture](Architecture)
 - [API Reference](API-Reference)
 - [Schemas](Schemas)
+- [Security and Authentication](Security-and-Authentication)
+- [Runtime Data Flow](Runtime-Data-Flow)
 - [Events and Webhooks](Events-and-Webhooks)
 - [Operations](Operations)
 - [Development](Development)
@@ -374,6 +494,10 @@ Configuration is driven by environment variables. The table below is discovered 
 
 ${table(["Variable", "Referenced From"], extractEnvVariables())}
 
+## Configuration Categories
+
+${table(["Category", "Variables", "Names"], envCategoryRows())}
+
 ## Required Runtime Values
 
 - ${code("JWT_SECRET")} must be set and must be at least 32 characters long.
@@ -442,11 +566,19 @@ writePage("API-Reference", `
 
 ${generatedNotice()}
 
-This page is generated from ${code("src/docs/openapi-base.yaml")} and all files in ${code("src/docs/paths")}. The source of truth for request and response validation remains the OpenAPI specification.
+This reference is built from ${code("src/docs/openapi-base.yaml")} and all files in ${code("src/docs/paths")}. The source of truth for request and response validation remains the OpenAPI specification.
 
 ## Summary
 
 ${table(["Method", "Path", "Tags", "Summary", "Auth"], operationRows())}
+
+## Group Overview
+
+${table(["Tag", "Operations", "Methods", "Exposure"], tagOverviewRows())}
+
+## Authentication Matrix
+
+${table(["Method", "Path", "Tag", "Authentication", "Purpose"], authMatrixRows())}
 
 ${detailedApiSections()}
 `);
@@ -458,7 +590,83 @@ ${generatedNotice()}
 
 OpenAPI component schemas are loaded from ${code("src/docs/schemas")} and merged into the runtime OpenAPI document.
 
+## Schema Index
+
 ${table(["Schema", "Type", "Required Fields", "Properties"], schemaRows())}
+
+## Contract Notes
+
+- Schemas in ${code("src/docs/schemas")} are merged with base schemas from ${code("src/docs/openapi-base.yaml")}.
+- Path documents in ${code("src/docs/paths")} reference these schemas through ${code("#/components/schemas/...")}.
+- Runtime validation is optional and controlled with ${code("VALIDATE_REQUESTS")} and ${code("VALIDATE_RESPONSES")}.
+- The implementation still performs additional runtime checks in controllers, middleware, and utilities where OpenAPI cannot express the full safety policy.
+`);
+
+writePage("Security-and-Authentication", `
+# Security and Authentication
+
+${generatedNotice()}
+
+## Authentication Model
+
+The API uses JWT bearer authentication for protected routes. ${code("POST /login")} validates ${code("ADMIN_USER")} and ${code("ADMIN_PASS")} and returns a short-lived token signed with ${code("JWT_SECRET")}. Protected requests must send ${code("Authorization: Bearer <token>")}.
+
+## Route Exposure Matrix
+
+${table(["Method", "Path", "Tag", "Authentication", "Purpose"], authMatrixRows())}
+
+## Admin Boundaries
+
+Admin-only behavior is enforced with role checks after JWT validation. Session, title management, creator management, and webhook management are operational surfaces and should be treated as privileged.
+
+## Public Surfaces
+
+The implementation intentionally allows unauthenticated access to ${code("/login")} and ${code("/openapi.json")}. Swagger UI at ${code("/docs")} is only mounted when ${code("ENABLE_DOCS=true")}. Public routes should be reviewed before exposing the service outside trusted networks.
+
+## CORS and Proxy Trust
+
+CORS is based on ${code("CORS_ORIGINS")}. Reverse proxy behavior is controlled through ${code("TRUST_PROXY")}. In production, configure both explicitly so request IPs, rate limits, and browser access rules reflect the deployed network topology.
+
+## Webhook Target Safety
+
+Webhook URL validation is covered by tests and utility code. The service rejects unsafe URL forms and private or local network targets to reduce SSRF risk. Webhook payload signing is available when a webhook secret is configured.
+`);
+
+writePage("Runtime-Data-Flow", `
+# Runtime Data Flow
+
+${generatedNotice()}
+
+## HTTP Request Flow
+
+1. Express receives the request and assigns a request id.
+2. Security, CORS, compression, JSON parsing, and optional request logging run before route handling.
+3. Authentication validates and caches JWT payloads where required.
+4. Route modules dispatch to controllers.
+5. Controllers normalize input and call services or utilities.
+6. Services call PlayFab, Minecraft service endpoints, local JSON storage, caches, event bus, SSE hub, or webhook dispatcher as needed.
+7. Responses are returned with cache headers on selected read-heavy endpoints.
+8. Errors are normalized into the shared error envelope with a trace id.
+
+## Upstream Data Flow
+
+Marketplace endpoints usually resolve a title alias, obtain or reuse session data, call PlayFab Catalog endpoints, optionally enrich item data, project the upstream shape into API-facing output, and cache hot results.
+
+## Cache Layers
+
+- JWT payload cache reduces repeated token verification cost.
+- Session cache stores PlayFab session data.
+- Generic data cache stores frequently requested marketplace and upstream responses.
+- Endpoint-level cache headers allow clients and proxies to reuse stable read responses.
+- Specialized TTLs exist for details, summaries, recommendations, advanced search, stats, featured servers, and featured persona data.
+
+## Event Flow
+
+Watchers poll or resolve marketplace state, classify changes, publish events to the event bus, and then fan out to SSE subscribers and webhook deliveries. This keeps event generation separate from delivery mechanics.
+
+## Failure Behavior
+
+Controllers and services should throw normal errors with status information where possible. The global error handler maps known status codes to stable error types and hides internal details in production for server errors.
 `);
 
 writePage("Events-and-Webhooks", `
@@ -489,6 +697,13 @@ Webhook routes are protected by admin authorization. Registered targets can defi
 ## Delivery Behavior
 
 Webhook dispatch is controlled by ${code("WEBHOOK_CONCURRENCY")}, ${code("WEBHOOK_MAX_RETRIES")}, ${code("WEBHOOK_TIMEOUT_MS")}, ${code("WEBHOOK_QUEUE_MAX")}, ${code("WEBHOOK_RETRY_BASE_MS")}, and ${code("WEBHOOK_RETRY_MAX_MS")}. Payload signatures use the configured webhook secret when present.
+
+## Event Consumer Guidance
+
+- Treat SSE as a live notification channel, not as durable storage.
+- Use webhook idempotency on the receiving side because retries can deliver the same logical event more than once.
+- Persist the event payload and trace information before doing expensive downstream work.
+- Keep webhook endpoints fast and return a success status only after the payload is accepted.
 `);
 
 writePage("Operations", `
@@ -527,6 +742,13 @@ The service has route-level limiters for login, marketplace, player marketplace,
 The ${code("Sync GitHub Wiki")} workflow runs on source, OpenAPI, package, and documentation changes on ${code("main")}. It generates pages with ${code("npm run wiki:generate")} and pushes them to ${code("Daniel-Ric/PlayFab-Catalog-Service-Bedrock.wiki")}.
 
 Use ${code("[skip wiki]")} in a commit message to skip an automatic sync.
+
+## Operational Runbook
+
+- After changing route behavior, update the OpenAPI path file and run ${code("npm run wiki:generate")} locally.
+- After adding environment variables, ensure they are read through ${code("process.env")} so the configuration page can discover them.
+- After adding a new watcher or event type, document the event behavior in code and add or update tests.
+- Before production rollout, run tests and review generated wiki changes for accidental secret exposure.
 `);
 
 writePage("Development", `
@@ -541,6 +763,8 @@ ${table(["Command", "Runs"], scriptRows())}
 ## Tests
 
 The test files under ${code("test")} cover marketplace token and filter utilities, event payloads, featured content watcher behavior, item watcher behavior, title handling, and webhook target logic.
+
+${table(["Test File", "Cases", "Coverage Area"], testRows())}
 
 \`\`\`bash
 npm test

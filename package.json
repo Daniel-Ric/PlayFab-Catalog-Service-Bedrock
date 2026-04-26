@@ -6,6 +6,7 @@
   "scripts": {
     "setup": "node src/scripts/setup.js",
     "test": "node src/scripts/run-node-tests.js",
+    "wiki:generate": "node .github/scripts/generate-wiki.js",
     "start": "node src/index.js",
     "dev": "nodemon src/index.js"
   },

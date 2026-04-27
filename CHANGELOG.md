@@ -1,5 +1,23 @@
 # Changelog
 
+## 6.1.0 (2026-04-27)
+
+### Summary
+
+- Change type: CI and automation
+- Main change: PlayFab - Refactor release scripts for improved automation (096044d)
+- Impact: CI and automation with a medium change footprint across CI and workflow automation.
+- Bump reason: medium change footprint (1 files, 276 total line changes)
+
+### Changed Areas
+
+- GitHub automation scripts: 1 file: .github/scripts/create-version-release.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 1
+- Line changes: +262 / -14
 ## 6.0.0 (2026-04-27)
 
 ### Summary
@@ -231,6 +249,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

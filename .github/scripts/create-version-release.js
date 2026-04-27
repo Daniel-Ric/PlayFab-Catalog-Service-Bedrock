@@ -174,19 +174,249 @@ function summarizeAreas(files) {
   return Array.from(interesting).slice(0, 3);
 }
 
-function buildReleaseBody({ sha, subject, stats, bump }) {
+function classifyFile(file) {
+  const normalized = file.replace(/\\/g, "/");
+
+  if (normalized.startsWith(".github/workflows/")) {
+    return "GitHub workflows";
+  }
+
+  if (normalized.startsWith(".github/scripts/")) {
+    return "GitHub automation scripts";
+  }
+
+  if (normalized.startsWith(".github/")) {
+    return "GitHub configuration";
+  }
+
+  if (normalized.startsWith("src/controllers/")) {
+    return "API controllers";
+  }
+
+  if (normalized.startsWith("src/routes/")) {
+    return "API routes";
+  }
+
+  if (normalized.startsWith("src/services/")) {
+    return "Service layer";
+  }
+
+  if (normalized.startsWith("src/docs/")) {
+    return "OpenAPI documentation";
+  }
+
+  if (normalized.startsWith("src/config/")) {
+    return "Runtime configuration";
+  }
+
+  if (normalized.startsWith("src/utils/")) {
+    return "Shared utilities";
+  }
+
+  if (normalized.startsWith("src/")) {
+    return "Application source";
+  }
+
+  if (normalized.startsWith("test/")) {
+    return "Tests";
+  }
+
+  if (/^package(-lock)?\.json$/i.test(normalized)) {
+    return "Dependencies";
+  }
+
+  if (/^readme\.md$/i.test(normalized)) {
+    return "README";
+  }
+
+  if (/^CHANGELOG\.md$/i.test(normalized)) {
+    return "Changelog";
+  }
+
+  if (/postman_collection\.json$/i.test(normalized)) {
+    return "Postman collection";
+  }
+
+  return "Repository files";
+}
+
+function groupFiles(files) {
+  const groups = new Map();
+
+  for (const file of files) {
+    const normalized = file.replace(/\\/g, "/");
+    const group = classifyFile(normalized);
+    if (!groups.has(group)) {
+      groups.set(group, []);
+    }
+    groups.get(group).push(normalized);
+  }
+
+  return Array.from(groups.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([label, groupedFiles]) => [label, groupedFiles.sort()]);
+}
+
+function formatGroupedFiles(files, maxPerGroup = 6, maxGroups = 8) {
+  const groups = groupFiles(files);
+  if (!groups.length) {
+    return ["- No file-level changes were reported by git."];
+  }
+
+  const lines = [];
+  for (const [label, groupedFiles] of groups.slice(0, maxGroups)) {
+    const shown = groupedFiles.slice(0, maxPerGroup);
+    lines.push(`- ${label}: ${shown.join(", ")}${groupedFiles.length > shown.length ? `, and ${groupedFiles.length - shown.length} more` : ""}`);
+  }
+
+  if (groups.length > maxGroups) {
+    lines.push(`- Additional areas: ${groups.length - maxGroups} more groups changed.`);
+  }
+
+  return lines;
+}
+
+function formatChangedAreas(files, maxExamples = 2, maxGroups = 6) {
+  const groups = groupFiles(files);
+  if (!groups.length) {
+    return ["- No changed areas were reported by git."];
+  }
+
+  const lines = [];
+  for (const [label, groupedFiles] of groups.slice(0, maxGroups)) {
+    const examples = groupedFiles.slice(0, maxExamples);
+    const exampleText = examples.length ? `: ${examples.join(", ")}` : "";
+    const hiddenCount = groupedFiles.length - examples.length;
+    lines.push(`- ${label}: ${groupedFiles.length} file${groupedFiles.length === 1 ? "" : "s"}${exampleText}${hiddenCount > 0 ? `, plus ${hiddenCount} more` : ""}`);
+  }
+
+  if (groups.length > maxGroups) {
+    lines.push(`- Other areas: ${groups.length - maxGroups} additional group${groups.length - maxGroups === 1 ? "" : "s"}.`);
+  }
+
+  return lines;
+}
+
+function inferChangeType(commitMessage, subject, stats) {
+  const message = `${subject}\n${commitMessage}`;
+
+  if (/BREAKING CHANGE|!:/.test(message)) {
+    return "Breaking change";
+  }
+
+  if (/^feat(\(.+\))?:/im.test(message)) {
+    return "Feature";
+  }
+
+  if (/^fix(\(.+\))?:/im.test(message)) {
+    return "Bug fix";
+  }
+
+  if (/^perf(\(.+\))?:/im.test(message)) {
+    return "Performance improvement";
+  }
+
+  if (/^test(\(.+\))?:/im.test(message) || stats.files.some((file) => file.replace(/\\/g, "/").startsWith("test/"))) {
+    return "Test coverage";
+  }
+
+  if (/^docs(\(.+\))?:/im.test(message) || stats.files.some((file) => file.replace(/\\/g, "/").startsWith("src/docs/"))) {
+    return "Documentation";
+  }
+
+  if (/^ci(\(.+\))?:/im.test(message) || stats.files.some((file) => file.replace(/\\/g, "/").startsWith(".github/"))) {
+    return "CI and automation";
+  }
+
+  if (/^chore(\(.+\))?:/im.test(message)) {
+    return "Maintenance";
+  }
+
+  return "Repository update";
+}
+
+function extractCommitDetails(commitMessage, subject) {
+  const normalizedSubject = String(subject || "").trim();
+  const lines = String(commitMessage || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => line !== normalizedSubject)
+    .filter((line) => cleanCommitSubject(line) !== normalizedSubject)
+    .filter((line) => !/^Signed-off-by:/i.test(line))
+    .filter((line) => !/^Co-authored-by:/i.test(line));
+
+  return lines.slice(0, 8);
+}
+
+function describeBumpReason(commitMessage, stats, bump) {
+  if (bump === "major") {
+    if (/BREAKING CHANGE|!:/.test(commitMessage)) {
+      return "breaking-change marker in the commit message";
+    }
+
+    return `large change footprint (${stats.filesChanged} files, ${stats.totalChanges} total line changes)`;
+  }
+
+  if (bump === "minor") {
+    if (/^feat(\(.+\))?:/im.test(commitMessage)) {
+      return "feature commit marker";
+    }
+
+    return `medium change footprint (${stats.filesChanged} files, ${stats.totalChanges} total line changes)`;
+  }
+
+  return "patch-level repository update";
+}
+
+function formatCommitNotes(details, maxLines = 4) {
+  const normalized = details
+    .map((line) => line.replace(/^[-*]\s*/, ""))
+    .filter(Boolean)
+    .slice(0, maxLines);
+
+  return normalized.map((line) => `- ${line}`);
+}
+
+function buildImpactLine(type, areas, stats) {
+  const areaText = areas.length ? areas.join(", ") : "the repository";
+  const size =
+    stats.filesChanged >= 20 || stats.totalChanges >= 700
+      ? "large"
+      : stats.filesChanged >= 6 || stats.totalChanges >= 180
+        ? "medium"
+        : "small";
+
+  return `${type} with a ${size} change footprint across ${areaText}.`;
+}
+
+function buildReleaseBody({ sha, subject, fullMessage, stats, bump }) {
   const shortSha = sha.slice(0, 7);
   const areas = summarizeAreas(stats.files);
-  const scopeLine = areas.length
-    ? `This release mainly updates ${areas.join(", ")}.`
-    : "This release updates the repository state.";
+  const changeType = inferChangeType(fullMessage, subject, stats);
+  const details = extractCommitDetails(fullMessage, subject);
+  const notes = formatCommitNotes(details, 6);
 
   return [
     `Automated release for commit \`${shortSha}\`.`,
     "",
     "## Summary",
-    scopeLine,
-    `- Commit: ${subject || "Repository update"}`,
+    "",
+    `- Change type: ${changeType}`,
+    `- Main change: ${subject || "Repository update"}`,
+    `- Impact: ${buildImpactLine(changeType, areas, stats)}`,
+    `- Bump reason: ${describeBumpReason(fullMessage, stats, bump)}`,
+    "",
+    "## Notable changes",
+    "",
+    ...(notes.length ? notes : [`- ${subject || "Repository update"}`]),
+    "",
+    "## Changed areas",
+    "",
+    ...formatChangedAreas(stats.files, 3, 8),
+    "",
+    "## Release metadata",
+    "",
     `- Version bump: ${bump}`,
     `- Files changed: ${stats.filesChanged}`,
     `- Line changes: +${stats.additions} / -${stats.deletions}`,
@@ -197,24 +427,42 @@ function getTodayIsoDate() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function buildChangelogEntry({ tagName, sha, subject, stats, bump }) {
+function buildChangelogEntry({ tagName, sha, subject, fullMessage, stats, bump }) {
   const versionLabel = tagName.replace(/^v/, "");
   const shortSha = sha.slice(0, 7);
   const areas = summarizeAreas(stats.files);
-  const scopeLine = areas.length
-    ? `This release mainly updates ${areas.join(", ")}.`
-    : "This release updates the repository state.";
+  const changeType = inferChangeType(fullMessage, subject, stats);
+  const details = extractCommitDetails(fullMessage, subject);
+  const notes = formatCommitNotes(details, 4);
+  const noteSection = notes.length
+    ? [
+        "",
+        "### Notable Changes",
+        "",
+        ...notes,
+      ]
+    : [];
 
   return [
     `## ${versionLabel} (${getTodayIsoDate()})`,
     "",
     "### Summary",
     "",
-    `- ${subject || "Repository update"} (${shortSha})`,
+    `- Change type: ${changeType}`,
+    `- Main change: ${subject || "Repository update"} (${shortSha})`,
+    `- Impact: ${buildImpactLine(changeType, areas, stats)}`,
+    `- Bump reason: ${describeBumpReason(fullMessage, stats, bump)}`,
+    "",
+    "### Changed Areas",
+    "",
+    ...formatChangedAreas(stats.files, 2, 6),
+    ...noteSection,
+    "",
+    "### Release Metrics",
+    "",
     `- Version bump: ${bump}`,
     `- Files changed: ${stats.filesChanged}`,
     `- Line changes: +${stats.additions} / -${stats.deletions}`,
-    `- Scope: ${scopeLine}`,
     "",
   ].join("\n");
 }
@@ -357,8 +605,8 @@ async function main() {
     currentVersion = bumpVersion(currentVersion, bump);
 
     const tagName = formatVersion(currentVersion);
-    const body = buildReleaseBody({ sha, subject, stats, bump });
-    changelogEntries.push(buildChangelogEntry({ tagName, sha, subject, stats, bump }));
+    const body = buildReleaseBody({ sha, subject, fullMessage, stats, bump });
+    changelogEntries.push(buildChangelogEntry({ tagName, sha, subject, fullMessage, stats, bump }));
 
     await createRelease(repository, tagName, sha, body, subject);
   }

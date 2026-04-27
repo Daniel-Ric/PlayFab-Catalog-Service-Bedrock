@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "2aa298d9-29b3-4cdd-8889-9552243b07df",
-    "name": "PlayFab Service | VMC",
-    "description": "Postman collection for the PlayFab VMC (View Marketplace) API. The collection mirrors the current OpenAPI spec and keeps the existing folder layout while adding missing endpoints and clearer documentation.\n\nSetup:\n1) Set {{baseUrl}} to your running instance (e.g. http://localhost:3000).\n2) Aliases come from src/data/titles.json (prod, bedrock, edu, demo, staging, stage, dev, experimental, creator).\n3) Variables used: {{creator1}} / {{creator2}}, {{keyword}}, {{tag}}, {{itemId}}, {{friendlyId}}.\n4) ETag-aware endpoints return an ETag header for caching.\n\nAuth:\n- Call Login to get a JWT and store it in {{token}}.\n- Most marketplace, admin, and event endpoints require Bearer auth.",
+    "name": "PlayFab Catalog Service | VMP",
+    "description": "Postman collection for the PlayFab VMC (View Marketplace) API. It mirrors the current OpenAPI endpoints and keeps the examples practical for local development and manual API checks.\n\nQuick start:\n1) Set {{baseUrl}} to your running instance, for example http://localhost:3000.\n2) Set {{adminUser}} and {{adminPass}}, then run Auth / POST /login. The token is stored in {{token}} automatically.\n3) Replace {{itemId}}, {{friendlyId}}, {{webhookId}}, and player token variables only for requests that need real runtime values.\n4) Optional query parameters are included as disabled Postman params on the main requests. Enable only what you need.\n\nAuth model:\nThe collection uses Bearer {{token}} at collection level. Public endpoints explicitly use no auth.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "37965769"
   },
@@ -12,9 +12,34 @@
       "item": [
         {
           "name": "GET /",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                  "let body;",
+                  "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                  "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                  "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
+            "auth": {
+              "type": "noauth"
+            },
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/",
               "host": [
@@ -28,9 +53,31 @@
         },
         {
           "name": "GET /health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                  "let body;",
+                  "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                  "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                  "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/health",
               "host": [
@@ -45,50 +92,94 @@
           "response": []
         },
         {
-          "name": "Login",
+          "name": "GET /openapi.json",
           "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "exec": [
-                  ""
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            },
             {
               "listen": "test",
               "script": {
                 "exec": [
-                  "let data;\r",
-                  "try {\r",
-                  "  data = pm.response.json();\r",
-                  "} catch (e) {\r",
-                  "  pm.test(\"Antwort ist JSON\", function () {\r",
-                  "    pm.expect.fail(\"Antwort ist kein gültiges JSON\");\r",
-                  "  });\r",
-                  "}\r",
-                  "\r",
-                  "const token = data?.token;\r",
-                  "pm.test(\"Token vorhanden\", function () {\r",
-                  "  pm.expect(token, \"Token fehlt in der Login-Antwort\").to.exist;\r",
-                  "});\r",
-                  "\r",
-                  "pm.collectionVariables.set(\"token\", token);\r",
-                  "\r",
-                  "try {\r",
-                  "  const payload = JSON.parse(atob(token.split('.')[1]));\r",
-                  "  if (payload?.exp) pm.collectionVariables.set(\"token_exp\", payload.exp);\r",
-                  "} catch (e) {\r",
-                  "  // Ignoriere\r",
-                  "}\r",
-                  ""
+                  "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                  "let body;",
+                  "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                  "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                  "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
                 ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/openapi.json",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "openapi.json"
+              ]
+            },
+            "description": "Fetch the live OpenAPI specification used by Swagger UI."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /docs",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/docs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "docs"
+              ]
+            },
+            "description": "Open Swagger UI when ENABLE_DOCS=true."
+          },
+          "response": []
+        }
+      ],
+      "description": "Service health and documentation endpoints."
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.expect(pm.response.code).to.equal(200));",
+                  "const body = pm.response.json();",
+                  "pm.test(\"Token is present\", () => pm.expect(body.token, \"Missing token in login response\").to.be.a(\"string\").and.not.empty);",
+                  "if (body.token) pm.collectionVariables.set(\"token\", body.token);",
+                  "try { const payload = JSON.parse(atob(body.token.split(\".\")[1])); if (payload?.exp) pm.collectionVariables.set(\"token_exp\", payload.exp); } catch (e) {}"
+                ],
+                "type": "text/javascript"
               }
             }
           ],
@@ -103,15 +194,13 @@
                 "value": "application/json"
               },
               {
-                "key": "",
-                "value": "",
-                "type": "text",
-                "disabled": true
+                "key": "Content-Type",
+                "value": "application/json"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{ \"username\": \"adm7nQwR4vZ\", \"password\": \"X9uYcV7rPq1LmE\" }",
+              "raw": "{\n  \"username\": \"{{adminUser}}\",\n  \"password\": \"{{adminPass}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -130,27 +219,531 @@
             "description": "Authenticate and obtain a JWT token for protected endpoints."
           },
           "response": []
-        },
-        {
-          "name": "Open API JSON",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/openapi.json",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "openapi.json"
-              ]
-            },
-            "description": "Fetch the live OpenAPI specification used by Swagger UI."
-          },
-          "response": []
         }
       ],
-      "description": "Service health, authentication, and documentation endpoints."
+      "description": "Authentication endpoints."
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Titles",
+          "item": [
+            {
+              "name": "GET /titles",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/titles",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "titles"
+                  ]
+                },
+                "description": "List all configured title aliases."
+              },
+              "response": []
+            },
+            {
+              "name": "POST /titles",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 201\", () => pm.expect([201]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Title fields are present\", () => { pm.expect(body.alias).to.be.a(\"string\"); pm.expect(body.id).to.be.a(\"string\"); });",
+                      "if (body.alias) pm.collectionVariables.set(\"created_alias\", body.alias);",
+                      "if (body.id) pm.collectionVariables.set(\"created_id\", body.id);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"alias\": \"{{new_alias}}\",\n  \"id\": \"{{new_id}}\",\n  \"notes\": \"Created via Postman at {{ts}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/titles",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "titles"
+                  ]
+                },
+                "description": "Create a new title alias. Requires admin access."
+              },
+              "response": []
+            },
+            {
+              "name": "DELETE /titles/:alias",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Deleted alias is returned\", () => pm.expect(body.deleted).to.exist);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/titles/{{created_alias}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "titles",
+                    "{{created_alias}}"
+                  ]
+                },
+                "description": "Delete a title alias. Use {{created_alias}} or replace it with a known alias."
+              },
+              "response": []
+            }
+          ],
+          "description": "Manage title aliases used by marketplace queries."
+        },
+        {
+          "name": "Session",
+          "item": [
+            {
+              "name": "GET /session/:alias (prod)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/session/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "session",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Request a cached PlayFab entity session for the given title alias."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /session/:alias (bedrock)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/session/{{alias_bedrock}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "session",
+                    "{{alias_bedrock}}"
+                  ]
+                },
+                "description": "Request a cached PlayFab entity session for the Bedrock alias."
+              },
+              "response": []
+            }
+          ],
+          "description": "Resolve PlayFab session data for a title alias."
+        },
+        {
+          "name": "Webhooks",
+          "item": [
+            {
+              "name": "GET /webhooks",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/webhooks",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "webhooks"
+                  ]
+                },
+                "description": "List all registered webhooks."
+              },
+              "response": []
+            },
+            {
+              "name": "POST /webhooks",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 201\", () => pm.expect([201]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Webhook id is present\", () => pm.expect(body.id).to.be.a(\"string\").and.not.empty);",
+                      "if (body.id) pm.collectionVariables.set(\"webhookId\", body.id);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"url\": \"https://example.com/webhooks/vmc\",\n  \"events\": [\"sale.update\", \"item.updated\"],\n  \"secret\": \"optional-secret\",\n  \"vendor\": \"{{webhookProvider}}\",\n  \"active\": true,\n  \"filters\": {\n    \"creators\": [\"{{creator1}}\"]\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/webhooks",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "webhooks"
+                  ]
+                },
+                "description": "Create a new webhook registration."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /webhooks/:id",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/webhooks/{{webhookId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "webhooks",
+                    "{{webhookId}}"
+                  ]
+                },
+                "description": "Fetch a webhook registration by id."
+              },
+              "response": []
+            },
+            {
+              "name": "PATCH /webhooks/:id",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"active\": true,\n  \"events\": [\"sale.update\"],\n  \"filters\": {\n    \"creators\": [\"{{creator1}}\"]\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/webhooks/{{webhookId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "webhooks",
+                    "{{webhookId}}"
+                  ]
+                },
+                "description": "Update a webhook registration."
+              },
+              "response": []
+            },
+            {
+              "name": "DELETE /webhooks/:id",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Deleted flag is true\", () => pm.expect(body.deleted).to.equal(true));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/webhooks/{{webhookId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "webhooks",
+                    "{{webhookId}}"
+                  ]
+                },
+                "description": "Delete a webhook registration."
+              },
+              "response": []
+            },
+            {
+              "name": "POST /webhooks/:id/test",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/webhooks/{{webhookId}}/test",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "webhooks",
+                    "{{webhookId}}",
+                    "test"
+                  ]
+                },
+                "description": "Trigger a test delivery for a webhook and return delivery status."
+              },
+              "response": []
+            }
+          ],
+          "description": "Manage webhook registrations for marketplace events."
+        }
+      ],
+      "description": "Administrative endpoints."
     },
     {
       "name": "Creators",
@@ -162,20 +755,17 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                  "pm.test(\"JSON array\", () => Array.isArray(pm.response.json()));",
-                  "pm.test(\"Creator objects have creatorName & displayName\", () => {",
-                  "  const arr = pm.response.json();",
-                  "  if (arr.length) {",
-                  "    pm.expect(arr[0]).to.have.property('creatorName');",
-                  "    pm.expect(arr[0]).to.have.property('displayName');",
-                  "  }",
-                  "});",
-                  "pm.test(\"Response time < 3000ms\", () => pm.response.responseTime < 3000);"
+                  "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                  "let body;",
+                  "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                  "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                  "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                  "const etag = pm.response.headers.get(\"ETag\");",
+                  "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
                 ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
+                "type": "text/javascript"
               }
             }
           ],
@@ -185,11 +775,6 @@
               {
                 "key": "Accept",
                 "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
               }
             ],
             "url": {
@@ -209,319 +794,29 @@
       "description": "Creator discovery endpoints."
     },
     {
-      "name": "Titles",
-      "item": [
-        {
-          "name": "GET /titles → all titles (alias, id, notes)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                  "pm.test(\"JSON array\", () => Array.isArray(pm.response.json()));",
-                  "pm.test(\"First entry has alias & id\", () => {",
-                  "  const arr = pm.response.json();",
-                  "  if (arr.length) {",
-                  "    pm.expect(arr[0]).to.have.property('alias');",
-                  "    pm.expect(arr[0]).to.have.property('id');",
-                  "  }",
-                  "});",
-                  "pm.test(\"Response time < 3000ms\", () => pm.response.responseTime < 3000);"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/titles",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "titles"
-              ]
-            },
-            "description": "List all configured title aliases."
-          },
-          "response": []
-        },
-        {
-          "name": "POST /titles → create title",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status 201\", () => pm.response.code === 201);",
-                  "const b = pm.response.json();",
-                  "pm.test(\"Echoed alias/id\", () => {",
-                  "  pm.expect(b).to.have.property('alias');",
-                  "  pm.expect(b).to.have.property('id');",
-                  "});",
-                  "// Store alias for subsequent delete",
-                  "pm.collectionVariables.set('created_alias', b.alias);",
-                  "pm.collectionVariables.set('created_id', b.id);",
-                  "pm.test(\"Response time < 4000ms\", () => pm.response.responseTime < 4000);"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"alias\": \"{{new_alias}}\",\n  \"id\": \"{{new_id}}\",\n  \"notes\": \"Created via Postman at {{ts}}\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/titles",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "titles"
-              ]
-            },
-            "description": "Create a new title alias. Requires admin access."
-          },
-          "response": []
-        },
-        {
-          "name": "DELETE /titles/:alias → delete created title",
-          "event": [
-            {
-              "listen": "prerequest",
-              "script": {
-                "exec": [
-                  "if (!pm.collectionVariables.get('created_alias')) {",
-                  "  pm.request.url = pm.request.url.toString().replace('{{created_alias}}', pm.collectionVariables.get('alias_to_delete'));",
-                  "}"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            },
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                  "pm.test(\"Deleted field present\", () => {",
-                  "  const b = pm.response.json();",
-                  "  pm.expect(b).to.have.property('deleted');",
-                  "});",
-                  "pm.test(\"Response time < 3000ms\", () => pm.response.responseTime < 3000);"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "DELETE",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/titles/{{created_alias}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "titles",
-                "{{created_alias}}"
-              ]
-            },
-            "description": "Delete a previously created title alias. Requires admin access."
-          },
-          "response": []
-        }
-      ],
-      "description": "Manage title aliases used by marketplace queries."
-    },
-    {
-      "name": "Session",
-      "item": [
-        {
-          "name": "GET /session/:alias (prod)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                  "const b = pm.response.json();",
-                  "pm.test(\"Has EntityToken\", () => pm.expect(b).to.have.property('EntityToken'));",
-                  "pm.test(\"Has SessionTicket & PlayFabId\", () => {",
-                  "  pm.expect(b).to.have.property('SessionTicket');",
-                  "  pm.expect(b).to.have.property('PlayFabId');",
-                  "});",
-                  "pm.test(\"Response time < 7000ms (login may be slow)\", () => pm.response.responseTime < 7000);"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/session/{{alias_prod}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "session",
-                "{{alias_prod}}"
-              ]
-            },
-            "description": "Request a cached PlayFab entity session for the given title alias."
-          },
-          "response": []
-        },
-        {
-          "name": "GET /session/:alias (bedrock)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                  "const b = pm.response.json();",
-                  "pm.test(\"Has EntityToken\", () => pm.expect(b).to.have.property('EntityToken'));",
-                  "pm.test(\"Response time < 7000ms\", () => pm.response.responseTime < 7000);"
-                ],
-                "type": "text/javascript",
-                "packages": {},
-                "requests": {}
-              }
-            }
-          ],
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Accept",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/session/{{alias_bedrock}}",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "session",
-                "{{alias_bedrock}}"
-              ]
-            },
-            "description": "Request a cached PlayFab entity session for the given title alias."
-          },
-          "response": []
-        }
-      ],
-      "description": "Resolve PlayFab session data for a title alias."
-    },
-    {
       "name": "Marketplace",
       "item": [
         {
-          "name": "All",
+          "name": "All Items",
           "item": [
             {
-              "name": "GET /marketplace/all/:alias (no filters)",
+              "name": "GET /marketplace/all/:alias",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => {",
-                      "  const et = pm.response.headers.get('ETag');",
-                      "  pm.collectionVariables.set('etag_all_prod', et || '');",
-                      "  pm.expect(!!et).to.be.true;",
-                      "});",
-                      "pm.test(\"Body is array of items or empty\", () => {",
-                      "  const body = pm.response.json();",
-                      "  pm.expect(Array.isArray(body)).to.be.true;",
-                      "});",
-                      "pm.test(\"Response time < 8000ms\", () => pm.response.responseTime < 8000);",
-                      "// Re-request with If-None-Match to validate 304",
-                      "const et = pm.collectionVariables.get('etag_all_prod');",
-                      "if (et) {",
-                      "  pm.sendRequest({",
-                      "    url: pm.request.url.toString(),",
-                      "    method: 'GET',",
-                      "    header: [{ key: 'If-None-Match', value: et }, { key: 'Accept', value: 'application/json' }]",
-                      "  }, (err, res) => {",
-                      "    if (err) { pm.expect.fail(String(err)); }",
-                      "    else { pm.expect([304,200]).to.include(res.code); }",
-                      "  });",
-                      "}"
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
@@ -531,11 +826,6 @@
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -547,26 +837,68 @@
                     "marketplace",
                     "all",
                     "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}",
+                      "disabled": true,
+                      "description": "Filter by creator name."
+                    },
+                    {
+                      "key": "tag",
+                      "value": "{{tag}}",
+                      "disabled": true,
+                      "description": "Filter by tag."
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Pagination page."
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Pagination page size."
+                    },
+                    {
+                      "key": "skip",
+                      "value": "0",
+                      "disabled": true,
+                      "description": "Offset-based pagination start."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Offset-based pagination limit."
+                    }
                   ]
                 },
-                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag."
+                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag, page, pageSize, skip, limit."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/all/:alias (creatorName={{creator1}})",
+              "name": "GET /marketplace/all/:alias?creatorName",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
-                      "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
@@ -576,11 +908,6 @@
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -597,78 +924,61 @@
                     {
                       "key": "creatorName",
                       "value": "{{creator1}}"
-                    }
-                  ]
-                },
-                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag."
-              },
-              "response": []
-            },
-            {
-              "name": "GET /marketplace/all/:alias (creatorName={{creator2}})",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "exec": [
-                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
-                      "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
-                    ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
-                  }
-                }
-              ],
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/all/{{alias_prod}}?creatorName={{creator2}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "all",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
+                    },
                     {
-                      "key": "creatorName",
-                      "value": "{{creator2}}"
+                      "key": "tag",
+                      "value": "{{tag}}",
+                      "disabled": true,
+                      "description": "Filter by tag."
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Pagination page."
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Pagination page size."
+                    },
+                    {
+                      "key": "skip",
+                      "value": "0",
+                      "disabled": true,
+                      "description": "Offset-based pagination start."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Offset-based pagination limit."
                     }
                   ]
                 },
-                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag."
+                "description": "Return catalog items filtered by creatorName."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/all/:alias (tag={{tag}})",
+              "name": "GET /marketplace/all/:alias?tag",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
-                      "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
@@ -678,11 +988,6 @@
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -699,27 +1004,61 @@
                     {
                       "key": "tag",
                       "value": "{{tag}}"
+                    },
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}",
+                      "disabled": true,
+                      "description": "Filter by creator name."
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Pagination page."
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Pagination page size."
+                    },
+                    {
+                      "key": "skip",
+                      "value": "0",
+                      "disabled": true,
+                      "description": "Offset-based pagination start."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Offset-based pagination limit."
                     }
                   ]
                 },
-                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag."
+                "description": "Return catalog items filtered by tag."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/all/:alias (creatorName + tag)",
+              "name": "GET /marketplace/all/:alias?creatorName&tag",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
-                      "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
@@ -729,11 +1068,6 @@
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -754,27 +1088,55 @@
                     {
                       "key": "tag",
                       "value": "{{tag}}"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Pagination page."
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Pagination page size."
+                    },
+                    {
+                      "key": "skip",
+                      "value": "0",
+                      "disabled": true,
+                      "description": "Offset-based pagination start."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Offset-based pagination limit."
                     }
                   ]
                 },
-                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag."
+                "description": "Return catalog items filtered by creatorName and tag."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/all/:alias (bedrock, no filters)",
+              "name": "GET /marketplace/all/:alias (bedrock)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
-                      "pm.test(\"Array response\", () => Array.isArray(pm.response.json()));"
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
@@ -784,11 +1146,6 @@
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -800,36 +1157,74 @@
                     "marketplace",
                     "all",
                     "{{alias_bedrock}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}",
+                      "disabled": true,
+                      "description": "Filter by creator name."
+                    },
+                    {
+                      "key": "tag",
+                      "value": "{{tag}}",
+                      "disabled": true,
+                      "description": "Filter by tag."
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Pagination page."
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Pagination page size."
+                    },
+                    {
+                      "key": "skip",
+                      "value": "0",
+                      "disabled": true,
+                      "description": "Offset-based pagination start."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Offset-based pagination limit."
+                    }
                   ]
                 },
-                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag."
+                "description": "Return catalog items for the Bedrock alias."
               },
               "response": []
             }
           ],
-          "description": "Browse all catalog items with optional creator and tag filters."
+          "description": "Catalog listing endpoints."
         },
         {
-          "name": "Latest",
+          "name": "Discovery",
           "item": [
             {
-              "name": "GET /marketplace/latest/:alias?count=10 (no filters)",
+              "name": "GET /marketplace/latest/:alias?count=10",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
-                      "pm.test(\"Array <= 10\", () => {",
-                      "  const arr = pm.response.json();",
-                      "  pm.expect(Array.isArray(arr)).to.be.true;",
-                      "  pm.expect(arr.length).to.be.at.most(10);",
-                      "});"
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
@@ -839,11 +1234,6 @@
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -860,87 +1250,64 @@
                     {
                       "key": "count",
                       "value": "10"
-                    }
-                  ]
-                },
-                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
-              },
-              "response": []
-            },
-            {
-              "name": "GET /marketplace/latest/:alias?count=25 (no filters)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=25",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "latest",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
+                    },
                     {
-                      "key": "count",
-                      "value": "25"
-                    }
-                  ]
-                },
-                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
-              },
-              "response": []
-            },
-            {
-              "name": "GET /marketplace/latest/:alias?count=50 (cap)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=50",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "latest",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
+                      "key": "creatorName",
+                      "value": "{{creator1}}",
+                      "disabled": true,
+                      "description": "Filter by creator name."
+                    },
                     {
-                      "key": "count",
-                      "value": "50"
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Pagination page."
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Pagination page size."
+                    },
+                    {
+                      "key": "skip",
+                      "value": "0",
+                      "disabled": true,
+                      "description": "Offset-based pagination start."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Offset-based pagination limit."
                     }
                   ]
                 },
-                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
+                "description": "Return latest marketplace items."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/latest/:alias?count=25&creatorName={{creator1}}",
+              "name": "GET /marketplace/latest/:alias?count=25&creatorName",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
@@ -967,192 +1334,64 @@
                     {
                       "key": "creatorName",
                       "value": "{{creator1}}"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Pagination page."
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Pagination page size."
+                    },
+                    {
+                      "key": "skip",
+                      "value": "0",
+                      "disabled": true,
+                      "description": "Offset-based pagination start."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Offset-based pagination limit."
                     }
                   ]
                 },
-                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
+                "description": "Return latest marketplace items for one creator."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/latest/:alias?count=25&creatorName={{creator2}}",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
+              "name": "GET /marketplace/popular/:alias",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
+                    ],
+                    "type": "text/javascript"
                   }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=25&creatorName={{creator2}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "latest",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "count",
-                      "value": "25"
-                    },
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator2}}"
-                    }
-                  ]
-                },
-                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
-              },
-              "response": []
-            },
-            {
-              "name": "GET /marketplace/latest/:alias?count=25&tag={{tag}}",
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=25&tag={{tag}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "latest",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "count",
-                      "value": "25"
-                    },
-                    {
-                      "key": "tag",
-                      "value": "{{tag}}"
-                    }
-                  ]
-                },
-                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
-              },
-              "response": []
-            },
-            {
-              "name": "GET /marketplace/latest/:alias?count=25&creatorName={{creator1}}&tag={{tag}}",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/latest/{{alias_prod}}?count=25&creatorName={{creator1}}&tag={{tag}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "latest",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "count",
-                      "value": "25"
-                    },
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator1}}"
-                    },
-                    {
-                      "key": "tag",
-                      "value": "{{tag}}"
-                    }
-                  ]
-                },
-                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
-              },
-              "response": []
-            },
-            {
-              "name": "GET /marketplace/latest/:alias?count=10 (bedrock)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/latest/{{alias_bedrock}}?count=10",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "latest",
-                    "{{alias_bedrock}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "count",
-                      "value": "10"
-                    }
-                  ]
-                },
-                "description": "Return the latest items. Optional filters: creatorName, tag, count (max 50)."
-              },
-              "response": []
-            }
-          ],
-          "description": "Browse the latest published items with optional filters and count."
-        },
-        {
-          "name": "Popular",
-          "item": [
-            {
-              "name": "GET /marketplace/popular/:alias (no filters)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1164,25 +1403,71 @@
                     "marketplace",
                     "popular",
                     "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}",
+                      "disabled": true,
+                      "description": "Filter by creator name."
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Pagination page."
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Pagination page size."
+                    },
+                    {
+                      "key": "skip",
+                      "value": "0",
+                      "disabled": true,
+                      "description": "Offset-based pagination start."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Offset-based pagination limit."
+                    }
                   ]
                 },
-                "description": "Return popular items for the title alias. Optional filters: creatorName, tag."
+                "description": "Return popular marketplace items."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/popular/:alias?creatorName={{creator1}}",
+              "name": "GET /marketplace/popular/:alias?creatorName",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1199,122 +1484,64 @@
                     {
                       "key": "creatorName",
                       "value": "{{creator1}}"
-                    }
-                  ]
-                },
-                "description": "Return popular items for the title alias. Optional filters: creatorName, tag."
-              },
-              "response": []
-            },
-            {
-              "name": "GET /marketplace/popular/:alias?creatorName={{creator2}}",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/popular/{{alias_prod}}?creatorName={{creator2}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "popular",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator2}}"
-                    }
-                  ]
-                },
-                "description": "Return popular items for the title alias. Optional filters: creatorName, tag."
-              },
-              "response": []
-            },
-            {
-              "name": "GET /marketplace/popular/:alias?creatorName={{creator1}}&tag={{tag}}",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/popular/{{alias_prod}}?creatorName={{creator1}}&tag={{tag}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "popular",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator1}}"
                     },
                     {
-                      "key": "tag",
-                      "value": "{{tag}}"
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Pagination page."
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Pagination page size."
+                    },
+                    {
+                      "key": "skip",
+                      "value": "0",
+                      "disabled": true,
+                      "description": "Offset-based pagination start."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Offset-based pagination limit."
                     }
                   ]
                 },
-                "description": "Return popular items for the title alias. Optional filters: creatorName, tag."
+                "description": "Return popular marketplace items for one creator."
               },
               "response": []
-            }
-          ],
-          "description": "Browse popular items with optional creator and tag filters.",
-          "event": [
+            },
             {
-              "listen": "test",
-              "script": {
-                "exec": [
-                  "// Folder-level quick check for last response (if any)",
-                  "if (pm.response) {",
-                  "  pm.test(\"Status 200\", () => [200,304].includes(pm.response.code));",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
-            }
-          ]
-        },
-        {
-          "name": "Free",
-          "item": [
-            {
-              "name": "GET /marketplace/free/:alias (no filters)",
+              "name": "GET /marketplace/free/:alias",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1326,25 +1553,71 @@
                     "marketplace",
                     "free",
                     "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}",
+                      "disabled": true,
+                      "description": "Filter by creator name."
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Pagination page."
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Pagination page size."
+                    },
+                    {
+                      "key": "skip",
+                      "value": "0",
+                      "disabled": true,
+                      "description": "Offset-based pagination start."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Offset-based pagination limit."
+                    }
                   ]
                 },
-                "description": "Return free items for the title alias. Optional filter: creatorName."
+                "description": "Return free marketplace items."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/free/:alias?creatorName={{creator1}}",
+              "name": "GET /marketplace/free/:alias?creatorName",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1361,68 +1634,64 @@
                     {
                       "key": "creatorName",
                       "value": "{{creator1}}"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Pagination page."
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Pagination page size."
+                    },
+                    {
+                      "key": "skip",
+                      "value": "0",
+                      "disabled": true,
+                      "description": "Offset-based pagination start."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Offset-based pagination limit."
                     }
                   ]
                 },
-                "description": "Return free items for the title alias. Optional filter: creatorName."
+                "description": "Return free marketplace items for one creator."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/free/:alias?creatorName={{creator2}}",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
+              "name": "GET /marketplace/tag/:alias/:tag",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
+                    ],
+                    "type": "text/javascript"
                   }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/free/{{alias_prod}}?creatorName={{creator2}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "free",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator2}}"
-                    }
-                  ]
-                },
-                "description": "Return free items for the title alias. Optional filter: creatorName."
-              },
-              "response": []
-            }
-          ],
-          "description": "Browse free items only (price==0)."
-        },
-        {
-          "name": "Tag",
-          "item": [
-            {
-              "name": "GET /marketplace/tag/:alias/:tag (prod)",
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1437,60 +1706,43 @@
                     "{{tag}}"
                   ]
                 },
-                "description": "Return items tagged with the given tag for the title alias."
-              },
-              "response": []
-            },
-            {
-              "name": "GET /marketplace/tag/:alias/:tag (bedrock)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/tag/{{alias_bedrock}}/{{tag}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "tag",
-                    "{{alias_bedrock}}",
-                    "{{tag}}"
-                  ]
-                },
-                "description": "Return items tagged with the given tag for the title alias."
+                "description": "Return marketplace items for a tag."
               },
               "response": []
             }
           ],
-          "description": "Browse items by tag for a specific title alias."
+          "description": "Latest, popular, free, and tag-based discovery."
         },
         {
           "name": "Search",
           "item": [
             {
-              "name": "GET /marketplace/search/:alias?creatorName={{creator1}}&keyword={{keyword}} (prod)",
+              "name": "GET /marketplace/search/:alias",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1511,73 +1763,57 @@
                     {
                       "key": "keyword",
                       "value": "{{keyword}}"
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Pagination page."
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Pagination page size."
+                    },
+                    {
+                      "key": "skip",
+                      "value": "0",
+                      "disabled": true,
+                      "description": "Offset-based pagination start."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Offset-based pagination limit."
+                    },
+                    {
+                      "key": "orderBy",
+                      "value": "startDate desc",
+                      "disabled": true,
+                      "description": "Sort field and direction."
                     }
                   ]
                 },
-                "description": "Search items using creatorName and keyword query parameters."
+                "description": "Search items by creator and keyword."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/search/:alias?creatorName={{creator2}}&keyword={{keyword}} (prod)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/search/{{alias_prod}}?creatorName={{creator2}}&keyword={{keyword}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "search",
-                    "{{alias_prod}}"
-                  ],
-                  "query": [
-                    {
-                      "key": "creatorName",
-                      "value": "{{creator2}}"
-                    },
-                    {
-                      "key": "keyword",
-                      "value": "{{keyword}}"
-                    }
-                  ]
-                },
-                "description": "Search items using creatorName and keyword query parameters."
-              },
-              "response": []
-            }
-          ],
-          "description": "Search catalog items by creatorName and keyword."
-        },
-        {
-          "name": "Advanced Search",
-          "item": [
-            {
-              "name": "Advanced Search: basic full-text",
+              "name": "POST /marketplace/search/advanced/:alias (basic)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
-                      "pm.test(\"Has items + meta + facets\", function () {",
-                      "  const json = pm.response.json();",
-                      "  pm.expect(json).to.have.property('items');",
-                      "  pm.expect(json).to.have.property('meta');",
-                      "  pm.expect(json).to.have.property('facets');",
-                      "});"
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
                     ],
                     "type": "text/javascript"
                   }
@@ -1587,9 +1823,8 @@
                 "method": "POST",
                 "header": [
                   {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
+                    "key": "Accept",
+                    "value": "application/json"
                   },
                   {
                     "key": "Content-Type",
@@ -1598,10 +1833,15 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"query\": {\n    \"text\": \"survival bundle\"\n  },\n  \"filters\": {\n    \"tagsAny\": [\"adventure\", \"multiplayer\"],\n    \"tagsAll\": [\"marketplace\"],\n    \"contentKinds\": [\"world\"],\n    \"platforms\": [\"android.googleplay\"],\n    \"creationDate\": {\n      \"from\": \"2025-01-01T00:00:00.000Z\",\n      \"to\": \"2026-12-31T23:59:59.000Z\"\n    },\n    \"priceAmounts\": {\n      \"min\": 0,\n      \"max\": 1990\n    },\n    \"ratingMin\": 3.5,\n    \"purchasable\": true\n  },\n  \"sort\": [\n    { \"field\": \"creationDate\", \"dir\": \"desc\" },\n    { \"field\": \"priceAmount\", \"dir\": \"asc\" }\n  ]\n}"
+                  "raw": "{\n  \"query\": {\n    \"text\": \"{{keyword}}\"\n  },\n  \"filters\": {\n    \"creatorName\": \"{{creator1}}\"\n  },\n  \"sort\": [\n    { \"field\": \"startDate\", \"dir\": \"desc\" }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
-                  "raw": "{{baseUrl}}/marketplace/search/advanced/{{alias}}?page=1&pageSize=24",
+                  "raw": "{{baseUrl}}/marketplace/search/advanced/{{alias_prod}}?page=1&pageSize=24",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -1609,7 +1849,7 @@
                     "marketplace",
                     "search",
                     "advanced",
-                    "{{alias}}"
+                    "{{alias_prod}}"
                   ],
                   "query": [
                     {
@@ -1622,19 +1862,24 @@
                     }
                   ]
                 },
-                "description": "Advanced search with the new strict body contract: query + filters + sort (PlayFab-aligned + API-layer filters)."
+                "description": "Advanced search with text, filters, sorting, facets, and pagination."
               },
               "response": []
             },
             {
-              "name": "Advanced Search: by creatorName, narrow date window",
+              "name": "POST /marketplace/search/advanced/:alias (filters)",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
-                      "pm.test(\"Facets present\", () => { const j = pm.response.json(); pm.expect(j.facets).to.be.an('object'); });"
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
                     ],
                     "type": "text/javascript"
                   }
@@ -1644,9 +1889,8 @@
                 "method": "POST",
                 "header": [
                   {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
+                    "key": "Accept",
+                    "value": "application/json"
                   },
                   {
                     "key": "Content-Type",
@@ -1655,10 +1899,15 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"query\": {\n    \"text\": \"valentine\"\n  },\n  \"filters\": {\n    \"creatorName\": \"The Hive\",\n    \"friendlyId\": \"f5c30f04-e47e-4a2c-88f1-313b868195dc\",\n    \"alternateIds\": [\n      { \"type\": \"FriendlyId\", \"value\": \"f5c30f04-e47e-4a2c-88f1-313b868195dc\" }\n    ],\n    \"lastModifiedDate\": {\n      \"from\": \"2025-01-01T00:00:00.000Z\",\n      \"to\": \"2026-12-31T23:59:59.000Z\"\n    },\n    \"offerId\": \"f5c30f04-e47e-4a2c-88f1-313b868195dc\",\n    \"packIdentityType\": \"durable\",\n    \"keywords\": [\"Bundle\"],\n    \"tags\": [\"hidden_offer\"],\n    \"ratingMin\": 4.0\n  },\n  \"sort\": [\n    { \"field\": \"lastModifiedDate\", \"dir\": \"desc\" },\n    { \"field\": \"creatorName\", \"dir\": \"asc\" }\n  ]\n}"
+                  "raw": "{\n  \"filters\": {\n    \"tagsAny\": [\"{{tag}}\"],\n    \"priceAmounts\": {\n      \"min\": 0,\n      \"max\": 5000\n    },\n    \"ratingMin\": 3\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
-                  "raw": "{{baseUrl}}/marketplace/search/advanced/{{alias}}?page=1&pageSize=12",
+                  "raw": "{{baseUrl}}/marketplace/search/advanced/{{alias_prod}}?page=1&pageSize=12",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -1666,7 +1915,7 @@
                     "marketplace",
                     "search",
                     "advanced",
-                    "{{alias}}"
+                    "{{alias_prod}}"
                   ],
                   "query": [
                     {
@@ -1679,33 +1928,88 @@
                     }
                   ]
                 },
-                "description": "Advanced search with creator/alternateId/date filters and API-layer fields like offerId/packIdentityType."
+                "description": "Advanced search with common filters."
               },
               "response": []
-            }
-          ],
-          "description": "Advanced search with strict request body (query/filters/sort), pagination, and PlayFab-aligned filtering."
-        },
-        {
-          "name": "Details",
-          "item": [
+            },
             {
-              "name": "GET /marketplace/details/:alias/:itemId (prod)",
+              "name": "POST /marketplace/player/search/:alias",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "pm.test(\"Status 200 or 404 (if invalid itemId)\", () => [200,404].includes(pm.response.code));",
-                      "if (pm.response.code === 200) {",
-                      "  const b = pm.response.json();",
-                      "  pm.test(\"Has Id\", () => pm.expect(b).to.have.property('Id'));",
-                      "  pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
-                      "}"
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"titleEntityToken\": \"{{titleEntityToken}}\",\n  \"titlePlayerAccountId\": \"{{titlePlayerAccountId}}\",\n  \"search\": \"{{keyword}}\",\n  \"creatorName\": \"{{creator1}}\",\n  \"top\": 25,\n  \"skip\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/player/search/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "player",
+                    "search",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Search the player marketplace with entity tokens and optional filters."
+              },
+              "response": []
+            }
+          ],
+          "description": "Basic, advanced, and player marketplace search."
+        },
+        {
+          "name": "Items",
+          "item": [
+            {
+              "name": "GET /marketplace/details/:alias/:itemId",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ],
+                    "type": "text/javascript"
                   }
                 }
               ],
@@ -1715,11 +2019,6 @@
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1734,60 +2033,35 @@
                     "{{itemId}}"
                   ]
                 },
-                "description": "Return item details for the title alias and itemId."
+                "description": "Get item details by catalog item id."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/details/:alias/:itemId (bedrock)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
+              "name": "GET /marketplace/friendly/:alias/:friendlyId",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ],
+                    "type": "text/javascript"
                   }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/details/{{alias_bedrock}}/{{itemId}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "details",
-                    "{{alias_bedrock}}",
-                    "{{itemId}}"
-                  ]
-                },
-                "description": "Return item details for the title alias and itemId."
-              },
-              "response": []
-            }
-          ],
-          "description": "Fetch a single item by itemId within a title alias."
-        },
-        {
-          "name": "Friendly",
-          "item": [
-            {
-              "name": "GET /marketplace/friendly/:alias/:friendlyId (prod)",
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1802,60 +2076,92 @@
                     "{{friendlyId}}"
                   ]
                 },
-                "description": "Return item details for the title alias and friendlyId."
+                "description": "Get item details by FriendlyId."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/friendly/:alias/:friendlyId (bedrock)",
+              "name": "GET /marketplace/recommendations/:itemId",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/marketplace/friendly/{{alias_bedrock}}/{{friendlyId}}",
+                  "raw": "{{baseUrl}}/marketplace/recommendations/{{itemId}}?limit=10",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "marketplace",
-                    "friendly",
-                    "{{alias_bedrock}}",
-                    "{{friendlyId}}"
+                    "recommendations",
+                    "{{itemId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
                   ]
                 },
-                "description": "Return item details for the title alias and friendlyId."
+                "description": "Return recommended items for the given item."
               },
               "response": []
             }
           ],
-          "description": "Fetch a single item by FriendlyId within a title alias."
+          "description": "Direct item lookup and recommendations. Wrapper resolution lives in the Resolve folder."
         },
         {
           "name": "Resolve",
           "item": [
             {
-              "name": "GET /marketplace/resolve/:alias/:itemId",
+              "name": "GET /marketplace/resolve/:alias/:itemId - resolve by itemId",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Resolved item has an Id when present\", () => { if (body && Object.keys(body).length) pm.expect(body.Id || body.id).to.exist; });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -1868,25 +2174,206 @@
                     "resolve",
                     "{{alias_prod}}",
                     "{{itemId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "depth",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Optional resolve depth. 0 disables recursive resolving; 1 is the API default."
+                    }
                   ]
                 },
-                "description": "Resolve an itemId to its canonical catalog entry. Optional query: depth."
+                "description": "Resolve a wrapper item to the canonical marketplace item by itemId. Uses the default depth=1."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/resolve/friendly/:alias/:friendlyId",
+              "name": "GET /marketplace/resolve/:alias/:itemId?depth=0 - no recursion",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Resolved item has an Id when present\", () => { if (body && Object.keys(body).length) pm.expect(body.Id || body.id).to.exist; });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/resolve/{{alias_prod}}/{{itemId}}?depth=0",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "resolve",
+                    "{{alias_prod}}",
+                    "{{itemId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "depth",
+                      "value": "0"
+                    }
+                  ]
+                },
+                "description": "Resolve by itemId without following nested wrapper references."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/resolve/:alias/:itemId?depth=2 - deeper recursion",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Resolved item has an Id when present\", () => { if (body && Object.keys(body).length) pm.expect(body.Id || body.id).to.exist; });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
                   {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/resolve/{{alias_prod}}/{{itemId}}?depth=2",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "resolve",
+                    "{{alias_prod}}",
+                    "{{itemId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "depth",
+                      "value": "2"
+                    }
+                  ]
+                },
+                "description": "Resolve by itemId and allow nested wrapper resolution up to depth 2."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/resolve/:alias/:itemId (bedrock)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Resolved item has an Id when present\", () => { if (body && Object.keys(body).length) pm.expect(body.Id || body.id).to.exist; });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/resolve/{{alias_bedrock}}/{{itemId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "resolve",
+                    "{{alias_bedrock}}",
+                    "{{itemId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "depth",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Optional resolve depth. 0 disables recursive resolving; 1 is the API default."
+                    }
+                  ]
+                },
+                "description": "Resolve a wrapper item by itemId against the Bedrock alias."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/resolve/friendly/:alias/:friendlyId - resolve by FriendlyId",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Resolved item has an Id when present\", () => { if (body && Object.keys(body).length) pm.expect(body.Id || body.id).to.exist; });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
                   }
                 ],
                 "url": {
@@ -1900,31 +2387,212 @@
                     "friendly",
                     "{{alias_prod}}",
                     "{{friendlyId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "depth",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Optional resolve depth. 0 disables recursive resolving; 1 is the API default."
+                    }
                   ]
                 },
-                "description": "Resolve a friendlyId to its canonical catalog entry. Optional query: depth."
+                "description": "Resolve a wrapper item to the canonical marketplace item by FriendlyId. Uses the default depth=1."
               },
               "response": []
-            }
-          ],
-          "description": "Resolve wrapper items to canonical catalog entries."
-        },
-        {
-          "name": "Summary",
-          "item": [
+            },
             {
-              "name": "GET /marketplace/summary/:alias (prod)",
+              "name": "GET /marketplace/resolve/friendly/:alias/:friendlyId?depth=0 - no recursion",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Resolved item has an Id when present\", () => { if (body && Object.keys(body).length) pm.expect(body.Id || body.id).to.exist; });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/resolve/friendly/{{alias_prod}}/{{friendlyId}}?depth=0",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "resolve",
+                    "friendly",
+                    "{{alias_prod}}",
+                    "{{friendlyId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "depth",
+                      "value": "0"
+                    }
+                  ]
+                },
+                "description": "Resolve by FriendlyId without following nested wrapper references."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/resolve/friendly/:alias/:friendlyId?depth=2 - deeper recursion",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Resolved item has an Id when present\", () => { if (body && Object.keys(body).length) pm.expect(body.Id || body.id).to.exist; });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
                   {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/resolve/friendly/{{alias_prod}}/{{friendlyId}}?depth=2",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "resolve",
+                    "friendly",
+                    "{{alias_prod}}",
+                    "{{friendlyId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "depth",
+                      "value": "2"
+                    }
+                  ]
+                },
+                "description": "Resolve by FriendlyId and allow nested wrapper resolution up to depth 2."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/resolve/friendly/:alias/:friendlyId (bedrock)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Resolved item has an Id when present\", () => { if (body && Object.keys(body).length) pm.expect(body.Id || body.id).to.exist; });"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/resolve/friendly/{{alias_bedrock}}/{{friendlyId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "resolve",
+                    "friendly",
+                    "{{alias_bedrock}}",
+                    "{{friendlyId}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "depth",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Optional resolve depth. 0 disables recursive resolving; 1 is the API default."
+                    }
+                  ]
+                },
+                "description": "Resolve a wrapper item by FriendlyId against the Bedrock alias."
+              },
+              "response": []
+            }
+          ],
+          "description": "Resolve wrapper items to their canonical marketplace item by itemId or FriendlyId. The optional depth query controls how many nested wrapper references may be followed."
+        },
+        {
+          "name": "Analytics",
+          "item": [
+            {
+              "name": "GET /marketplace/summary/:alias",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
                   }
                 ],
                 "url": {
@@ -1938,62 +2606,26 @@
                     "{{alias_prod}}"
                   ]
                 },
-                "description": "Return summary metrics for the title alias."
+                "description": "Return summary data for a title alias."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/summary/:alias (bedrock)",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/summary/{{alias_bedrock}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "summary",
-                    "{{alias_bedrock}}"
-                  ]
-                },
-                "description": "Return summary metrics for the title alias."
-              },
-              "response": []
-            }
-          ],
-          "description": "Return summary metrics for a title alias."
-        },
-        {
-          "name": "Compare",
-          "item": [
-            {
-              "name": "GET /marketplace/compare/:creatorName ({{creator1}})",
+              "name": "GET /marketplace/compare/:creatorName",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"Response is object keyed by alias\", () => {",
-                      "  const b = pm.response.json();",
-                      "  pm.expect(b).to.be.an('object');",
-                      "});"
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
@@ -2003,11 +2635,6 @@
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -2021,59 +2648,35 @@
                     "{{creator1}}"
                   ]
                 },
-                "description": "Compare a creator across all configured titles."
+                "description": "Compare items of a creator across configured titles."
               },
               "response": []
             },
             {
-              "name": "GET /marketplace/compare/:creatorName ({{creator2}})",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/compare/{{creator2}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "compare",
-                    "{{creator2}}"
-                  ]
-                },
-                "description": "Compare a creator across all configured titles."
-              },
-              "response": []
-            }
-          ],
-          "description": "Compare a creator across all titles."
-        },
-        {
-          "name": "Stats",
-          "item": [
-            {
               "name": "GET /marketplace/:creatorName/stats",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -2110,105 +2713,38 @@
               "response": []
             }
           ],
-          "description": "Creator-level metrics, rating distributions, and time series stats."
+          "description": "Summary, compare, and creator statistics."
         },
         {
-          "name": "Player Search",
-          "item": [
-            {
-              "name": "POST /marketplace/player/search/:alias",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/player/search/{{alias_prod}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "player",
-                    "search",
-                    "{{alias_prod}}"
-                  ]
-                },
-                "description": "Search the player marketplace with entity tokens and optional filters.",
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"titleEntityToken\": \"REPLACE_WITH_ENTITY_TOKEN\",\n  \"titlePlayerAccountId\": \"REPLACE_WITH_PLAYER_ID\",\n  \"search\": \"{{keyword}}\",\n  \"creatorName\": \"{{creator1}}\",\n  \"top\": 25,\n  \"skip\": 0\n}"
-                }
-              },
-              "response": []
-            }
-          ],
-          "description": "Search the marketplace using player entity tokens."
-        },
-        {
-          "name": "Recommendations",
-          "item": [
-            {
-              "name": "GET /marketplace/recommendations/:itemId",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/recommendations/{{itemId}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "recommendations",
-                    "{{itemId}}"
-                  ]
-                },
-                "description": "Return recommended items for the given item. Optional query: limit."
-              },
-              "response": []
-            }
-          ],
-          "description": "Get item recommendations based on a seed item."
-        },
-        {
-          "name": "Featured Content",
+          "name": "Featured",
           "item": [
             {
               "name": "GET /marketplace/featured-content",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -2224,13 +2760,7 @@
                 "description": "Return featured persona items."
               },
               "response": []
-            }
-          ],
-          "description": "Featured persona content from the Dressing Room layout."
-        },
-        {
-          "name": "Featured Servers",
-          "item": [
+            },
             {
               "name": "GET /marketplace/featured-servers",
               "event": [
@@ -2238,20 +2768,17 @@
                   "listen": "test",
                   "script": {
                     "exec": [
-                      "pm.test(\"Status 200\", () => pm.response.code === 200);",
-                      "pm.test(\"ETag present\", () => pm.expect(!!pm.response.headers.get('ETag')).to.be.true);",
-                      "pm.test(\"Array of server entries\", () => {",
-                      "  const arr = pm.response.json();",
-                      "  pm.expect(Array.isArray(arr)).to.be.true;",
-                      "  if (arr.length) {",
-                      "    pm.expect(arr[0]).to.have.property('name');",
-                      "    pm.expect(arr[0]).to.have.property('id');",
-                      "  }",
-                      "});"
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
                     ],
-                    "type": "text/javascript",
-                    "packages": {},
-                    "requests": {}
+                    "type": "text/javascript"
                   }
                 }
               ],
@@ -2261,11 +2788,6 @@
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
@@ -2283,34 +2805,52 @@
               "response": []
             }
           ],
-          "description": "Return curated featured server data."
+          "description": "Featured persona content and featured servers."
         },
         {
           "name": "Sales",
           "item": [
             {
               "name": "GET /marketplace/sales",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/marketplace/sales",
+                  "raw": "{{baseUrl}}/marketplace/sales?creator={{creator1}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
                     "marketplace",
                     "sales"
+                  ],
+                  "query": [
+                    {
+                      "key": "creator",
+                      "value": "{{creator1}}"
+                    }
                   ]
                 },
                 "description": "Return all active sales. Optional query: creator."
@@ -2319,21 +2859,33 @@
             },
             {
               "name": "GET /marketplace/sales/:alias",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "request": {
                 "method": "GET",
                 "header": [
                   {
                     "key": "Accept",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/marketplace/sales/{{alias_prod}}",
+                  "raw": "{{baseUrl}}/marketplace/sales/{{alias_prod}}?creator={{creator1}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -2341,6 +2893,12 @@
                     "marketplace",
                     "sales",
                     "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creator",
+                      "value": "{{creator1}}"
+                    }
                   ]
                 },
                 "description": "Return active sales for the given title alias. Optional query: creator."
@@ -2348,275 +2906,168 @@
               "response": []
             }
           ],
-          "description": "Inspect active sales across titles or for a single title alias."
+          "description": "Active sales endpoints."
         },
         {
-          "name": "Events – Stream (SSE)",
-          "description": "Server-sent event stream for marketplace events with optional filters.",
+          "name": "Tokens",
           "item": [
             {
-              "name": "Events Stream (SSE)",
+              "name": "GET /marketplace/mc-token",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
               "request": {
+                "auth": {
+                  "type": "noauth"
+                },
                 "method": "GET",
                 "header": [
                   {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  },
-                  {
                     "key": "Accept",
-                    "value": "text/event-stream"
-                  },
-                  {
-                    "key": "Cache-Control",
-                    "value": "no-store"
-                  },
-                  {
-                    "key": "Connection",
-                    "value": "keep-alive"
+                    "value": "application/json"
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/events/stream",
+                  "raw": "{{baseUrl}}/marketplace/mc-token",
                   "host": [
                     "{{baseUrl}}"
                   ],
                   "path": [
-                    "events",
-                    "stream"
+                    "marketplace",
+                    "mc-token"
                   ]
                 },
-                "description": "Subscribe to the events stream. Optional query params: events, creatorName, heartbeatMs."
+                "description": "Return the Minecraft Services authorization token for the configured primary title. This endpoint is intentionally unauthenticated in the API."
               },
               "response": []
             }
-          ]
-        },
-        {
-          "name": "Admin – Webhooks",
-          "description": "Manage webhook registrations for marketplace events.",
-          "item": [
-            {
-              "name": "GET /webhooks",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/webhooks",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "webhooks"
-                  ]
-                },
-                "description": "List all registered webhooks."
-              },
-              "response": []
-            },
-            {
-              "name": "POST /webhooks",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/webhooks",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "webhooks"
-                  ]
-                },
-                "description": "Create a new webhook registration.",
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"url\": \"https://example.com/webhooks/vmc\",\n  \"events\": [\n    \"sale.update\",\n    \"item.updated\"\n  ],\n  \"secret\": \"optional-secret\",\n  \"vendor\": \"{{webhookProvider}}\",\n  \"active\": true,\n  \"filters\": {\n    \"creators\": [\n      \"{{creator1}}\"\n    ]\n  }\n}"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "GET /webhooks/:id",
-              "request": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/webhooks/{{webhookId}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "webhooks",
-                    "{{webhookId}}"
-                  ]
-                },
-                "description": "Fetch a webhook registration by id."
-              },
-              "response": []
-            },
-            {
-              "name": "PATCH /webhooks/:id",
-              "request": {
-                "method": "PATCH",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/webhooks/{{webhookId}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "webhooks",
-                    "{{webhookId}}"
-                  ]
-                },
-                "description": "Update a webhook registration.",
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"active\": true,\n  \"events\": [\n    \"sale.update\"\n  ],\n  \"filters\": {\n    \"creators\": [\n      \"{{creator1}}\"\n    ]\n  }\n}"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "DELETE /webhooks/:id",
-              "request": {
-                "method": "DELETE",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/webhooks/{{webhookId}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "webhooks",
-                    "{{webhookId}}"
-                  ]
-                },
-                "description": "Delete a webhook registration."
-              },
-              "response": []
-            },
-            {
-              "name": "POST /webhooks/:id/test",
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{token}}",
-                    "type": "text"
-                  }
-                ],
-                "url": {
-                  "raw": "{{baseUrl}}/webhooks/{{webhookId}}/test",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "webhooks",
-                    "{{webhookId}}",
-                    "test"
-                  ]
-                },
-                "description": "Trigger a test delivery for a webhook and return delivery status."
-              },
-              "response": []
-            }
-          ]
+          ],
+          "description": "Token helper endpoints."
         }
       ],
-      "description": "Marketplace browsing, search, and metadata endpoints."
+      "description": "Marketplace browsing, search, metadata, and helper endpoints."
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "GET /events/stream",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/event-stream"
+              },
+              {
+                "key": "Cache-Control",
+                "value": "no-store"
+              },
+              {
+                "key": "Connection",
+                "value": "keep-alive"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/events/stream?events=sale.update,item.updated&creatorName={{creator1}}&heartbeatMs=30000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "events",
+                "stream"
+              ],
+              "query": [
+                {
+                  "key": "events",
+                  "value": "sale.update,item.updated"
+                },
+                {
+                  "key": "creatorName",
+                  "value": "{{creator1}}"
+                },
+                {
+                  "key": "heartbeatMs",
+                  "value": "30000"
+                },
+                {
+                  "key": "creatorNames",
+                  "value": "{{creator1}},{{creator2}}",
+                  "disabled": true,
+                  "description": "Comma-separated creator filters."
+                }
+              ]
+            },
+            "description": "Subscribe to the server-sent events stream. The request stays open while the server sends events. Optional query params can filter by event names and creators."
+          },
+          "response": []
+        }
+      ],
+      "description": "Server-sent event stream endpoints."
     }
   ],
   "event": [
     {
       "listen": "prerequest",
       "script": {
+        "type": "text/javascript",
         "exec": [
-          "// Collection-level pre-request: ensure a timestamp variable for uniqueness in examples",
-          "pm.collectionVariables.set(\"ts\", Date.now().toString());"
-        ],
-        "type": "text/javascript"
+          "pm.collectionVariables.set(\"ts\", Date.now().toString());",
+          "const baseUrl = pm.collectionVariables.get(\"baseUrl\");",
+          "if (baseUrl) pm.collectionVariables.set(\"baseUrl\", baseUrl.replace(/\\/+$/, \"\"));"
+        ]
       }
     },
     {
       "listen": "test",
       "script": {
+        "type": "text/javascript",
         "exec": [
-          "// Collection-level test placeholder"
-        ],
-        "type": "text/javascript"
+          "pm.test(\"No unexpected server error\", () => pm.expect(pm.response.code).to.be.below(500));"
+        ]
       }
     }
   ],
   "variable": [
     {
       "key": "baseUrl",
-      "value": "localhost:3000"
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "adminUser",
+      "value": "REPLACE_WITH_ADMIN_USER"
+    },
+    {
+      "key": "adminPass",
+      "value": "REPLACE_WITH_ADMIN_PASS",
+      "type": "secret"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "default"
+    },
+    {
+      "key": "token_exp",
+      "value": ""
+    },
+    {
+      "key": "maxResponseMs",
+      "value": "8000"
     },
     {
       "key": "alias_prod",
@@ -2625,6 +3076,10 @@
     {
       "key": "alias_bedrock",
       "value": "bedrock"
+    },
+    {
+      "key": "alias",
+      "value": "prod"
     },
     {
       "key": "creator1",
@@ -2651,8 +3106,12 @@
       "value": "REPLACE_WITH_REAL_FRIENDLY_ID"
     },
     {
-      "key": "alias_to_delete",
-      "value": "demo"
+      "key": "titleEntityToken",
+      "value": "REPLACE_WITH_ENTITY_TOKEN"
+    },
+    {
+      "key": "titlePlayerAccountId",
+      "value": "REPLACE_WITH_PLAYER_ID"
     },
     {
       "key": "new_alias",
@@ -2663,10 +3122,6 @@
       "value": "PSTMN{{ts}}"
     },
     {
-      "key": "ts",
-      "value": ""
-    },
-    {
       "key": "created_alias",
       "value": ""
     },
@@ -2675,25 +3130,30 @@
       "value": ""
     },
     {
-      "key": "etag_all_prod",
-      "value": ""
-    },
-    {
-      "key": "token",
-      "value": "",
-      "type": "default"
-    },
-    {
       "key": "webhookProvider",
       "value": "auto"
     },
     {
-      "key": "token_exp",
+      "key": "webhookId",
+      "value": "REPLACE_WITH_WEBHOOK_ID"
+    },
+    {
+      "key": "lastEtag",
       "value": ""
     },
     {
-      "key": "webhookId",
-      "value": "REPLACE_WITH_WEBHOOK_ID"
+      "key": "ts",
+      "value": ""
     }
-  ]
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  }
 }

@@ -1,5 +1,24 @@
 # Changelog
 
+## 6.0.0 (2026-04-27)
+
+### Summary
+
+- PlayFab - Revise Postman collection structure and naming (43a4d53)
+- Version bump: major
+- Files changed: 1
+- Line changes: +1780 / -1320
+- Scope: This release mainly updates repository files.
+
+## 6.0.1 (2026-04-27)
+
+### Summary
+
+- Merge remote-tracking branch 'origin/main' (4e71b22)
+- Version bump: patch
+- Files changed: 1
+- Line changes: +10 / -0
+- Scope: This release mainly updates repository files.
 ## 5.1.2 (2026-04-27)
 
 ### Summary
@@ -212,6 +231,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

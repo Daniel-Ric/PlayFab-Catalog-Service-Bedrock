@@ -380,11 +380,6 @@
     "displayName": "Dexity"
   },
   {
-    "creatorName": "DiamondStudios",
-    "id": "master_player_account!3C806FA218411B95",
-    "displayName": "Diamond Studios"
-  },
-  {
     "creatorName": "DigDownStudios",
     "id": "master_player_account!4BE38E4CA4991879",
     "displayName": "Dig Down Studios"
@@ -518,6 +513,11 @@
     "creatorName": "FoxelGames",
     "id": "master_player_account!9C1B88006E7EC57F",
     "displayName": "Foxel Games"
+  },
+  {
+    "creatorName": "FoxyStarStudios",
+    "id": "master_player_account!675BE7D0EA0DAEA1",
+    "displayName": "FoxyStar Studios"
   },
   {
     "creatorName": "FTB",
@@ -670,11 +670,6 @@
     "displayName": "inPixel"
   },
   {
-    "creatorName": "Mineville",
-    "id": "master_player_account!4CACD50BFFEC08EA",
-    "displayName": "Mineville"
-  },
-  {
     "creatorName": "InPvP",
     "id": "master_player_account!4CACD50BFFEC08EA",
     "displayName": "InPvP"
@@ -805,11 +800,6 @@
     "displayName": "Lore Studios"
   },
   {
-    "creatorName": "Lostduckies",
-    "id": "master_player_account!F95DC76839801BC2",
-    "displayName": "Lostduckies"
-  },
-  {
     "creatorName": "Lothiredon",
     "id": "master_player_account!AEEBA075E1795244",
     "displayName": "Lothiredon"
@@ -895,11 +885,6 @@
     "displayName": "MineParty Studios"
   },
   {
-    "creatorName": "Mineplex",
-    "id": "master_player_account!A26D63E5302BA5E9",
-    "displayName": "Mineplex"
-  },
-  {
     "creatorName": "Minty",
     "id": "master_player_account!932C32F4C89D6F33",
     "displayName": "Minty"
@@ -948,6 +933,11 @@
     "creatorName": "Mythicus",
     "id": "master_player_account!B09D2443C275FAD3",
     "displayName": "Mythicus"
+  },
+  {
+    "creatorName": "Neoreva",
+    "id": "master_player_account!202C01B9E0880733",
+    "displayName": "Neoreva"
   },
   {
     "creatorName": "Netherfly",
@@ -1145,11 +1135,6 @@
     "displayName": "Podcrash"
   },
   {
-    "creatorName": "Poggy",
-    "id": "master_player_account!675BE7D0EA0DAEA1",
-    "displayName": "Poggy"
-  },
-  {
     "creatorName": "Polymaps",
     "id": "master_player_account!29B1A4155CB06B27",
     "displayName": "Polymaps"
@@ -1163,6 +1148,11 @@
     "creatorName": "PurplebyteCreations",
     "id": "master_player_account!A99411F00759D2B6",
     "displayName": "Purplebyte Creations"
+  },
+  {
+    "creatorName": "QSMP",
+    "id": "master_player_account!1F44670319CBCCF5",
+    "displayName": "QSMP"
   },
   {
     "creatorName": "QwertyuiopThePie",
@@ -1218,6 +1208,11 @@
     "creatorName": "RefreshStudios",
     "id": "master_player_account!8CDCDCF3ED5A01FD",
     "displayName": "Refresh Studios"
+  },
+  {
+    "creatorName": "RogueAssemblies",
+    "id": "master_player_account!B3B1889F09A19CD0",
+    "displayName": "Rogue Assemblies"
   },
   {
     "creatorName": "SandBlockStudios",

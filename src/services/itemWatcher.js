@@ -18,6 +18,7 @@ const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
 const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
 const SEARCH_ITEMS_MAX_COUNT = 50;
+let searchItemsUnavailable = false;
 
 function getTitleId() {
     const alias = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || "").trim();
@@ -91,18 +92,22 @@ function shouldFetchNextPage(nextToken, previousToken, seenTokens) {
 async function collectPaginatedItems(itemsPerRequest, maxItems, loadPage) {
     const allItems = [];
     let continuationToken = null;
+    let scannedHits = 0;
     const seenContinuationTokens = new Set();
 
-    while (allItems.length < maxItems) {
-        const remaining = maxItems - allItems.length;
+    while (scannedHits < maxItems) {
+        const remaining = maxItems - scannedHits;
         const count = Math.min(itemsPerRequest, remaining);
         const page = await loadPage(continuationToken, count);
         const pageItems = page.items || [];
         const previousToken = continuationToken;
+        const hitCount = Number.isFinite(page.hitCount) ? page.hitCount : pageItems.length;
 
+        scannedHits += Math.max(0, hitCount);
         allItems.push(...pageItems);
         continuationToken = page.continuationToken || null;
         if (!shouldFetchNextPage(continuationToken, previousToken, seenContinuationTokens)) break;
+        if (hitCount <= 0) break;
     }
 
     return allItems.slice(0, maxItems);
@@ -132,26 +137,35 @@ async function searchItemsPage(titleId, os, filter, orderBy, continuationToken, 
         Filter: filter, OrderBy: orderBy, ContinuationToken: continuationToken, Count: safeCount
     };
 
+    if (searchItemsUnavailable) {
+        return await searchItemsPageFallback(titleId, os, filter, orderBy, continuationToken, safeCount);
+    }
+
     try {
         const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, os);
         return data || {};
     } catch (err) {
-        const offset = parseFallbackOffset(continuationToken);
-        logger.warn(`[ItemWatcher] Catalog/SearchItems failed, falling back to Catalog/Search: ${err.message}`);
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", {
-            Filter: filter,
-            OrderBy: orderBy,
-            Top: safeCount,
-            Skip: offset,
-            Expand: "Images"
-        }, "X-EntityToken", 3, os);
-
-        const items = data?.Items || data?.items || [];
-        return {
-            Items: items,
-            ContinuationToken: items.length >= safeCount ? makeFallbackOffset(offset + items.length) : null
-        };
+        searchItemsUnavailable = true;
+        logger.warn(`[ItemWatcher] Catalog/SearchItems failed, falling back to Catalog/Search for this process: ${err.message}`);
+        return await searchItemsPageFallback(titleId, os, filter, orderBy, continuationToken, safeCount);
     }
+}
+
+async function searchItemsPageFallback(titleId, os, filter, orderBy, continuationToken, safeCount) {
+    const offset = parseFallbackOffset(continuationToken);
+    const data = await sendPlayFabRequest(titleId, "Catalog/Search", {
+        Filter: filter,
+        OrderBy: orderBy,
+        Top: safeCount,
+        Skip: offset,
+        Expand: "Images"
+    }, "X-EntityToken", 3, os);
+
+    const items = data?.Items || data?.items || [];
+    return {
+        Items: items,
+        ContinuationToken: items.length >= safeCount ? makeFallbackOffset(offset + items.length) : null
+    };
 }
 
 function parseFallbackOffset(token) {
@@ -376,6 +390,7 @@ module.exports = {
         parseFallbackOffset,
         makeFallbackOffset,
         shouldFetchNextPage,
-        collectPaginatedItems
+        collectPaginatedItems,
+        searchItemsPageFallback
     }
 };

@@ -135,8 +135,8 @@ test("fallback offset helpers clamp invalid offsets to zero", () => {
 
 test("pagination continues when a partial detail page has a continuation token", async () => {
     const pages = [
-        {items: [{Id: "item-1"}], continuationToken: "page-2"},
-        {items: [{Id: "item-2"}], continuationToken: null}
+        {items: [{Id: "item-1"}], continuationToken: "page-2", hitCount: 5},
+        {items: [{Id: "item-2"}], continuationToken: null, hitCount: 5}
     ];
     const requestedTokens = [];
 
@@ -147,6 +147,18 @@ test("pagination continues when a partial detail page has a continuation token",
 
     assert.deepEqual(requestedTokens, [null, "page-2"]);
     assert.deepEqual(result.map(item => item.Id), ["item-1", "item-2"]);
+});
+
+test("pagination limits by scanned search hits, not valid detail items", async () => {
+    let calls = 0;
+
+    const result = await _internals.collectPaginatedItems(5, 10, async () => {
+        calls += 1;
+        return {items: [], continuationToken: `page-${calls + 1}`, hitCount: 5};
+    });
+
+    assert.equal(calls, 2);
+    assert.deepEqual(result, []);
 });
 
 test("pagination stops on repeated continuation tokens", async () => {

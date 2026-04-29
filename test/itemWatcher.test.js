@@ -133,6 +133,34 @@ test("fallback offset helpers clamp invalid offsets to zero", () => {
     assert.equal(_internals.parseFallbackOffset("bogus"), 0);
 });
 
+test("pagination continues when a partial detail page has a continuation token", async () => {
+    const pages = [
+        {items: [{Id: "item-1"}], continuationToken: "page-2"},
+        {items: [{Id: "item-2"}], continuationToken: null}
+    ];
+    const requestedTokens = [];
+
+    const result = await _internals.collectPaginatedItems(5, 10, async continuationToken => {
+        requestedTokens.push(continuationToken);
+        return pages.shift();
+    });
+
+    assert.deepEqual(requestedTokens, [null, "page-2"]);
+    assert.deepEqual(result.map(item => item.Id), ["item-1", "item-2"]);
+});
+
+test("pagination stops on repeated continuation tokens", async () => {
+    let calls = 0;
+
+    const result = await _internals.collectPaginatedItems(5, 10, async () => {
+        calls += 1;
+        return {items: [{Id: `item-${calls}`}], continuationToken: "same-token"};
+    });
+
+    assert.equal(calls, 2);
+    assert.deepEqual(result.map(item => item.Id), ["item-1", "item-2"]);
+});
+
 test("classifyItemChange returns a stable hash for known items", () => {
     const result = _internals.classifyItemChange(makeItem(), null, SINCE_TS);
     assert.equal(typeof result.nextHash, "string");

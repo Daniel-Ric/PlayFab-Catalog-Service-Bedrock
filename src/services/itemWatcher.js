@@ -77,23 +77,35 @@ async function fetchRecentItems(titleId, os, itemsPerRequest, maxItems) {
     const orderBy = `${field} desc`;
     const filter = "";
 
+    return collectPaginatedItems(itemsPerRequest, maxItems, (continuationToken, count) => requestItems(titleId, os, filter, orderBy, continuationToken, count));
+}
+
+function shouldFetchNextPage(nextToken, previousToken, seenTokens) {
+    if (!nextToken) return false;
+    if (nextToken === previousToken) return false;
+    if (seenTokens && seenTokens.has(nextToken)) return false;
+    if (seenTokens) seenTokens.add(nextToken);
+    return true;
+}
+
+async function collectPaginatedItems(itemsPerRequest, maxItems, loadPage) {
     const allItems = [];
     let continuationToken = null;
+    const seenContinuationTokens = new Set();
 
     while (allItems.length < maxItems) {
         const remaining = maxItems - allItems.length;
         const count = Math.min(itemsPerRequest, remaining);
-        const page = await requestItems(titleId, os, filter, orderBy, continuationToken, count);
-
+        const page = await loadPage(continuationToken, count);
         const pageItems = page.items || [];
-        if (!pageItems.length) break;
+        const previousToken = continuationToken;
 
         allItems.push(...pageItems);
         continuationToken = page.continuationToken || null;
-        if (!continuationToken) break;
+        if (!shouldFetchNextPage(continuationToken, previousToken, seenContinuationTokens)) break;
     }
 
-    return allItems;
+    return allItems.slice(0, maxItems);
 }
 
 function normalizeFieldSpec(field) {
@@ -170,13 +182,13 @@ async function requestItems(titleId, os, filter, orderBy, continuationToken, cou
     const data = await searchItemsPage(titleId, os, filter, orderBy, continuationToken, count);
     const hits = data.Items || data.items || [];
     const nextToken = data.ContinuationToken || data.continuationToken || null;
-    if (!hits.length) return {items: [], continuationToken: nextToken};
+    if (!hits.length) return {items: [], continuationToken: nextToken, hitCount: 0};
 
     const ids = hits.map(idOfSearchHit).filter(Boolean);
     const full = await getItemsCompat(titleId, os, ids);
     const fallbackItems = hits.map(itemFromSearchHit).filter(Boolean);
     const items = ((full && full.length) ? full : fallbackItems).filter(isValidItem);
-    return {items, continuationToken: nextToken};
+    return {items, continuationToken: nextToken, hitCount: hits.length};
 }
 
 async function fetchItemsSince(titleId, os, field, sinceIso, itemsPerRequest, maxItems) {
@@ -187,22 +199,9 @@ async function fetchItemsSince(titleId, os, field, sinceIso, itemsPerRequest, ma
     for (const f of candidates) {
         const filter = `(${f} ge ${toFilterDateLiteral(sinceIso)})`;
         const orderBy = `${f} asc`;
-        const allItems = [];
-        let continuationToken = null;
 
         try {
-            while (allItems.length < maxItems) {
-                const remaining = maxItems - allItems.length;
-                const count = Math.min(itemsPerRequest, remaining);
-                const page = await requestItems(titleId, os, filter, orderBy, continuationToken, count);
-                const pageItems = page.items || [];
-                if (!pageItems.length) break;
-                allItems.push(...pageItems);
-                if (pageItems.length < count) break;
-                continuationToken = page.continuationToken || null;
-                if (!continuationToken) break;
-            }
-            return allItems;
+            return await collectPaginatedItems(itemsPerRequest, maxItems, (continuationToken, count) => requestItems(titleId, os, filter, orderBy, continuationToken, count));
         } catch (e) {
             lastErr = e;
         }
@@ -375,6 +374,8 @@ module.exports = {
     _internals: {
         classifyItemChange,
         parseFallbackOffset,
-        makeFallbackOffset
+        makeFallbackOffset,
+        shouldFetchNextPage,
+        collectPaginatedItems
     }
 };

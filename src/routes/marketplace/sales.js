@@ -13,9 +13,17 @@
 // -----------------------------------------------------------------------------
 
 const router = require("express").Router();
+const {check} = require("express-validator");
+const validate = require("../../middleware/validate");
 const ctrl = require("../../controllers/marketplace/salesController");
+const dateQuery = require("./dateQuery");
 
-router.get("/", ctrl.getSales);
-router.get("/:alias", ctrl.getSales);
+const validators = [
+    check("creator").optional().isString(),
+    ...dateQuery
+];
+
+router.get("/", validators, validate, ctrl.getSales);
+router.get("/:alias", validators, validate, ctrl.getSales);
 
 module.exports = router;

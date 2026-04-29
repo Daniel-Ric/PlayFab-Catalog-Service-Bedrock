@@ -451,6 +451,11 @@ Filter by tag; fully enriched items (optionally with references).
 
 Creator is resolved via `creators.json` (matches `creatorName` or `displayName`, whitespace-insensitive).
 
+#### Date filters on item endpoints
+
+Item list endpoints accept ISO date ranges for PlayFab catalog timestamps: `creationDateFrom`/`creationDateTo`, `lastModifiedDateFrom`/`lastModifiedDateTo`, and `startDateFrom`/`startDateTo`.
+These filters are pushed into PlayFab search where possible and can be combined with pagination, creator, tag, free, popular, latest, summary, compare, player marketplace search, recommendations, and sales item queries.
+
 #### `GET /marketplace/details/:alias/:itemId?expand=prices,reviews,refs`
 
 * `prices`: fetch store prices for the item (bounded by `STORE_MAX_FOR_PRICE_ENRICH`).

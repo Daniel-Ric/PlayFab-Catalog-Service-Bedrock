@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------------
 //
-// File: src/routes/marketplace/compare.js
+// File: src/routes/marketplace/dateQuery.js
 // Disclaimer: "PlayFab Catalog Service Bedrock" by SpindexGFX is an independent project.
 // It is not affiliated with, endorsed by, sponsored by, or otherwise connected to Mojang AB,
 // Microsoft Corporation, or any of their subsidiaries or affiliates.
@@ -12,21 +12,13 @@
 //
 // -----------------------------------------------------------------------------
 
-const router = require("express").Router();
 const {check} = require("express-validator");
-const validate = require("../../middleware/validate");
-const ctrl = require("../../controllers/marketplace/compareController");
-const dateQuery = require("./dateQuery");
 
-router.get(
-    "/:creatorName",
-    [
-        check("creatorName")
-            .notEmpty().withMessage("creatorName is required."),
-        ...dateQuery
-    ],
-    validate,
-    ctrl.compare
-);
-
-module.exports = router;
+module.exports = [
+    check("creationDateFrom").optional().isISO8601(),
+    check("creationDateTo").optional().isISO8601(),
+    check("lastModifiedDateFrom").optional().isISO8601(),
+    check("lastModifiedDateTo").optional().isISO8601(),
+    check("startDateFrom").optional().isISO8601(),
+    check("startDateTo").optional().isISO8601()
+];

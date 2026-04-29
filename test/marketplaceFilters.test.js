@@ -15,6 +15,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {buildPlayerMarketplaceFilter} = require("../src/utils/marketplaceFilters");
+const {buildFilter: buildQueryFilter, filterItemsByDate} = require("../src/utils/filter");
 const { _internals: advancedSearchInternals } = require("../src/services/advancedSearchService");
 const {loadCreators, resolveCreatorId} = require("../src/utils/creators");
 
@@ -36,6 +37,27 @@ test("buildPlayerMarketplaceFilter combines with existing filter", () => {
     const cid = resolveCreatorId(creators, "100Media");
     const result = buildPlayerMarketplaceFilter("contentType eq '3PP_V2.0'", "100Media", creators);
     assert.equal(result, `(contentType eq '3PP_V2.0') and (creatorId eq '${cid.replace(/'/g, "''")}')`);
+});
+
+test("buildFilter maps PlayFab date query filters", () => {
+    const result = buildQueryFilter({
+        query: {
+            startDateFrom: "2026-01-01T00:00:00Z",
+            lastModifiedDateTo: "2026-02-01T12:30:00Z",
+            creationDateFrom: "2025-12-01"
+        }
+    }, loadCreators());
+    assert.equal(result, "CreationDate ge 2025-12-01T00:00:00.000Z and LastModifiedDate le 2026-02-01T12:30:00.000Z and StartDate ge 2026-01-01T00:00:00.000Z");
+});
+
+test("filterItemsByDate filters raw items and sales rawItem entries", () => {
+    const items = [
+        {Id: "one", StartDate: "2026-01-10T00:00:00Z"},
+        {Id: "two", StartDate: "2025-12-10T00:00:00Z"},
+        {id: "three", rawItem: {StartDate: "2026-01-20T00:00:00Z"}}
+    ];
+    const result = filterItemsByDate(items, {startDateFrom: "2026-01-01T00:00:00Z"});
+    assert.deepEqual(result.map(item => item.Id || item.id), ["one", "three"]);
 });
 
 test("buildFilter maps contentKinds to tag filters", () => {

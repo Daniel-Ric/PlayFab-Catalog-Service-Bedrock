@@ -21,7 +21,7 @@ exports.compare = withETag(async (req) => {
     const key = cacheKey(req);
     return dataCache.getOrSetAsync(key, async () => {
         const { creatorName } = req.params;
-        const diff = await service.fetchCompare(creatorName);
+        const diff = await service.fetchCompare(creatorName, req.query);
         return diff;
     });
 });

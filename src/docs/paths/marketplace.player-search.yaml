@@ -44,6 +44,24 @@
                 type: string
               filter:
                 type: string
+              creationDateFrom:
+                type: string
+                format: date-time
+              creationDateTo:
+                type: string
+                format: date-time
+              lastModifiedDateFrom:
+                type: string
+                format: date-time
+              lastModifiedDateTo:
+                type: string
+                format: date-time
+              startDateFrom:
+                type: string
+                format: date-time
+              startDateTo:
+                type: string
+                format: date-time
               search:
                 type: string
               orderBy:

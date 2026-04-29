@@ -874,6 +874,42 @@
                       "value": "24",
                       "disabled": true,
                       "description": "Offset-based pagination limit."
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
@@ -954,6 +990,42 @@
                       "value": "24",
                       "disabled": true,
                       "description": "Offset-based pagination limit."
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
@@ -1034,6 +1106,42 @@
                       "value": "24",
                       "disabled": true,
                       "description": "Offset-based pagination limit."
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
@@ -1112,6 +1220,42 @@
                       "value": "24",
                       "disabled": true,
                       "description": "Offset-based pagination limit."
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
@@ -1194,6 +1338,42 @@
                       "value": "24",
                       "disabled": true,
                       "description": "Offset-based pagination limit."
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
@@ -1280,6 +1460,42 @@
                       "value": "24",
                       "disabled": true,
                       "description": "Offset-based pagination limit."
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
@@ -1358,6 +1574,42 @@
                       "value": "24",
                       "disabled": true,
                       "description": "Offset-based pagination limit."
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
@@ -1434,6 +1686,42 @@
                       "value": "24",
                       "disabled": true,
                       "description": "Offset-based pagination limit."
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
@@ -1508,6 +1796,42 @@
                       "value": "24",
                       "disabled": true,
                       "description": "Offset-based pagination limit."
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
@@ -1584,6 +1908,42 @@
                       "value": "24",
                       "disabled": true,
                       "description": "Offset-based pagination limit."
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
@@ -1658,6 +2018,42 @@
                       "value": "24",
                       "disabled": true,
                       "description": "Offset-based pagination limit."
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
@@ -1704,6 +2100,44 @@
                     "tag",
                     "{{alias_prod}}",
                     "{{tag}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
+                    }
                   ]
                 },
                 "description": "Return marketplace items for a tag."
@@ -1793,10 +2227,112 @@
                       "value": "startDate desc",
                       "disabled": true,
                       "description": "Sort field and direction."
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
                 "description": "Search items by creator and keyword."
+              },
+              "response": []
+            },
+            {
+              "name": "POST /marketplace/search/advanced/:alias - keyword only",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Advanced search shape\", () => { pm.expect(body).to.be.an(\"object\"); pm.expect(body.items).to.be.an(\"array\"); });",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"query\": {\n    \"text\": \"{{keyword}}\"\n  },\n  \"sort\": [\n    { \"field\": \"startDate\", \"dir\": \"desc\" }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/search/advanced/{{alias_prod}}?page=1&pageSize=24",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "search",
+                    "advanced",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24"
+                    }
+                  ]
+                },
+                "description": "Search marketplace items by keyword only, without restricting results to a creator. Use this when you want global text search across the selected title alias."
               },
               "response": []
             },
@@ -1965,7 +2501,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"titleEntityToken\": \"{{titleEntityToken}}\",\n  \"titlePlayerAccountId\": \"{{titlePlayerAccountId}}\",\n  \"search\": \"{{keyword}}\",\n  \"creatorName\": \"{{creator1}}\",\n  \"top\": 25,\n  \"skip\": 0\n}",
+                  "raw": "{\n  \"titleEntityToken\": \"{{titleEntityToken}}\",\n  \"titlePlayerAccountId\": \"{{titlePlayerAccountId}}\",\n  \"search\": \"{{keyword}}\",\n  \"creatorName\": \"{{creator1}}\",\n  \"top\": 25,\n  \"skip\": 0,\n  \"creationDateFrom\": \"{{dateFrom}}\",\n  \"creationDateTo\": \"{{dateTo}}\",\n  \"lastModifiedDateFrom\": \"{{dateFrom}}\",\n  \"lastModifiedDateTo\": \"{{dateTo}}\",\n  \"startDateFrom\": \"{{dateFrom}}\",\n  \"startDateTo\": \"{{dateTo}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2121,6 +2657,42 @@
                     {
                       "key": "limit",
                       "value": "10"
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
@@ -2604,6 +3176,44 @@
                     "marketplace",
                     "summary",
                     "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
+                    }
                   ]
                 },
                 "description": "Return summary data for a title alias."
@@ -2646,6 +3256,44 @@
                     "marketplace",
                     "compare",
                     "{{creator1}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
+                    }
                   ]
                 },
                 "description": "Compare items of a creator across configured titles."
@@ -2850,6 +3498,42 @@
                     {
                       "key": "creator",
                       "value": "{{creator1}}"
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
@@ -2898,6 +3582,42 @@
                     {
                       "key": "creator",
                       "value": "{{creator1}}"
+                    },
+                    {
+                      "key": "creationDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate >= this ISO date."
+                    },
+                    {
+                      "key": "creationDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with CreationDate <= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate >= this ISO date."
+                    },
+                    {
+                      "key": "lastModifiedDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with LastModifiedDate <= this ISO date."
+                    },
+                    {
+                      "key": "startDateFrom",
+                      "value": "{{dateFrom}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate >= this ISO date."
+                    },
+                    {
+                      "key": "startDateTo",
+                      "value": "{{dateTo}}",
+                      "disabled": true,
+                      "description": "Filter items with StartDate <= this ISO date."
                     }
                   ]
                 },
@@ -3144,6 +3864,16 @@
     {
       "key": "ts",
       "value": ""
+    },
+    {
+      "key": "dateFrom",
+      "value": "2026-01-01T00:00:00Z",
+      "type": "string"
+    },
+    {
+      "key": "dateTo",
+      "value": "2026-12-31T23:59:59Z",
+      "type": "string"
     }
   ],
   "auth": {

@@ -21,7 +21,7 @@ const cacheKey = require("../../utils/cacheKey");
 exports.getSummary = withETag(withPagination(async (req) => {
     const key = cacheKey(req);
     return dataCache.getOrSetAsync(key, async () => {
-        const items = await service.fetchSummary(req.params.alias);
+        const items = await service.fetchSummary(req.params.alias, req.query);
         return items;
     }, Number(process.env.SUMMARY_TTL_MS || 5 * 60 * 1000));
 }));

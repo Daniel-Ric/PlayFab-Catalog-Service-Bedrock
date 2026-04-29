@@ -30,6 +30,42 @@
         schema:
           type: string
       - in: query
+        name: creationDateFrom
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: creationDateTo
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: lastModifiedDateFrom
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: lastModifiedDateTo
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: startDateFrom
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - in: query
+        name: startDateTo
+        required: false
+        schema:
+          type: string
+          format: date-time
+      - in: query
         name: page
         required: false
         schema:

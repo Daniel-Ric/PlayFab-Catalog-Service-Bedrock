@@ -1,5 +1,29 @@
 # Changelog
 
+## 7.0.0 (2026-04-29)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add date filters, update API endpoints (7537022)
+- Impact: Test coverage with a large change footprint across repository files, application logic, test coverage.
+- Bump reason: large change footprint (31 files, 1351 total line changes)
+
+### Changed Areas
+
+- API controllers: 3 files: src/controllers/marketplace/compareController.js, src/controllers/marketplace/recommendationsController.js, plus 1 more
+- API routes: 12 files: src/routes/marketplace/all.js, src/routes/marketplace/compare.js, plus 10 more
+- OpenAPI documentation: 11 files: src/docs/paths/marketplace.all.yaml, src/docs/paths/marketplace.compare.yaml, plus 9 more
+- Postman collection: 1 file: PlayFab Service - VMC.postman_collection.json
+- README: 1 file: readme.md
+- Service layer: 1 file: src/services/marketplaceService.js
+- Other areas: 2 additional groups.
+
+### Release Metrics
+
+- Version bump: major
+- Files changed: 31
+- Line changes: +1323 / -28
 ## 6.1.1 (2026-04-28)
 
 ### Summary
@@ -286,6 +310,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

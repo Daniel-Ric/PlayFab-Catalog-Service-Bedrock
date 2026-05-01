@@ -117,3 +117,44 @@ test("buildFeaturedContentChangePayload returns null when the featured item set 
 
     assert.equal(payload, null);
 });
+
+test("featuredContentSignature changes when featured content metadata changes with the same ids", () => {
+    const previousPayload = featuredPayload([layoutItem("one", "One")]);
+    const currentPayload = featuredPayload([layoutItem("one", "One Updated")]);
+    const previousEntries = _internals.collectFeaturedItemEntries(previousPayload);
+    const currentEntries = _internals.collectFeaturedItemEntries(currentPayload);
+
+    const previousSignature = _internals.featuredContentSignature(previousPayload, previousEntries);
+    const currentSignature = _internals.featuredContentSignature(currentPayload, currentEntries);
+
+    assert.notEqual(previousSignature, currentSignature);
+});
+
+test("buildFeaturedContentChangePayload emits same-id featured content changes", () => {
+    const previousPayload = featuredPayload([layoutItem("one", "One")]);
+    const currentPayload = featuredPayload([layoutItem("one", "One Updated")]);
+    const previousEntries = _internals.collectFeaturedItemEntries(previousPayload);
+    const currentEntries = _internals.collectFeaturedItemEntries(currentPayload);
+    const previousContentSignature = _internals.featuredContentSignature(previousPayload, previousEntries);
+    const currentContentSignature = _internals.featuredContentSignature(currentPayload, currentEntries);
+
+    const payload = _internals.buildFeaturedContentChangePayload({
+        titleId: "20CA2",
+        previousEntries,
+        currentEntries,
+        previousContentSignature,
+        currentContentSignature,
+        content: currentPayload,
+        ts: 456
+    });
+
+    assert.equal(payload.ts, 456);
+    assert.equal(payload.contentChanged, true);
+    assert.equal(payload.previousContentSignature, previousContentSignature);
+    assert.equal(payload.currentContentSignature, currentContentSignature);
+    assert.deepEqual(payload.addedItemIds, []);
+    assert.deepEqual(payload.removedItemIds, []);
+    assert.deepEqual(payload.changedItemIds, ["one"]);
+    assert.deepEqual(payload.changedItems, [layoutItem("one", "One Updated")]);
+    assert.equal(payload.changedItemDetails[0].featuredContext.row.telemetryId, "dr.header.featured");
+});

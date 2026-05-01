@@ -14,6 +14,7 @@
 
 const logger = require("../config/logger");
 const {resolveTitle} = require("../utils/titles");
+const {stableHash} = require("../utils/hash");
 const {fetchFeaturedPersona} = require("./featuredPersonaService");
 
 function featuredItemId(item) {
@@ -160,6 +161,36 @@ function entryMapById(entries) {
 
 function entriesForIds(ids, entryMap) {
     return (ids || []).map(id => entryMap.get(normalizeId(id))).filter(Boolean);
+}
+
+function signatureEntry(entry) {
+    return {
+        id: normalizeId(entry?.id || featuredItemId(entry?.item)),
+        item: entry?.item || null,
+        itemIndex: typeof entry?.itemIndex === "number" ? entry.itemIndex : null,
+        page: entry?.page || null,
+        row: entry?.row || null,
+        component: entry?.component || null
+    };
+}
+
+function entrySignature(entry) {
+    return stableHash(signatureEntry(entry));
+}
+
+function featuredContentSignature(payload, entries) {
+    return stableHash({
+        content: payload || null,
+        entries: (entries || []).map(signatureEntry)
+    });
+}
+
+function changedIdsFromEntryMaps(previousItemIds, previousMap, currentMap) {
+    return (previousItemIds || []).filter(id => {
+        const normalizedId = normalizeId(id);
+        if (!normalizedId || !currentMap.has(normalizedId)) return false;
+        return entrySignature(previousMap.get(normalizedId)) !== entrySignature(currentMap.get(normalizedId));
+    });
 }
 
 function detailsFromEntries(entries) {

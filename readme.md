@@ -607,7 +607,7 @@ Not allowed (returns `400`):
 
 * `/events/stream` (optional query `events=<comma-separated-event-names>`):
   `item.snapshot`, `item.created`, `item.updated`, `sale.snapshot`, `sale.update`, `price.changed`, `creator.trending`, `featured.content.updated`.
-* `featured.content.updated` includes changed `/marketplace/featured-content` layout entries in `addedItems` / `removedItems`. `addedItemDetails` / `removedItemDetails` contain the same endpoint item details plus `featuredContext` (`page`, `row`, `component`, `itemIndex`); `currentItemDetails` and `previousItemDetails` provide the full after/before featured item lists.
+* `featured.content.updated` includes changed `/marketplace/featured-content` layout entries in `addedItems`, `removedItems`, and `changedItems`. `addedItemDetails`, `removedItemDetails`, and `changedItemDetails` contain the same endpoint item details plus `featuredContext` (`page`, `row`, `component`, `itemIndex`); `currentItemDetails` and `previousItemDetails` provide the full after/before featured item lists. Same-ID layout or metadata changes set `contentChanged=true` and include `previousContentSignature` / `currentContentSignature`.
 
 #### Admin Webhooks
 

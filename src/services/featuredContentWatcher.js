@@ -181,6 +181,8 @@ function buildFeaturedContentChangePayload({
                                                previousItems,
                                                currentItems,
                                                content,
+                                               previousContentSignature,
+                                               currentContentSignature,
                                                ts = Date.now()
                                            }) {
     const prevEntries = previousEntries || (previousItems || []).map(item => ({id: featuredItemId(item), item}));
@@ -193,12 +195,16 @@ function buildFeaturedContentChangePayload({
     const addedItemIds = currentItemIds.filter(id => !previousSet.has(id));
     const removedItemIds = previousItemIds.filter(id => !currentSet.has(id));
 
-    if (!addedItemIds.length && !removedItemIds.length) return null;
-
     const previousMap = entryMapById(prevEntries);
     const currentMap = entryMapById(currEntries);
+    const changedItemIds = changedIdsFromEntryMaps(previousItemIds, previousMap, currentMap);
+    const contentChanged = Boolean(previousContentSignature && currentContentSignature && previousContentSignature !== currentContentSignature);
+
+    if (!addedItemIds.length && !removedItemIds.length && !changedItemIds.length && !contentChanged) return null;
+
     const addedEntries = entriesForIds(addedItemIds, currentMap);
     const removedEntries = entriesForIds(removedItemIds, previousMap);
+    const changedEntries = entriesForIds(changedItemIds, currentMap);
     const currentEntriesOrdered = entriesForIds(currentItemIds, currentMap);
     const previousEntriesOrdered = entriesForIds(previousItemIds, previousMap);
 
@@ -207,14 +213,20 @@ function buildFeaturedContentChangePayload({
         titleId,
         addedItemIds,
         removedItemIds,
+        changedItemIds,
         addedItems: addedEntries.map(entry => entry.item),
         removedItems: removedEntries.map(entry => entry.item),
+        changedItems: changedEntries.map(entry => entry.item),
         addedItemDetails: detailsFromEntries(addedEntries),
         removedItemDetails: detailsFromEntries(removedEntries),
+        changedItemDetails: detailsFromEntries(changedEntries),
         currentItemIds,
         previousItemIds,
         currentItemDetails: detailsFromEntries(currentEntriesOrdered),
         previousItemDetails: detailsFromEntries(previousEntriesOrdered),
+        contentChanged,
+        previousContentSignature: previousContentSignature || null,
+        currentContentSignature: currentContentSignature || null,
         content
     };
 }

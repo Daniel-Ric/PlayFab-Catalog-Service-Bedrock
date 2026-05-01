@@ -357,6 +357,7 @@ module.exports = {
         collectFeaturedItems,
         uniqueIdsFromItems,
         uniqueIdsFromEntries,
+        featuredContentSignature,
         buildFeaturedContentChangePayload
     }
 };

@@ -248,6 +248,7 @@ class FeaturedContentWatcher {
         this.timer = null;
         this.lastItemIds = null;
         this.lastEntries = [];
+        this.lastContentSignature = null;
     }
 
     start(eventBus) {
@@ -263,27 +264,33 @@ class FeaturedContentWatcher {
                 const entries = collectFeaturedItemEntries(payload);
                 const currentItemIds = uniqueIdsFromEntries(entries);
                 const currentItemIdsSet = new Set(currentItemIds);
+                const currentContentSignature = featuredContentSignature(payload, entries);
 
                 if (!this.lastItemIds) {
                     this.lastItemIds = currentItemIdsSet;
                     this.lastEntries = entries;
+                    this.lastContentSignature = currentContentSignature;
                     return;
                 }
 
                 const previousItemIds = Array.from(this.lastItemIds);
                 const addedItemIds = currentItemIds.filter(id => !this.lastItemIds.has(id));
                 const removedItemIds = previousItemIds.filter(id => !currentItemIdsSet.has(id));
+                const contentChanged = this.lastContentSignature !== currentContentSignature;
 
-                if (addedItemIds.length || removedItemIds.length) {
+                if (addedItemIds.length || removedItemIds.length || contentChanged) {
                     const eventPayload = buildFeaturedContentChangePayload({
                         titleId,
                         previousEntries: this.lastEntries,
                         currentEntries: entries,
+                        previousContentSignature: this.lastContentSignature,
+                        currentContentSignature,
                         content: payload
                     });
 
                     this.lastItemIds = currentItemIdsSet;
                     this.lastEntries = entries;
+                    this.lastContentSignature = currentContentSignature;
 
                     if (eventPayload) {
                         eventBus.emit("featured.content.updated", eventPayload);
@@ -293,6 +300,7 @@ class FeaturedContentWatcher {
 
                 this.lastItemIds = currentItemIdsSet;
                 this.lastEntries = entries;
+                this.lastContentSignature = currentContentSignature;
             } catch (e) {
                 logger.debug(`[FeaturedContentWatcher] error ${e.message || "err"}`);
             }

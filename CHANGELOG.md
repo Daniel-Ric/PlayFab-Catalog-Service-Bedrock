@@ -1,5 +1,212 @@
 # Changelog
 
+## 7.0.3 (2026-05-04)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Fix item watcher pagination (9bac780)
+- Impact: Test coverage with a small change footprint across application logic, test coverage.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/itemWatcher.js
+- Tests: 1 file: test/itemWatcher.test.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +51 / -22
+
+## 7.0.4 (2026-05-04)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Limit item watcher fallback scans (9ea22dd)
+- Impact: Test coverage with a small change footprint across application logic, test coverage.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/itemWatcher.js
+- Tests: 1 file: test/itemWatcher.test.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +47 / -20
+
+## 7.0.5 (2026-05-04)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Extend item watcher to track content and detect changes (64a0c38)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/featuredContentWatcher.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +14 / -2
+
+## 7.0.6 (2026-05-04)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Extend item watcher to track content signature changes (ed7b27a)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/featuredContentWatcher.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +9 / -1
+
+## 7.0.7 (2026-05-04)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Add content signature generation and change detection (e91e8aa)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/featuredContentWatcher.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +31 / -0
+
+## 7.0.8 (2026-05-04)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add tests for content signature changes and change payload detection (7824fb5)
+- Impact: Test coverage with a small change footprint across test coverage.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Tests: 1 file: test/featuredContentWatcher.test.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +41 / -0
+
+## 7.0.9 (2026-05-04)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Update readme to include `changedItems` and content change detection details (3b7cef3)
+- Impact: Repository update with a small change footprint across repository files.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- README: 1 file: readme.md
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +1 / -1
+
+## 7.0.10 (2026-05-04)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Export `featuredContentSignature` from featuredContentWatcher (0f179ff)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/featuredContentWatcher.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +1 / -0
+
+## 7.1.0 (2026-05-04)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add support for `contentType` filters across search APIs, update validation, schema, and tests (69fb1ed)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (13 files, 146 total line changes)
+
+### Changed Areas
+
+- API routes: 3 files: src/routes/marketplace/player-search.js, src/routes/marketplace/search-advanced.js, plus 1 more
+- OpenAPI documentation: 4 files: src/docs/openapi-base.yaml, src/docs/paths/marketplace.player-search.yaml, plus 2 more
+- Postman collection: 1 file: PlayFab Service - VMC.postman_collection.json
+- README: 1 file: readme.md
+- Service layer: 2 files: src/services/advancedSearchService.js, src/services/marketplaceService.js
+- Shared utilities: 1 file: src/utils/filter.js
+- Other areas: 1 additional group.
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 13
+- Line changes: +129 / -17
+
+## 7.2.0 (2026-05-04)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: Merge (9348a75)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (17 files, 381 total line changes)
+
+### Changed Areas
+
+- API routes: 3 files: src/routes/marketplace/player-search.js, src/routes/marketplace/search-advanced.js, plus 1 more
+- OpenAPI documentation: 4 files: src/docs/openapi-base.yaml, src/docs/paths/marketplace.player-search.yaml, plus 2 more
+- Postman collection: 1 file: PlayFab Service - VMC.postman_collection.json
+- README: 1 file: readme.md
+- Service layer: 4 files: src/services/advancedSearchService.js, src/services/featuredContentWatcher.js, plus 2 more
+- Shared utilities: 1 file: src/utils/filter.js
+- Other areas: 1 additional group.
+
+### Notable Changes
+
+- Fix catalog watcher pagination and add search contentType filters
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 17
+- Line changes: +321 / -60
 ## 7.0.1 (2026-04-29)
 
 ### Summary
@@ -358,6 +565,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

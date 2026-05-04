@@ -37,6 +37,8 @@ router.post(
         body("filters.tags").optional().custom(v => typeof v === "string" || Array.isArray(v)),
         body("filters.tagsAny").optional().custom(v => typeof v === "string" || Array.isArray(v)),
         body("filters.tagsAll").optional().custom(v => typeof v === "string" || Array.isArray(v)),
+        body("filters.contentType").optional().custom(v => typeof v === "string" || Array.isArray(v)),
+        body("filters.contentTypes").optional().custom(v => typeof v === "string" || Array.isArray(v)),
         body("filters.contentKinds").optional().custom(v => typeof v === "string" || Array.isArray(v)),
         body("filters.creationDate").optional().isObject(),
         body("filters.creationDate.from").optional().isISO8601(),

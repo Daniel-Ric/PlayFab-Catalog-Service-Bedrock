@@ -451,10 +451,11 @@ Filter by tag; fully enriched items (optionally with references).
 
 Creator is resolved via `creators.json` (matches `creatorName` or `displayName`, whitespace-insensitive).
 
-#### Date filters on item endpoints
+#### Content type and date filters on search endpoints
 
-Item list endpoints accept ISO date ranges for PlayFab catalog timestamps: `creationDateFrom`/`creationDateTo`, `lastModifiedDateFrom`/`lastModifiedDateTo`, and `startDateFrom`/`startDateTo`.
-These filters are pushed into PlayFab search where possible and can be combined with pagination, creator, tag, free, popular, latest, summary, compare, player marketplace search, recommendations, and sales item queries.
+Search endpoints accept `contentType=<PlayFab ContentType>` for exact PlayFab `ContentType` matches, for example `contentType=3PServerContent_V1.2`.
+Item list/search endpoints also accept ISO date ranges for PlayFab catalog timestamps: `creationDateFrom`/`creationDateTo`, `lastModifiedDateFrom`/`lastModifiedDateTo`, and `startDateFrom`/`startDateTo`.
+Date filters are pushed into PlayFab search where possible and can be combined with pagination, creator, tag, free, popular, latest, summary, compare, player marketplace search, recommendations, and sales item queries.
 
 #### `GET /marketplace/details/:alias/:itemId?expand=prices,reviews,refs`
 
@@ -539,6 +540,7 @@ Unknown fields are rejected with **400 Bad Request**.
     "tags": ["hidden_offer", "3P"],
     "tagsAny": ["3P", "server"],
     "tagsAll": ["marketplace", "hidden_offer"],
+    "contentType": "3PServerContent_V1.2",
     "contentKinds": ["world"],
     "creationDate": { "from": "2026-02-01T00:00:00Z", "to": "2026-02-28T23:59:59Z" },
     "lastModifiedDate": { "from": "2026-02-01T00:00:00Z", "to": "2026-02-28T23:59:59Z" },
@@ -570,6 +572,7 @@ The following filters are pushed directly to PlayFab OData in `Catalog/Search`:
 * `isStackable`
 * `platforms`
 * `tags`, `tagsAny`, `tagsAll`
+* `contentType`, `contentTypes`
 * `contentKinds` (`skinpack`, `world`, `persona`, `addon`, `resourcepack`, `mashup`)
 * `creationDate`, `lastModifiedDate`, `startDate`
 * `priceAmounts.min/max` (via `DisplayProperties/price`)
@@ -589,7 +592,7 @@ The following filters are additionally evaluated in the API layer (when PlayFab 
 Allowed sort fields:
 
 * `id`, `type`, `title`, `description`, `keywords`
-* `isStackable`, `platforms`, `tags`
+* `contentType`, `isStackable`, `platforms`, `tags`
 * `creationDate`, `lastModifiedDate`, `startDate`
 * `priceAmount`, `creatorName`, `purchasable`, `packIdentityType`
 
@@ -607,7 +610,7 @@ Not allowed (returns `400`):
 
 * `/events/stream` (optional query `events=<comma-separated-event-names>`):
   `item.snapshot`, `item.created`, `item.updated`, `sale.snapshot`, `sale.update`, `price.changed`, `creator.trending`, `featured.content.updated`.
-* `featured.content.updated` includes changed `/marketplace/featured-content` layout entries in `addedItems` / `removedItems`. `addedItemDetails` / `removedItemDetails` contain the same endpoint item details plus `featuredContext` (`page`, `row`, `component`, `itemIndex`); `currentItemDetails` and `previousItemDetails` provide the full after/before featured item lists.
+* `featured.content.updated` includes changed `/marketplace/featured-content` layout entries in `addedItems`, `removedItems`, and `changedItems`. `addedItemDetails`, `removedItemDetails`, and `changedItemDetails` contain the same endpoint item details plus `featuredContext` (`page`, `row`, `component`, `itemIndex`); `currentItemDetails` and `previousItemDetails` provide the full after/before featured item lists. Same-ID layout or metadata changes set `contentChanged=true` and include `previousContentSignature` / `currentContentSignature`.
 
 #### Admin Webhooks
 

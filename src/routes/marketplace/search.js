@@ -29,6 +29,7 @@ router.get(
         check("skip").optional().isInt({min: 0}),
         check("limit").optional().isInt({min: 1, max: 1000}),
         check("orderBy").optional().isString().isLength({max: 200}),
+        check("contentType").optional().isString().isLength({max: 200}),
         ...dateQuery
     ],
     validate,

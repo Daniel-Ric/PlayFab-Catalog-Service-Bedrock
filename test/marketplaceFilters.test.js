@@ -15,7 +15,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {buildPlayerMarketplaceFilter} = require("../src/utils/marketplaceFilters");
-const {buildFilter: buildQueryFilter, filterItemsByDate} = require("../src/utils/filter");
+const {buildFilter: buildQueryFilter, buildContentTypeFilter, filterItemsByDate} = require("../src/utils/filter");
 const { _internals: advancedSearchInternals } = require("../src/services/advancedSearchService");
 const {loadCreators, resolveCreatorId} = require("../src/utils/creators");
 
@@ -50,6 +50,22 @@ test("buildFilter maps PlayFab date query filters", () => {
     assert.equal(result, "CreationDate ge 2025-12-01T00:00:00.000Z and LastModifiedDate le 2026-02-01T12:30:00.000Z and StartDate ge 2026-01-01T00:00:00.000Z");
 });
 
+test("buildFilter leaves contentType to search-specific filters", () => {
+    const result = buildQueryFilter({
+        query: {
+            contentType: "3PServerContent_V1.2",
+            creatorName: "100Media"
+        }
+    }, loadCreators());
+    const cid = resolveCreatorId(loadCreators(), "100Media");
+    assert.equal(result, `creatorId eq '${cid.replace(/'/g, "''")}'`);
+});
+
+test("buildContentTypeFilter supports multiple content types", () => {
+    const result = buildContentTypeFilter(["3PServerContent_V1.2", "shell_3PServerContent_V1.2"]);
+    assert.equal(result, "(ContentType eq '3PServerContent_V1.2' or ContentType eq 'shell_3PServerContent_V1.2')");
+});
+
 test("filterItemsByDate filters raw items and sales rawItem entries", () => {
     const items = [
         {Id: "one", StartDate: "2026-01-10T00:00:00Z"},
@@ -63,6 +79,13 @@ test("filterItemsByDate filters raw items and sales rawItem entries", () => {
 test("buildFilter maps contentKinds to tag filters", () => {
     const filter = advancedSearchInternals.buildFilter("alias", {filters: {contentKinds: ["skinpack", "world"]}});
     assert.equal(filter, "(tags/any(t:t eq 'skinpack') or tags/any(t:t eq 'worldtemplate'))");
+});
+
+test("advanced buildPlayFabFilter maps contentType filters", () => {
+    const filter = advancedSearchInternals.buildPlayFabFilter({
+        contentTypes: ["3PServerContent_V1.2", "shell_3PServerContent_V1.2"]
+    });
+    assert.equal(filter, "(ContentType eq '3PServerContent_V1.2' or ContentType eq 'shell_3PServerContent_V1.2')");
 });
 
 test("buildFilter maps persona contentKinds to exclude tags", () => {

@@ -14,6 +14,7 @@
 
 const logger = require("../config/logger");
 const {resolveTitle} = require("../utils/titles");
+const {stableHash} = require("../utils/hash");
 const {fetchFeaturedPersona} = require("./featuredPersonaService");
 
 function featuredItemId(item) {
@@ -162,6 +163,36 @@ function entriesForIds(ids, entryMap) {
     return (ids || []).map(id => entryMap.get(normalizeId(id))).filter(Boolean);
 }
 
+function signatureEntry(entry) {
+    return {
+        id: normalizeId(entry?.id || featuredItemId(entry?.item)),
+        item: entry?.item || null,
+        itemIndex: typeof entry?.itemIndex === "number" ? entry.itemIndex : null,
+        page: entry?.page || null,
+        row: entry?.row || null,
+        component: entry?.component || null
+    };
+}
+
+function entrySignature(entry) {
+    return stableHash(signatureEntry(entry));
+}
+
+function featuredContentSignature(payload, entries) {
+    return stableHash({
+        content: payload || null,
+        entries: (entries || []).map(signatureEntry)
+    });
+}
+
+function changedIdsFromEntryMaps(previousItemIds, previousMap, currentMap) {
+    return (previousItemIds || []).filter(id => {
+        const normalizedId = normalizeId(id);
+        if (!normalizedId || !currentMap.has(normalizedId)) return false;
+        return entrySignature(previousMap.get(normalizedId)) !== entrySignature(currentMap.get(normalizedId));
+    });
+}
+
 function detailsFromEntries(entries) {
     return (entries || []).map(entry => ({
         ...(entry.item || {}),
@@ -181,6 +212,8 @@ function buildFeaturedContentChangePayload({
                                                previousItems,
                                                currentItems,
                                                content,
+                                               previousContentSignature,
+                                               currentContentSignature,
                                                ts = Date.now()
                                            }) {
     const prevEntries = previousEntries || (previousItems || []).map(item => ({id: featuredItemId(item), item}));
@@ -193,12 +226,16 @@ function buildFeaturedContentChangePayload({
     const addedItemIds = currentItemIds.filter(id => !previousSet.has(id));
     const removedItemIds = previousItemIds.filter(id => !currentSet.has(id));
 
-    if (!addedItemIds.length && !removedItemIds.length) return null;
-
     const previousMap = entryMapById(prevEntries);
     const currentMap = entryMapById(currEntries);
+    const changedItemIds = changedIdsFromEntryMaps(previousItemIds, previousMap, currentMap);
+    const contentChanged = Boolean(previousContentSignature && currentContentSignature && previousContentSignature !== currentContentSignature);
+
+    if (!addedItemIds.length && !removedItemIds.length && !changedItemIds.length && !contentChanged) return null;
+
     const addedEntries = entriesForIds(addedItemIds, currentMap);
     const removedEntries = entriesForIds(removedItemIds, previousMap);
+    const changedEntries = entriesForIds(changedItemIds, currentMap);
     const currentEntriesOrdered = entriesForIds(currentItemIds, currentMap);
     const previousEntriesOrdered = entriesForIds(previousItemIds, previousMap);
 
@@ -207,14 +244,20 @@ function buildFeaturedContentChangePayload({
         titleId,
         addedItemIds,
         removedItemIds,
+        changedItemIds,
         addedItems: addedEntries.map(entry => entry.item),
         removedItems: removedEntries.map(entry => entry.item),
+        changedItems: changedEntries.map(entry => entry.item),
         addedItemDetails: detailsFromEntries(addedEntries),
         removedItemDetails: detailsFromEntries(removedEntries),
+        changedItemDetails: detailsFromEntries(changedEntries),
         currentItemIds,
         previousItemIds,
         currentItemDetails: detailsFromEntries(currentEntriesOrdered),
         previousItemDetails: detailsFromEntries(previousEntriesOrdered),
+        contentChanged,
+        previousContentSignature: previousContentSignature || null,
+        currentContentSignature: currentContentSignature || null,
         content
     };
 }
@@ -236,6 +279,7 @@ class FeaturedContentWatcher {
         this.timer = null;
         this.lastItemIds = null;
         this.lastEntries = [];
+        this.lastContentSignature = null;
     }
 
     start(eventBus) {
@@ -251,27 +295,33 @@ class FeaturedContentWatcher {
                 const entries = collectFeaturedItemEntries(payload);
                 const currentItemIds = uniqueIdsFromEntries(entries);
                 const currentItemIdsSet = new Set(currentItemIds);
+                const currentContentSignature = featuredContentSignature(payload, entries);
 
                 if (!this.lastItemIds) {
                     this.lastItemIds = currentItemIdsSet;
                     this.lastEntries = entries;
+                    this.lastContentSignature = currentContentSignature;
                     return;
                 }
 
                 const previousItemIds = Array.from(this.lastItemIds);
                 const addedItemIds = currentItemIds.filter(id => !this.lastItemIds.has(id));
                 const removedItemIds = previousItemIds.filter(id => !currentItemIdsSet.has(id));
+                const contentChanged = this.lastContentSignature !== currentContentSignature;
 
-                if (addedItemIds.length || removedItemIds.length) {
+                if (addedItemIds.length || removedItemIds.length || contentChanged) {
                     const eventPayload = buildFeaturedContentChangePayload({
                         titleId,
                         previousEntries: this.lastEntries,
                         currentEntries: entries,
+                        previousContentSignature: this.lastContentSignature,
+                        currentContentSignature,
                         content: payload
                     });
 
                     this.lastItemIds = currentItemIdsSet;
                     this.lastEntries = entries;
+                    this.lastContentSignature = currentContentSignature;
 
                     if (eventPayload) {
                         eventBus.emit("featured.content.updated", eventPayload);
@@ -281,6 +331,7 @@ class FeaturedContentWatcher {
 
                 this.lastItemIds = currentItemIdsSet;
                 this.lastEntries = entries;
+                this.lastContentSignature = currentContentSignature;
             } catch (e) {
                 logger.debug(`[FeaturedContentWatcher] error ${e.message || "err"}`);
             }
@@ -306,6 +357,7 @@ module.exports = {
         collectFeaturedItems,
         uniqueIdsFromItems,
         uniqueIdsFromEntries,
+        featuredContentSignature,
         buildFeaturedContentChangePayload
     }
 };

@@ -14,6 +14,7 @@
 
 const {resolveTitle} = require("../utils/titles");
 const {sendPlayFabRequest, buildSearchPayload, isValidItem, transformItem} = require("../utils/playfab");
+const {buildContentTypeFilter} = require("../utils/filter");
 
 const PAGE_BATCH = Math.max(100, parseInt(process.env.ADV_SEARCH_BATCH || "300", 10));
 const MAX_BATCHES = Math.max(1, parseInt(process.env.ADV_SEARCH_MAX_BATCHES || "120", 10));
@@ -143,6 +144,8 @@ function validateRequestBody(body) {
         "tags",
         "tagsAny",
         "tagsAll",
+        "contentType",
+        "contentTypes",
         "contentKinds",
         "ratingMin",
         "creationDate",
@@ -309,6 +312,13 @@ function buildPlayFabFilter(filters) {
     const tagsAll = normalizeArray(filters.tagsAll);
     if (tagsAll.length) clauses.push(buildContainsAllFilter("tags", tagsAll, "tb"));
 
+    const contentTypes = [
+        ...normalizeArray(filters.contentType),
+        ...normalizeArray(filters.contentTypes)
+    ];
+    const contentTypeClause = buildContentTypeFilter(contentTypes);
+    if (contentTypeClause) clauses.push(contentTypeClause);
+
     const contentKindClause = buildContentKindFilter(filters.contentKinds);
     if (contentKindClause) clauses.push(contentKindClause);
 
@@ -426,6 +436,7 @@ function parseSort(sort) {
     const playFabFields = {
         id: "Id",
         type: "Type",
+        contenttype: "ContentType",
         creationdate: "CreationDate",
         lastmodifieddate: "LastModifiedDate",
         startdate: "StartDate",
@@ -436,6 +447,7 @@ function parseSort(sort) {
     const localFieldExtractors = {
         id: it => String(it?.Id || ""),
         type: it => String(it?.Type || ""),
+        contenttype: it => String(it?.ContentType || it?.contentType || ""),
         title: it => String(it?.Title?.NEUTRAL || ""),
         description: it => String(it?.Description?.NEUTRAL || ""),
         keywords: it => extractKeywordValues(it).sort()[0] || "",

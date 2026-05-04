@@ -38,6 +38,23 @@ function buildDateFilter(query = {}) {
     return parts.join(" and ");
 }
 
+function quotePlayFabString(value) {
+    return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+function normalizeStringList(value) {
+    if (Array.isArray(value)) return value.map(v => String(v || "").trim()).filter(Boolean);
+    if (typeof value === "string" && value.trim()) return [value.trim()];
+    return [];
+}
+
+function buildContentTypeFilter(value) {
+    const values = normalizeStringList(value);
+    if (!values.length) return "";
+    const parts = values.map(contentType => `ContentType eq ${quotePlayFabString(contentType)}`);
+    return parts.length === 1 ? parts[0] : `(${parts.join(" or ")})`;
+}
+
 function buildFilter(req, creators, extra = "") {
     const parts = [];
     if (req.query.creatorName) {
@@ -73,4 +90,4 @@ function filterItemsByDate(items, query = {}) {
     return items.filter(item => matchesDateFilters(item, query));
 }
 
-module.exports = {buildFilter, buildDateFilter, filterItemsByDate};
+module.exports = {buildFilter, buildDateFilter, buildContentTypeFilter, filterItemsByDate};

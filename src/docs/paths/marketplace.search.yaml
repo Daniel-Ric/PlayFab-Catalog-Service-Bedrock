@@ -35,6 +35,12 @@
         schema:
           type: string
       - in: query
+        name: contentType
+        required: false
+        schema:
+          type: string
+        description: Exact PlayFab `ContentType`, for example `3PServerContent_V1.2`.
+      - in: query
         name: creationDateFrom
         required: false
         schema:

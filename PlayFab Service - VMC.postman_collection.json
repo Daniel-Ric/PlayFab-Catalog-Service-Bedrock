@@ -2142,7 +2142,8 @@
                 },
                 "description": "Return marketplace items for a tag."
               },
-              "response": []
+              "response": [],
+              "description": "Return marketplace items for a tag."
             }
           ],
           "description": "Latest, popular, free, and tag-based discovery."
@@ -2180,7 +2181,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/marketplace/search/{{alias_prod}}?creatorName={{creator1}}&keyword={{keyword}}",
+                  "raw": "{{baseUrl}}/marketplace/search/{{alias_prod}}?creatorName={{creator1}}&keyword={{keyword}}&contentType={{contentType}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -2263,12 +2264,18 @@
                       "value": "{{dateTo}}",
                       "disabled": true,
                       "description": "Filter items with StartDate <= this ISO date."
+                    },
+                    {
+                      "key": "contentType",
+                      "value": "{{contentType}}",
+                      "description": "Exact PlayFab ContentType, for example 3PServerContent_V1.2."
                     }
                   ]
                 },
                 "description": "Search items by creator and keyword."
               },
-              "response": []
+              "response": [],
+              "description": "Search items by creator, keyword, and optional contentType."
             },
             {
               "name": "POST /marketplace/search/advanced/:alias - keyword only",
@@ -2435,7 +2442,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"filters\": {\n    \"tagsAny\": [\"{{tag}}\"],\n    \"priceAmounts\": {\n      \"min\": 0,\n      \"max\": 5000\n    },\n    \"ratingMin\": 3\n  }\n}",
+                  "raw": "{\n  \"filters\": {\n    \"tagsAny\": [\n      \"{{tag}}\"\n    ],\n    \"priceAmounts\": {\n      \"min\": 0,\n      \"max\": 5000\n    },\n    \"ratingMin\": 3,\n    \"contentType\": \"{{contentType}}\"\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2466,7 +2473,8 @@
                 },
                 "description": "Advanced search with common filters."
               },
-              "response": []
+              "response": [],
+              "description": "Advanced search with common filters, including exact contentType."
             },
             {
               "name": "POST /marketplace/player/search/:alias",
@@ -2501,7 +2509,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"titleEntityToken\": \"{{titleEntityToken}}\",\n  \"titlePlayerAccountId\": \"{{titlePlayerAccountId}}\",\n  \"search\": \"{{keyword}}\",\n  \"creatorName\": \"{{creator1}}\",\n  \"top\": 25,\n  \"skip\": 0,\n  \"creationDateFrom\": \"{{dateFrom}}\",\n  \"creationDateTo\": \"{{dateTo}}\",\n  \"lastModifiedDateFrom\": \"{{dateFrom}}\",\n  \"lastModifiedDateTo\": \"{{dateTo}}\",\n  \"startDateFrom\": \"{{dateFrom}}\",\n  \"startDateTo\": \"{{dateTo}}\"\n}",
+                  "raw": "{\n  \"titleEntityToken\": \"{{titleEntityToken}}\",\n  \"titlePlayerAccountId\": \"{{titlePlayerAccountId}}\",\n  \"search\": \"{{keyword}}\",\n  \"creatorName\": \"{{creator1}}\",\n  \"top\": 25,\n  \"skip\": 0,\n  \"creationDateFrom\": \"{{dateFrom}}\",\n  \"creationDateTo\": \"{{dateTo}}\",\n  \"lastModifiedDateFrom\": \"{{dateFrom}}\",\n  \"lastModifiedDateTo\": \"{{dateTo}}\",\n  \"startDateFrom\": \"{{dateFrom}}\",\n  \"startDateTo\": \"{{dateTo}}\",\n  \"contentType\": \"{{contentType}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -2522,7 +2530,8 @@
                 },
                 "description": "Search the player marketplace with entity tokens and optional filters."
               },
-              "response": []
+              "response": [],
+              "description": "Search the player marketplace with entity tokens, creatorName, keyword, dates, and optional contentType."
             }
           ],
           "description": "Basic, advanced, and player marketplace search."
@@ -3873,6 +3882,11 @@
     {
       "key": "dateTo",
       "value": "2026-12-31T23:59:59Z",
+      "type": "string"
+    },
+    {
+      "key": "contentType",
+      "value": "3PServerContent_V1.2",
       "type": "string"
     }
   ],

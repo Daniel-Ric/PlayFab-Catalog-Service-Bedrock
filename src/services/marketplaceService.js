@@ -26,7 +26,7 @@ const {
 } = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
 const {loadCreators, resolveCreatorId} = require("../utils/creators");
-const {buildFilter, buildDateFilter, filterItemsByDate} = require("../utils/filter");
+const {buildFilter, buildDateFilter, buildContentTypeFilter, filterItemsByDate} = require("../utils/filter");
 const {resolveMarketplaceEntityInput} = require("../utils/marketplaceTokens");
 const {buildPlayerMarketplaceFilter} = require("../utils/marketplaceFilters");
 const featuredServers = require("../config/featuredServers");
@@ -559,8 +559,8 @@ module.exports = {
     async search(alias, creatorName, keyword, query = {}) {
         const titleId = resolveTitle(alias);
         const {params, top, skip} = resolveCatalogPagination(query, PAGE_SIZE, PAGE_SIZE);
-        const cid = resolveCreatorId(creatorsArr, creatorName);
-        const filter = `creatorId eq '${cid.replace(/'/g, "''")}'`;
+        const baseFilter = buildFilter({query: {...query, creatorName}}, creatorsArr);
+        const filter = andFilter(baseFilter, buildContentTypeFilter(query.contentType));
         const orderBy = resolveOrderBy(query.orderBy, "creationDate desc");
         const payload = buildSearchPayload({
             filter, search: `"${keyword}"`, top, skip, orderBy
@@ -598,7 +598,7 @@ module.exports = {
         const top = Number.isFinite(topRaw) && topRaw > 0 ? Math.min(topRaw, 300) : 100;
         const skip = Number.isFinite(skipRaw) && skipRaw >= 0 ? skipRaw : 0;
         const creatorFilter = buildPlayerMarketplaceFilter(payload.filter, payload.creatorName, creatorsArr);
-        const filter = andFilter(creatorFilter, buildDateFilter(payload));
+        const filter = andFilter(andFilter(creatorFilter, buildContentTypeFilter(payload.contentType)), buildDateFilter(payload));
         const payloadSearch = buildSearchPayload({
             filter,
             search: typeof payload.search === "string" ? payload.search : "",

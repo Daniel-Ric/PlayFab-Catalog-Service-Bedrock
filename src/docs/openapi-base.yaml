@@ -469,6 +469,18 @@ components:
                 - type: array
                   items:
                     type: string
+            contentType:
+              oneOf:
+                - type: string
+                - type: array
+                  items:
+                    type: string
+            contentTypes:
+              oneOf:
+                - type: string
+                - type: array
+                  items:
+                    type: string
             contentKinds:
               oneOf:
                 - type: string
@@ -480,6 +492,8 @@ components:
                       - world
                       - persona
                       - addon
+                      - resourcepack
+                      - mashup
             creationDate:
               type: object
               additionalProperties: false
@@ -544,6 +558,7 @@ components:
                 enum:
                   - id
                   - type
+                  - contentType
                   - title
                   - description
                   - keywords

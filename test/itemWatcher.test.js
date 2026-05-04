@@ -120,6 +120,19 @@ test("classifyItemChange supports lower-case catalog date fields", () => {
     assert.equal(result.kind, "updated");
 });
 
+test("changed item requests use a wider created visibility window", () => {
+    const instantSinceIso = "2026-04-20T10:00:00.000Z";
+    const createdSinceIso = "2026-04-19T10:00:00.000Z";
+
+    const requests = _internals.buildChangedItemRequests(instantSinceIso, createdSinceIso);
+
+    assert.deepEqual(requests, [
+        {field: "CreationDate", sinceIso: createdSinceIso},
+        {field: "StartDate", sinceIso: createdSinceIso},
+        {field: "LastModifiedDate", sinceIso: instantSinceIso}
+    ]);
+});
+
 test("fallback offset helpers round-trip offsets", () => {
     const token = _internals.makeFallbackOffset(400);
     assert.equal(token, "offset:400");

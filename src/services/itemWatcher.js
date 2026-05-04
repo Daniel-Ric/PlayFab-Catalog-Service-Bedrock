@@ -81,6 +81,27 @@ async function fetchRecentItems(titleId, os, itemsPerRequest, maxItems) {
     return collectPaginatedItems(itemsPerRequest, maxItems, (continuationToken, count) => requestItems(titleId, os, filter, orderBy, continuationToken, count));
 }
 
+async function fetchBootstrapItems(titleId, os, itemsPerRequest, maxItems, createdLookbackMs) {
+    const itemMap = new Map();
+    const addItems = items => {
+        for (const it of items || []) {
+            const id = it.Id || it.id;
+            if (!id) continue;
+            itemMap.set(id, it);
+        }
+    };
+
+    addItems(await fetchRecentItems(titleId, os, itemsPerRequest, maxItems));
+
+    if (createdLookbackMs > 0) {
+        const createdSinceIso = new Date(Math.max(0, Date.now() - createdLookbackMs)).toISOString();
+        addItems(await fetchItemsSince(titleId, os, "StartDate", createdSinceIso, itemsPerRequest, maxItems));
+        addItems(await fetchItemsSince(titleId, os, "CreationDate", createdSinceIso, itemsPerRequest, maxItems));
+    }
+
+    return Array.from(itemMap.values()).slice(0, maxItems);
+}
+
 function shouldFetchNextPage(nextToken, previousToken, seenTokens) {
     if (!nextToken) return false;
     if (nextToken === previousToken) return false;
@@ -225,12 +246,21 @@ async function fetchItemsSince(titleId, os, field, sinceIso, itemsPerRequest, ma
     return [];
 }
 
-async function requestChangedItems(titleId, os, instantSinceIso, itemsPerRequest, maxItems) {
-    const itemMap = new Map();
-    const fields = ["CreationDate", "StartDate", "LastModifiedDate"];
+function buildChangedItemRequests(instantSinceIso, createdSinceIso = instantSinceIso) {
+    const createdSince = createdSinceIso || instantSinceIso;
+    return [
+        {field: "CreationDate", sinceIso: createdSince},
+        {field: "StartDate", sinceIso: createdSince},
+        {field: "LastModifiedDate", sinceIso: instantSinceIso}
+    ];
+}
 
-    for (const field of fields) {
-        const list = await fetchItemsSince(titleId, os, field, instantSinceIso, itemsPerRequest, maxItems);
+async function requestChangedItems(titleId, os, instantSinceIso, itemsPerRequest, maxItems, createdSinceIso = instantSinceIso) {
+    const itemMap = new Map();
+    const requests = buildChangedItemRequests(instantSinceIso, createdSinceIso);
+
+    for (const request of requests) {
+        const list = await fetchItemsSince(titleId, os, request.field, request.sinceIso, itemsPerRequest, maxItems);
         for (const it of list) {
             const id = it.Id || it.id;
             if (!id) continue;
@@ -292,12 +322,13 @@ class ItemWatcher {
         const bootstrapItemsPerRequest = Math.max(10, parseInt(process.env.ITEM_WATCH_BOOTSTRAP_ITEMS_PER_REQUEST || String(itemsPerRequest), 10));
         const bootstrapMaxItems = Math.max(bootstrapItemsPerRequest, parseInt(process.env.ITEM_WATCH_BOOTSTRAP_MAX_ITEMS || String(maxItems), 10));
         const overlapMs = Math.max(0, parseInt(process.env.ITEM_WATCH_OVERLAP_MS || "60000", 10));
+        const createdLookbackMs = Math.max(overlapMs, parseInt(process.env.ITEM_WATCH_CREATED_LOOKBACK_MS || "86400000", 10));
 
         const run = async () => {
             const titleId = getTitleId();
 
             if (!this.bootstrapped) {
-                const recent = await fetchRecentItems(titleId, os, bootstrapItemsPerRequest, bootstrapMaxItems);
+                const recent = await fetchBootstrapItems(titleId, os, bootstrapItemsPerRequest, bootstrapMaxItems, createdLookbackMs);
                 const bootstrapMap = new Map();
                 for (const it of recent) {
                     const id = it.Id || it.id;
@@ -317,8 +348,9 @@ class ItemWatcher {
 
             const sinceTs = Math.max(0, (this.lastRunTs || Date.now()) - overlapMs);
             const sinceIso = new Date(sinceTs).toISOString();
+            const createdSinceIso = new Date(Math.max(0, Date.now() - createdLookbackMs)).toISOString();
 
-            const changed = await requestChangedItems(titleId, os, sinceIso, itemsPerRequest, maxItems);
+            const changed = await requestChangedItems(titleId, os, sinceIso, itemsPerRequest, maxItems, createdSinceIso);
             if (!changed.length) {
                 this.lastRunTs = Date.now();
                 return;
@@ -391,6 +423,7 @@ module.exports = {
         makeFallbackOffset,
         shouldFetchNextPage,
         collectPaginatedItems,
-        searchItemsPageFallback
+        searchItemsPageFallback,
+        buildChangedItemRequests
     }
 };

@@ -165,6 +165,7 @@ NODE_ENV=production LOG_LEVEL=info node src/index.js
 | `SALES_WATCH_INTERVAL_MS` | `30000` | Sales watcher interval                      |
 | `PRICE_WATCH_INTERVAL_MS` | `30000` | Price watcher interval                      |
 | `ITEM_WATCH_INTERVAL_MS`  | `30000` | Item watcher interval                       |
+| `ITEM_WATCH_CREATED_LOOKBACK_MS` | `86400000` | StartDate/CreationDate window for newly visible catalog items |
 | `FEATURED_CONTENT_WATCH_INTERVAL_MS` | `21600000` | Featured content watcher interval |
 | `ITEM_WATCH_TOP`          | `150`   | Items per page scanned in item watcher      |
 | `ITEM_WATCH_PAGES`        | `3`     | Pages scanned per cycle in item watcher     |

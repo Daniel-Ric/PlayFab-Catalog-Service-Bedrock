@@ -2181,7 +2181,7 @@
                   }
                 ],
                 "url": {
-                  "raw": "{{baseUrl}}/marketplace/search/{{alias_prod}}?creatorName={{creator1}}&keyword={{keyword}}&contentType={{contentType}}",
+                  "raw": "{{baseUrl}}/marketplace/search/{{alias_prod}}?keyword={{keyword}}&contentType={{contentType}}",
                   "host": [
                     "{{baseUrl}}"
                   ],
@@ -2193,7 +2193,9 @@
                   "query": [
                     {
                       "key": "creatorName",
-                      "value": "{{creator1}}"
+                      "value": "{{creator1}}",
+                      "disabled": true,
+                      "description": "Optional creator filter. Enable to restrict the full-text search to one creator."
                     },
                     {
                       "key": "keyword",
@@ -2272,10 +2274,10 @@
                     }
                   ]
                 },
-                "description": "Search items by creator and keyword."
+                "description": "Search items by keyword. Enable creatorName to restrict the full-text search to one creator."
               },
               "response": [],
-              "description": "Search items by creator, keyword, and optional contentType."
+              "description": "Search items by keyword across the title alias, with optional creatorName and contentType filters."
             },
             {
               "name": "POST /marketplace/search/advanced/:alias - keyword only",

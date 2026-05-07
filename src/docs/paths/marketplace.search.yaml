@@ -15,7 +15,7 @@
   get:
     tags:
       - Marketplace
-    summary: Search items by creator and keyword
+    summary: Search items by keyword
     security:
       - BearerAuth: [ ]
     parameters:
@@ -26,14 +26,16 @@
           type: string
       - in: query
         name: creatorName
-        required: true
+        required: false
         schema:
           type: string
+        description: Optional creator filter. When omitted, the search runs across the title alias.
       - in: query
         name: keyword
         required: true
         schema:
           type: string
+        description: Full-text query forwarded to PlayFab Catalog Search.
       - in: query
         name: contentType
         required: false

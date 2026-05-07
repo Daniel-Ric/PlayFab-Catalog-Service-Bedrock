@@ -522,6 +522,11 @@ function isPurchasable(it) {
     return !!(hasVC || hasReal);
 }
 
+function buildBasicSearchText(keyword) {
+    if (typeof keyword !== "string") return "";
+    return keyword.trim().replace(/\s+/g, " ").slice(0, 200);
+}
+
 module.exports = {
     async fetchAll(alias, query = {}) {
         const titleId = resolveTitle(alias);
@@ -563,7 +568,7 @@ module.exports = {
         const filter = andFilter(baseFilter, buildContentTypeFilter(query.contentType));
         const orderBy = resolveOrderBy(query.orderBy, "creationDate desc");
         const payload = buildSearchPayload({
-            filter, search: `"${keyword}"`, top, skip, orderBy
+            filter, search: buildBasicSearchText(keyword), top, skip, orderBy
         });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
         let items = (data.Items || []).filter(isValidItem);
@@ -1132,6 +1137,10 @@ module.exports = {
             .map(s => summarizeItem(s.it));
 
         return {items: out};
+    },
+
+    _internals: {
+        buildBasicSearchText
     }
 };
 

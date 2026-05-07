@@ -382,7 +382,7 @@ Response:
 | GET    | `/marketplace/popular/:alias`                      | Popular by `rating/totalcount`         |
 | GET    | `/marketplace/free/:alias`                         | Free items                             |
 | GET    | `/marketplace/tag/:alias/:tag`                     | Filter by tag                          |
-| GET    | `/marketplace/search/:alias`                       | Creator + keyword search               |
+| GET    | `/marketplace/search/:alias`                       | Keyword full-text search                |
 | GET    | `/marketplace/details/:alias/:itemId`              | Item details (optional enrichments)    |
 | GET    | `/marketplace/friendly/:alias/:friendlyId`         | Resolve by FriendlyId                  |
 | GET    | `/marketplace/resolve/:alias/:itemId`              | Resolve by ItemId (with references)    |
@@ -448,9 +448,9 @@ Items with `displayProperties/price = 0`.
 
 Filter by tag; fully enriched items (optionally with references).
 
-#### `GET /marketplace/search/:alias?creatorName=<name>&keyword=<q>`
+#### `GET /marketplace/search/:alias?keyword=<q>`
 
-Creator is resolved via `creators.json` (matches `creatorName` or `displayName`, whitespace-insensitive).
+Runs a PlayFab Catalog full-text search across the selected title alias. `creatorName=<name>` is optional and, when present, is resolved via `creators.json` (matches `creatorName` or `displayName`, whitespace-insensitive).
 
 #### Content type and date filters on search endpoints
 

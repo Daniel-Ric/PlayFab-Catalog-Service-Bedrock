@@ -17,6 +17,7 @@ const assert = require("node:assert/strict");
 const {buildPlayerMarketplaceFilter} = require("../src/utils/marketplaceFilters");
 const {buildFilter: buildQueryFilter, buildContentTypeFilter, filterItemsByDate} = require("../src/utils/filter");
 const { _internals: advancedSearchInternals } = require("../src/services/advancedSearchService");
+const { _internals: marketplaceServiceInternals } = require("../src/services/marketplaceService");
 const {loadCreators, resolveCreatorId} = require("../src/utils/creators");
 
 test("buildPlayerMarketplaceFilter returns base filter when creatorName missing", () => {
@@ -59,6 +60,20 @@ test("buildFilter leaves contentType to search-specific filters", () => {
     }, loadCreators());
     const cid = resolveCreatorId(loadCreators(), "100Media");
     assert.equal(result, `creatorId eq '${cid.replace(/'/g, "''")}'`);
+});
+
+test("buildFilter does not require creatorName for basic search", () => {
+    const result = buildQueryFilter({
+        query: {
+            startDateFrom: "2026-01-01T00:00:00Z"
+        }
+    }, loadCreators());
+    assert.equal(result, "StartDate ge 2026-01-01T00:00:00.000Z");
+});
+
+test("basic search text is forwarded as full-text, not exact phrase", () => {
+    const result = marketplaceServiceInternals.buildBasicSearchText("  Dragon   Fire  ");
+    assert.equal(result, "Dragon Fire");
 });
 
 test("buildContentTypeFilter supports multiple content types", () => {

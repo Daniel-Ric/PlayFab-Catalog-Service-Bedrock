@@ -1,5 +1,27 @@
 # Changelog
 
+## 7.2.9 (2026-05-07)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add basic keyword sanitization, update search validation and schema (23cb596)
+- Impact: Test coverage with a small change footprint across repository files, application logic, test coverage.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- API routes: 1 file: src/routes/marketplace/search.js
+- OpenAPI documentation: 1 file: src/docs/paths/marketplace.search.yaml
+- README: 1 file: readme.md
+- Service layer: 1 file: src/services/marketplaceService.js
+- Tests: 1 file: test/marketplaceFilters.test.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 5
+- Line changes: +34 / -8
 ## 7.2.7 (2026-05-06)
 
 ### Summary
@@ -701,6 +723,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

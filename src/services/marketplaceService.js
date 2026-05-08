@@ -544,7 +544,7 @@ module.exports = {
         const titleId = resolveTitle(alias);
         const {params, top, skip} = resolveCatalogPagination(query, count, 50);
         const filter = buildFilter({query}, creatorsArr);
-        const orderBy = resolveOrderBy(query.orderBy, "creationDate desc");
+        const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
         const payload = buildSearchPayload({
             filter, search: "", top, skip, orderBy
         });
@@ -1140,7 +1140,8 @@ module.exports = {
     },
 
     _internals: {
-        buildBasicSearchText
+        buildBasicSearchText,
+        resolveOrderBy
     }
 };
 

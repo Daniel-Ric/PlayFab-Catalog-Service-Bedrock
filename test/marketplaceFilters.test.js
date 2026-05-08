@@ -76,6 +76,11 @@ test("basic search text is forwarded as full-text, not exact phrase", () => {
     assert.equal(result, "Dragon Fire");
 });
 
+test("latest marketplace order defaults to StartDate descending", () => {
+    const result = marketplaceServiceInternals.resolveOrderBy("", "startDate desc");
+    assert.equal(result, "startDate desc");
+});
+
 test("buildContentTypeFilter supports multiple content types", () => {
     const result = buildContentTypeFilter(["3PServerContent_V1.2", "shell_3PServerContent_V1.2"]);
     assert.equal(result, "(ContentType eq '3PServerContent_V1.2' or ContentType eq 'shell_3PServerContent_V1.2')");

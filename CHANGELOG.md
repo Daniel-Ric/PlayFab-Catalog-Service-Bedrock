@@ -1,5 +1,24 @@
 # Changelog
 
+## 7.2.12 (2026-05-08)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Update default marketplace ordering to `startDate desc` (756f774)
+- Impact: Test coverage with a small change footprint across application logic, test coverage.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/marketplaceService.js
+- Tests: 1 file: test/marketplaceFilters.test.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +8 / -2
 ## 7.2.10 (2026-05-07)
 
 ### Summary
@@ -760,6 +779,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

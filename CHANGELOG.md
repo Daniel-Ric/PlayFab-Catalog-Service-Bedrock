@@ -1,5 +1,48 @@
 # Changelog
 
+## 8.0.0 (2026-05-11)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add subscription watcher and Realms Plus/Marketplace Pass handling (c6f4848)
+- Impact: Test coverage with a large change footprint across application logic, test coverage.
+- Bump reason: large change footprint (10 files, 786 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/marketplace/subscriptionsController.js
+- API routes: 1 file: src/routes/marketplace/subscriptions.js
+- Application source: 1 file: src/index.js
+- OpenAPI documentation: 1 file: src/docs/paths/marketplace.subscriptions.yaml
+- Runtime configuration: 1 file: src/config/eventNames.js
+- Service layer: 2 files: src/services/marketplaceService.js, src/services/subscriptionWatcher.js
+- Other areas: 2 additional groups.
+
+### Release Metrics
+
+- Version bump: major
+- Files changed: 10
+- Line changes: +785 / -1
+
+## 8.0.1 (2026-05-11)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Merge remote-tracking branch 'origin/main' (eef806e)
+- Impact: Repository update with a small change footprint across repository files.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Changelog: 1 file: CHANGELOG.md
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +20 / -0
 ## 7.3.1 (2026-05-11)
 
 ### Summary
@@ -902,6 +945,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

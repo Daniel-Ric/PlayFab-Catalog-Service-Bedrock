@@ -24,3 +24,16 @@ test("getCreatorNamesFromPayload reads featured content item detail creators", (
 
     assert.deepEqual(names.sort(), ["new creator", "old creator"]);
 });
+
+test("getCreatorNamesFromPayload reads creator partner changes", () => {
+    const names = getCreatorNamesFromPayload("creator.partners.updated", {
+        addedPartners: [{creatorName: "NewPartner", displayName: "New Partner"}],
+        removedPartners: [{creatorName: "OldPartner", displayName: "Old Partner"}],
+        changedPartners: [{
+            before: {creatorName: "BeforePartner", displayName: "Before Partner"},
+            after: {creatorName: "AfterPartner", displayName: "After Partner"}
+        }]
+    });
+
+    assert.deepEqual(names.sort(), ["afterpartner", "beforepartner", "newpartner", "oldpartner"]);
+});

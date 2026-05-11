@@ -15,20 +15,33 @@
 const fs = require("fs");
 const path = require("path");
 const logger = require("../config/logger");
+const {writeJsonAtomic} = require("./storage");
 
 const file = path.join(__dirname, "../data/creators.json");
+let creatorsCache = null;
 
 function normalizeName(v) {
     return String(v || "").toLowerCase().replace(/\s+/g, "");
 }
 
 function loadCreators() {
+    if (creatorsCache) return creatorsCache;
     try {
-        return JSON.parse(fs.readFileSync(file, "utf8"));
+        creatorsCache = JSON.parse(fs.readFileSync(file, "utf8"));
+        return creatorsCache;
     } catch {
         logger.warn("creators.json not found or contains errors.");
-        return [];
+        creatorsCache = [];
+        return creatorsCache;
     }
+}
+
+function saveCreators(creators) {
+    const next = Array.isArray(creators) ? creators : [];
+    if (!creatorsCache) creatorsCache = [];
+    creatorsCache.splice(0, creatorsCache.length, ...next);
+    writeJsonAtomic(file, creatorsCache);
+    return creatorsCache;
 }
 
 function resolveCreatorId(creators, name) {
@@ -45,4 +58,4 @@ function resolveCreatorId(creators, name) {
     return c.id;
 }
 
-module.exports = {loadCreators, resolveCreatorId};
+module.exports = {loadCreators, saveCreators, resolveCreatorId};

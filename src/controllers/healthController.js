@@ -20,6 +20,7 @@ const {salesWatcher} = require("../services/salesWatcher");
 const {itemWatcher} = require("../services/itemWatcher");
 const {priceWatcher} = require("../services/priceWatcher");
 const {trendingWatcher} = require("../services/trendingWatcher");
+const {creatorPartnerWatcher} = require("../services/creatorPartnerWatcher");
 const {getConfiguredCorsOrigins} = require("../utils/corsOrigins");
 
 function nowTs() {
@@ -151,6 +152,8 @@ function watcherDetails(w, envPrefix, enabledBool) {
             pages: readIntEnv("TRENDING_PAGES", 3),
             topN: readIntEnv("TRENDING_TOP_N", 20)
         };
+    } else if (envPrefix === "CREATOR_PARTNER") {
+        intervalMs = readIntEnv("CREATOR_PARTNER_WATCH_INTERVAL_MS", 21600000);
     }
 
     const running = !!w.running;
@@ -320,12 +323,14 @@ function getConfigInfo() {
             item: readBoolEnv("ENABLE_ITEM_WATCHER"),
             price: readBoolEnv("ENABLE_PRICE_WATCHER"),
             trending: readBoolEnv("ENABLE_TRENDING_WATCHER"),
+            creatorPartner: readBoolEnv("ENABLE_CREATOR_PARTNER_WATCHER"),
             featuredContent: readBoolEnv("ENABLE_FEATURED_CONTENT_WATCHER")
         }, watcherIntervals: {
             salesMs: readIntEnv("SALES_WATCH_INTERVAL_MS", 30000),
             itemMs: readIntEnv("ITEM_WATCH_INTERVAL_MS", 30000),
             priceMs: readIntEnv("PRICE_WATCH_INTERVAL_MS", 30000),
             trendingMs: readIntEnv("TRENDING_INTERVAL_MS", 60000),
+            creatorPartnerMs: readIntEnv("CREATOR_PARTNER_WATCH_INTERVAL_MS", 21600000),
             featuredContentMs: readIntEnv("FEATURED_CONTENT_WATCH_INTERVAL_MS", 21600000)
         }, playfabNetworking: {
             upstreamTimeoutMs: readIntEnv("UPSTREAM_TIMEOUT_MS", 20000),
@@ -418,7 +423,8 @@ exports.getHealth = async (_req, res, next) => {
             salesWatcher: watcherDetails(salesWatcher, "SALES", configInfo.watchersEnabled.sales),
             itemWatcher: watcherDetails(itemWatcher, "ITEM", configInfo.watchersEnabled.item),
             priceWatcher: watcherDetails(priceWatcher, "PRICE", configInfo.watchersEnabled.price),
-            trendingWatcher: watcherDetails(trendingWatcher, "TRENDING", configInfo.watchersEnabled.trending)
+            trendingWatcher: watcherDetails(trendingWatcher, "TRENDING", configInfo.watchersEnabled.trending),
+            creatorPartnerWatcher: watcherDetails(creatorPartnerWatcher, "CREATOR_PARTNER", configInfo.watchersEnabled.creatorPartner)
         };
 
         const watcherOverview = getSynthesisWatchers(watchers);

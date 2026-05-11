@@ -44,8 +44,6 @@ const STORE_CONCURRENCY = Math.max(1, parseInt(process.env.STORE_CONCURRENCY || 
 const STORE_MAX_FOR_PRICE_ENRICH = Math.max(1, parseInt(process.env.STORE_MAX_FOR_PRICE_ENRICH || "12", 10));
 
 const creatorsArr = loadCreators();
-const creatorsByNormalized = new Map(creatorsArr.map(c => [String(c.creatorName).replace(/\s/g, "").toLowerCase(), c]));
-const creatorsById = new Map(creatorsArr.map(c => [String(c.id), c]));
 const {loadTitles} = require("../utils/titles");
 
 function andFilter(a, b) {
@@ -336,9 +334,14 @@ function parseExpand(expandParam) {
 }
 
 function creatorMetaById(cid) {
-    const entry = creatorsById.get(String(cid));
+    const entry = creatorsArr.find(c => String(c.id) === String(cid));
     if (entry) return {id: entry.id, displayName: entry.displayName || entry.creatorName || ""};
     return {id: cid, displayName: ""};
+}
+
+function creatorByNormalizedName(name) {
+    const normalized = String(name || "").replace(/\s/g, "").toLowerCase();
+    return creatorsArr.find(c => String(c.creatorName).replace(/\s/g, "").toLowerCase() === normalized || String(c.displayName).replace(/\s/g, "").toLowerCase() === normalized) || null;
 }
 
 function summarizeItem(it) {
@@ -404,8 +407,7 @@ function buildRecommendationsFilter(base) {
     if (cid) return `creatorId eq '${esc(cid)}'`;
     const name = base.DisplayProperties && base.DisplayProperties.creatorName ? String(base.DisplayProperties.creatorName) : "";
     if (name) {
-        const normalized = name.replace(/\s/g, "").toLowerCase();
-        const entry = creatorsByNormalized.get(normalized);
+        const entry = creatorByNormalizedName(name);
         if (entry && entry.id) return `creatorId eq '${esc(entry.id)}'`;
     }
     return "";
@@ -802,8 +804,7 @@ module.exports = {
         const details = unique.length ? await fetchItemsByIds(titleId, unique) : {};
         let creatorDisplayNameFilter = null;
         if (query.creator) {
-            const normalized = String(query.creator).replace(/\s/g, "").toLowerCase();
-            const entry = creatorsByNormalized.get(normalized);
+            const entry = creatorByNormalizedName(query.creator);
             if (!entry) {
                 const e = new Error(`Ungültiger Creator: ${query.creator}`);
                 e.status = 400;

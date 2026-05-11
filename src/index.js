@@ -65,6 +65,7 @@ const {salesWatcher} = require("./services/salesWatcher");
 const {itemWatcher} = require("./services/itemWatcher");
 const {priceWatcher} = require("./services/priceWatcher");
 const {trendingWatcher} = require("./services/trendingWatcher");
+const {creatorPartnerWatcher} = require("./services/creatorPartnerWatcher");
 const {featuredContentWatcher} = require("./services/featuredContentWatcher");
 const {initSseHub} = require("./services/sseHub");
 const {initWebhookDispatcher} = require("./services/webhookDispatcher");
@@ -363,6 +364,10 @@ app.listen(port, () => {
     if (process.env.ENABLE_TRENDING_WATCHER === "true") {
         trendingWatcher.start(eventBus);
         logger.info("Trending watcher started");
+    }
+    if (process.env.ENABLE_CREATOR_PARTNER_WATCHER === "true") {
+        creatorPartnerWatcher.start(eventBus);
+        logger.info("Creator partner watcher started");
     }
     if (process.env.ENABLE_FEATURED_CONTENT_WATCHER === "true") {
         featuredContentWatcher.start(eventBus);

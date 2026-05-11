@@ -76,6 +76,32 @@ function getCreatorNamesFromPayload(eventName, payload) {
         }
     }
 
+    if (ev === "creator.partners.snapshot" && Array.isArray(payload.partners)) {
+        for (const partner of payload.partners) {
+            const creator = creatorNameOf(partner);
+            if (creator) names.add(String(creator).toLowerCase());
+        }
+    }
+
+    if (ev === "creator.partners.updated") {
+        const lists = [payload.addedPartners, payload.removedPartners, payload.currentPartners, payload.previousPartners];
+        for (const list of lists) {
+            if (!Array.isArray(list)) continue;
+            for (const partner of list) {
+                const creator = creatorNameOf(partner);
+                if (creator) names.add(String(creator).toLowerCase());
+            }
+        }
+        if (Array.isArray(payload.changedPartners)) {
+            for (const change of payload.changedPartners) {
+                const beforeCreator = creatorNameOf(change?.before);
+                const afterCreator = creatorNameOf(change?.after);
+                if (beforeCreator) names.add(String(beforeCreator).toLowerCase());
+                if (afterCreator) names.add(String(afterCreator).toLowerCase());
+            }
+        }
+    }
+
     return Array.from(names);
 }
 

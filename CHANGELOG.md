@@ -1,5 +1,24 @@
 # Changelog
 
+## 7.3.1 (2026-05-11)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Extend Creator/Partner Watcher and update related configurations (a0b2849)
+- Impact: Repository update with a small change footprint across repository files.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Postman collection: 1 file: PlayFab Service - VMC.postman_collection.json
+- README: 1 file: readme.md
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +16 / -6
 ## 7.2.16 (2026-05-11)
 
 ### Summary
@@ -883,6 +902,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

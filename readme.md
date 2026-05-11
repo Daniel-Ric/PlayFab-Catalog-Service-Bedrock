@@ -162,12 +162,14 @@ NODE_ENV=production LOG_LEVEL=info node src/index.js
 | `ENABLE_TRENDING_WATCHER` | `true`  | Enable trending watcher                     |
 | `ENABLE_CREATOR_PARTNER_WATCHER` | `true` | Enable creator/partner registry watcher |
 | `ENABLE_FEATURED_CONTENT_WATCHER` | `true` | Enable featured content watcher      |
+| `ENABLE_SUBSCRIPTION_WATCHER` | `false` | Enable Marketplace Pass / Realms Plus membership watcher |
 | `SSE_HEARTBEAT_MS`        | `15000` | SSE heartbeat interval (min 5000)           |
 | `SALES_WATCH_INTERVAL_MS` | `30000` | Sales watcher interval                      |
 | `PRICE_WATCH_INTERVAL_MS` | `30000` | Price watcher interval                      |
 | `ITEM_WATCH_INTERVAL_MS`  | `30000` | Item watcher interval                       |
 | `ITEM_WATCH_CREATED_LOOKBACK_MS` | `86400000` | StartDate/CreationDate window for newly visible catalog items |
 | `FEATURED_CONTENT_WATCH_INTERVAL_MS` | `21600000` | Featured content watcher interval |
+| `SUBSCRIPTION_WATCH_INTERVAL_MS` | `300000` | Marketplace Pass / Realms Plus watcher interval |
 | `ITEM_WATCH_TOP`          | `150`   | Items per page scanned in item watcher      |
 | `ITEM_WATCH_PAGES`        | `3`     | Pages scanned per cycle in item watcher     |
 | `TRENDING_INTERVAL_MS`    | `60000` | Trending watcher interval                   |
@@ -384,6 +386,8 @@ Response:
 | GET    | `/marketplace/latest/:alias`                       | Latest items (`?count<=50`)            |
 | GET    | `/marketplace/popular/:alias`                      | Popular by `rating/totalcount`         |
 | GET    | `/marketplace/free/:alias`                         | Free items                             |
+| GET    | `/marketplace/marketplace-pass/:alias`             | Marketplace Pass items (`csb`)         |
+| GET    | `/marketplace/realms-plus/:alias`                  | Realms Plus items (`realms_plus`)      |
 | GET    | `/marketplace/tag/:alias/:tag`                     | Filter by tag                          |
 | GET    | `/marketplace/search/:alias`                       | Keyword full-text search                |
 | GET    | `/marketplace/details/:alias/:itemId`              | Item details (optional enrichments)    |
@@ -446,6 +450,14 @@ Sorted by `rating/totalcount desc`.
 #### `GET /marketplace/free/:alias`
 
 Items with `displayProperties/price = 0`.
+
+#### `GET /marketplace/marketplace-pass/:alias`
+
+Items with the `csb` tag. Supports creator, date, pagination, and `orderBy` filters.
+
+#### `GET /marketplace/realms-plus/:alias`
+
+Items with the `realms_plus` tag. Supports creator, date, pagination, and `orderBy` filters.
 
 #### `GET /marketplace/tag/:alias/:tag`
 
@@ -613,7 +625,8 @@ Not allowed (returns `400`):
 #### Events (SSE)
 
 * `/events/stream` (optional query `events=<comma-separated-event-names>`):
-  `item.snapshot`, `item.created`, `item.updated`, `sale.snapshot`, `sale.update`, `price.changed`, `creator.trending`, `featured.content.updated`.
+  `item.snapshot`, `item.created`, `item.updated`, `marketplace.pass.snapshot`, `marketplace.pass.added`, `marketplace.pass.removed`, `realms.plus.snapshot`, `realms.plus.added`, `realms.plus.removed`, `sale.snapshot`, `sale.update`, `price.changed`, `creator.trending`, `featured.content.updated`.
+* Subscription events compare the current `csb` / `realms_plus` tag memberships with the last persisted watcher state and include `subscription.startDate` / `subscription.endDate` from `csbStartDate`, `csbEndDate`, `realmsPlusStartDate`, and `realmsPlusEndDate`.
 * `featured.content.updated` includes changed `/marketplace/featured-content` layout entries in `addedItems`, `removedItems`, and `changedItems`. `addedItemDetails`, `removedItemDetails`, and `changedItemDetails` contain the same endpoint item details plus `featuredContext` (`page`, `row`, `component`, `itemIndex`); `currentItemDetails` and `previousItemDetails` provide the full after/before featured item lists. Same-ID layout or metadata changes set `contentChanged=true` and include `previousContentSignature` / `currentContentSignature`.
 
 #### Admin Webhooks
@@ -736,7 +749,7 @@ Rate limiting is controlled via the `RATE_LIMIT_*` environment variables.
 * **Backpressure**: events are small JSON payloads; consumers should be idempotent.
 * Watchers are toggled with:
 
-  * `ENABLE_ITEM_WATCHER`, `ENABLE_PRICE_WATCHER`, `ENABLE_SALES_WATCHER`, `ENABLE_TRENDING_WATCHER`, `ENABLE_CREATOR_PARTNER_WATCHER`, `ENABLE_FEATURED_CONTENT_WATCHER`.
+  * `ENABLE_ITEM_WATCHER`, `ENABLE_PRICE_WATCHER`, `ENABLE_SALES_WATCHER`, `ENABLE_TRENDING_WATCHER`, `ENABLE_CREATOR_PARTNER_WATCHER`, `ENABLE_FEATURED_CONTENT_WATCHER`, `ENABLE_SUBSCRIPTION_WATCHER`.
 
 ---
 
@@ -959,6 +972,8 @@ CREATOR_PARTNER_WATCH_INTERVAL_MS=21600000
 CREATORNAME_MODE=nospace
 ENABLE_FEATURED_CONTENT_WATCHER=true
 FEATURED_CONTENT_WATCH_INTERVAL_MS=21600000
+ENABLE_SUBSCRIPTION_WATCHER=false
+SUBSCRIPTION_WATCH_INTERVAL_MS=300000
 SSE_HEARTBEAT_MS=15000
 
 ADV_SEARCH_TTL_MS=60000

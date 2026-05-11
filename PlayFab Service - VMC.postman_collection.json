@@ -3462,6 +3462,144 @@
                 "description": "Return curated featured servers with title, tags, and metadata."
               },
               "response": []
+            },
+            {
+              "name": "GET /marketplace/marketplace-pass/:alias",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/marketplace-pass/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "marketplace-pass",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}",
+                      "disabled": true,
+                      "description": "Optional creator filter."
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true
+                    },
+                    {
+                      "key": "orderBy",
+                      "value": "startDate desc",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ]
+                  }
+                }
+              ],
+              "description": "Return Marketplace Pass items with the csb tag."
+            },
+            {
+              "name": "GET /marketplace/realms-plus/:alias",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/realms-plus/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "realms-plus",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}",
+                      "disabled": true,
+                      "description": "Optional creator filter."
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true
+                    },
+                    {
+                      "key": "orderBy",
+                      "value": "startDate desc",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
+                    ]
+                  }
+                }
+              ],
+              "description": "Return Realms Plus items with the realms_plus tag."
             }
           ],
           "description": "Featured persona content and featured servers."

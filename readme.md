@@ -160,6 +160,7 @@ NODE_ENV=production LOG_LEVEL=info node src/index.js
 | `ENABLE_ITEM_WATCHER`     | `true`  | Enable item watcher                         |
 | `ENABLE_PRICE_WATCHER`    | `true`  | Enable price watcher                        |
 | `ENABLE_TRENDING_WATCHER` | `true`  | Enable trending watcher                     |
+| `ENABLE_CREATOR_PARTNER_WATCHER` | `true` | Enable creator/partner registry watcher |
 | `ENABLE_FEATURED_CONTENT_WATCHER` | `true` | Enable featured content watcher      |
 | `SSE_HEARTBEAT_MS`        | `15000` | SSE heartbeat interval (min 5000)           |
 | `SALES_WATCH_INTERVAL_MS` | `30000` | Sales watcher interval                      |
@@ -174,6 +175,8 @@ NODE_ENV=production LOG_LEVEL=info node src/index.js
 | `TRENDING_PAGE_TOP`       | `200`   | Items per page scanned in trending watcher  |
 | `TRENDING_PAGES`          | `3`     | Pages scanned per cycle in trending watcher |
 | `TRENDING_TOP_N`          | `20`    | Top creators emitted per trending window    |
+| `CREATOR_PARTNER_WATCH_INTERVAL_MS` | `21600000` | Creator/partner registry watcher interval |
+| `CREATORNAME_MODE`        | `nospace` | Creator registry normalization mode (`nospace` or `alnum`) |
 | `STORE_CONCURRENCY`       | `6`     | Parallel store requests                     |
 | `PRICE_WATCH_MAX_STORES`  | `50`    | Max stores scanned for price signature      |
 
@@ -275,7 +278,7 @@ Client ──► /login ──► JWT ─┐
                            │        │  Keep-Alive)  │
                            │        └───────────────┘
                            │
-SSE ◄────────────────────────── EventBus + Watchers (sales/items/prices/trending)
+SSE ◄────────────────────────── EventBus + Watchers (sales/items/prices/trending/creator partners)
 Webhooks ◄───────────────────── WebhookService (signature, retry/backoff)
 Cache  ◄─────────────────────── LRU (sessions/data) + getOrSetAsync de-dup
 ```
@@ -733,7 +736,7 @@ Rate limiting is controlled via the `RATE_LIMIT_*` environment variables.
 * **Backpressure**: events are small JSON payloads; consumers should be idempotent.
 * Watchers are toggled with:
 
-  * `ENABLE_ITEM_WATCHER`, `ENABLE_PRICE_WATCHER`, `ENABLE_SALES_WATCHER`, `ENABLE_TRENDING_WATCHER`, `ENABLE_FEATURED_CONTENT_WATCHER`.
+  * `ENABLE_ITEM_WATCHER`, `ENABLE_PRICE_WATCHER`, `ENABLE_SALES_WATCHER`, `ENABLE_TRENDING_WATCHER`, `ENABLE_CREATOR_PARTNER_WATCHER`, `ENABLE_FEATURED_CONTENT_WATCHER`.
 
 ---
 
@@ -951,6 +954,9 @@ TRENDING_WINDOW_HOURS=24
 TRENDING_PAGE_TOP=200
 TRENDING_PAGES=3
 TRENDING_TOP_N=20
+ENABLE_CREATOR_PARTNER_WATCHER=true
+CREATOR_PARTNER_WATCH_INTERVAL_MS=21600000
+CREATORNAME_MODE=nospace
 ENABLE_FEATURED_CONTENT_WATCHER=true
 FEATURED_CONTENT_WATCH_INTERVAL_MS=21600000
 SSE_HEARTBEAT_MS=15000

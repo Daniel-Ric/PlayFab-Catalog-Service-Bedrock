@@ -540,7 +540,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"url\": \"https://example.com/webhooks/vmc\",\n  \"events\": [\"sale.update\", \"item.updated\"],\n  \"secret\": \"optional-secret\",\n  \"vendor\": \"{{webhookProvider}}\",\n  \"active\": true,\n  \"filters\": {\n    \"creators\": [\"{{creator1}}\"]\n  }\n}",
+                  "raw": "{\n  \"url\": \"https://example.com/webhooks/vmc\",\n  \"events\": [\"sale.update\", \"item.updated\", \"creator.partners.updated\"],\n  \"secret\": \"optional-secret\",\n  \"vendor\": \"{{webhookProvider}}\",\n  \"active\": true,\n  \"filters\": {\n    \"creators\": [\"{{creator1}}\"]\n  }\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -3714,7 +3714,7 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/events/stream?events=sale.update,item.updated&creatorName={{creator1}}&heartbeatMs=30000",
+              "raw": "{{baseUrl}}/events/stream?events=sale.update,item.updated,creator.partners.updated&creatorName={{creator1}}&heartbeatMs=30000",
               "host": [
                 "{{baseUrl}}"
               ],
@@ -3725,7 +3725,7 @@
               "query": [
                 {
                   "key": "events",
-                  "value": "sale.update,item.updated"
+                  "value": "sale.update,item.updated,creator.partners.updated"
                 },
                 {
                   "key": "creatorName",
@@ -3743,7 +3743,7 @@
                 }
               ]
             },
-            "description": "Subscribe to the server-sent events stream. The request stays open while the server sends events. Optional query params can filter by event names and creators."
+            "description": "Subscribe to the server-sent events stream. The request stays open while the server sends events. Optional query params can filter by event names and creators. Creator partner watcher events are creator.partners.snapshot and creator.partners.updated."
           },
           "response": []
         }
@@ -3819,6 +3819,10 @@
     {
       "key": "creator2",
       "value": "TheHive"
+    },
+    {
+      "key": "creatorPartnerEvents",
+      "value": "creator.partners.snapshot,creator.partners.updated"
     },
     {
       "key": "keyword",

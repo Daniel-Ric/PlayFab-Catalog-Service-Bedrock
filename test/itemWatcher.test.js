@@ -133,6 +133,43 @@ test("changed item requests use a wider created visibility window", () => {
     ]);
 });
 
+test("classifyBootstrapItemChange marks first-seen visible items as created", () => {
+    const result = _internals.classifyBootstrapItemChange(makeItem(), null, SINCE_TS, SINCE_TS);
+
+    assert.equal(result.kind, "created");
+});
+
+test("classifyBootstrapItemChange does not emit old first-seen bootstrap items", () => {
+    const item = makeItem({
+        CreationDate: OLD_DATE,
+        StartDate: OLD_DATE,
+        LastModifiedDate: OLD_DATE
+    });
+
+    const result = _internals.classifyBootstrapItemChange(item, null, SINCE_TS, SINCE_TS);
+
+    assert.equal(result.kind, null);
+});
+
+test("classifyBootstrapItemChange marks changed persisted items as updated", () => {
+    const previousItem = makeItem({Title: {NEUTRAL: "Before"}, ETag: "etag-old"});
+    const currentItem = makeItem({Title: {NEUTRAL: "After"}, ETag: "etag-new"});
+
+    const result = _internals.classifyBootstrapItemChange(currentItem, previousStateFor(previousItem), SINCE_TS, SINCE_TS);
+
+    assert.equal(result.kind, "updated");
+});
+
+test("watcher state serializes and deserializes entries", () => {
+    const item = makeItem();
+    const state = new Map([["item-1", previousStateFor(item)]]);
+
+    const restored = _internals.deserializeState(_internals.serializeState(state));
+
+    assert.equal(restored.get("item-1").hash, state.get("item-1").hash);
+    assert.deepEqual(restored.get("item-1").raw, item);
+});
+
 test("fallback offset helpers round-trip offsets", () => {
     const token = _internals.makeFallbackOffset(400);
     assert.equal(token, "offset:400");

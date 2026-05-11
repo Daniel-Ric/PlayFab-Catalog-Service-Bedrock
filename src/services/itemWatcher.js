@@ -13,11 +13,15 @@
 // -----------------------------------------------------------------------------
 
 const logger = require("../config/logger");
+const fs = require("fs");
+const path = require("path");
 const {sendPlayFabRequest, isValidItem, getItemsByIds} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
 const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
+const {readJson, writeJsonAtomic} = require("../utils/storage");
 const SEARCH_ITEMS_MAX_COUNT = 50;
+const DEFAULT_STATE_FILE = path.join(__dirname, "../data/itemWatcherState.json");
 let searchItemsUnavailable = false;
 
 function getTitleId() {
@@ -255,6 +259,73 @@ function buildChangedItemRequests(instantSinceIso, createdSinceIso = instantSinc
     ];
 }
 
+function stateFilePath() {
+    return process.env.ITEM_WATCH_STATE_FILE || DEFAULT_STATE_FILE;
+}
+
+function serializeState(state) {
+    return Array.from(state.entries()).map(([id, entry]) => ({
+        id,
+        hash: entry?.hash || null,
+        raw: entry?.raw || null
+    })).filter(entry => entry.id && entry.hash);
+}
+
+function deserializeState(entries) {
+    const state = new Map();
+    if (!Array.isArray(entries)) return state;
+    for (const entry of entries) {
+        const id = entry?.id || entry?.raw?.Id || entry?.raw?.id;
+        const hash = entry?.hash;
+        if (!id || !hash) continue;
+        state.set(id, {
+            hash,
+            raw: entry.raw || null
+        });
+    }
+    return state;
+}
+
+function loadPersistedState() {
+    try {
+        const filePath = stateFilePath();
+        if (!fs.existsSync(filePath)) {
+            return {state: new Map(), loaded: false};
+        }
+        return {state: deserializeState(readJson(filePath, [])), loaded: true};
+    } catch (err) {
+        logger.warn(`[ItemWatcher] failed to load state file: ${err.message}`);
+        return {state: new Map(), loaded: false};
+    }
+}
+
+function savePersistedState(state) {
+    try {
+        writeJsonAtomic(stateFilePath(), serializeState(state));
+    } catch (err) {
+        logger.warn(`[ItemWatcher] failed to save state file: ${err.message}`);
+    }
+}
+
+function classifyBootstrapItemChange(it, prev, createdSinceTs, updatedSinceTs) {
+    const nextHash = hashItemCore(it);
+    const startTs = tsOf(startDateOf(it));
+    const creationTs = tsOf(creationDateOf(it));
+    const modTs = tsOf(lastModifiedDateOf(it));
+    const looksRecentlyCreated = (startTs && startTs >= createdSinceTs) || (creationTs && creationTs >= createdSinceTs);
+    const looksRecentlyUpdated = modTs && modTs >= updatedSinceTs;
+
+    if (!prev) {
+        return {kind: looksRecentlyCreated ? "created" : null, nextHash};
+    }
+
+    if (prev.hash !== nextHash && looksRecentlyUpdated) {
+        return {kind: "updated", nextHash};
+    }
+
+    return {kind: null, nextHash};
+}
+
 async function requestChangedItems(titleId, os, instantSinceIso, itemsPerRequest, maxItems, createdSinceIso = instantSinceIso) {
     const itemMap = new Map();
     const requests = buildChangedItemRequests(instantSinceIso, createdSinceIso);
@@ -329,12 +400,27 @@ class ItemWatcher {
 
             if (!this.bootstrapped) {
                 const recent = await fetchBootstrapItems(titleId, os, bootstrapItemsPerRequest, bootstrapMaxItems, createdLookbackMs);
-                const bootstrapMap = new Map();
+                const persisted = loadPersistedState();
+                const bootstrapMap = new Map(persisted.state);
+                const created = [];
+                const updated = [];
+                const createdSinceTs = Math.max(0, Date.now() - createdLookbackMs);
+                const updatedSinceTs = Math.max(0, Date.now() - overlapMs);
+
                 for (const it of recent) {
                     const id = it.Id || it.id;
                     if (!id) continue;
+                    const prev = persisted.state.get(id) || null;
+                    const {kind, nextHash} = classifyBootstrapItemChange(it, prev, createdSinceTs, updatedSinceTs);
+                    if (persisted.loaded && kind === "created") {
+                        created.push(it);
+                    } else if (persisted.loaded && kind === "updated") {
+                        updated.push({
+                            id, before: prev ? prev.raw : null, after: it
+                        });
+                    }
                     bootstrapMap.set(id, {
-                        hash: hashItemCore(it), raw: it
+                        hash: nextHash, raw: it
                     });
                 }
                 this.state = bootstrapMap;
@@ -343,6 +429,21 @@ class ItemWatcher {
                 eventBus.emit("item.snapshot", {
                     ts: Date.now(), count: recent.length, items: projectCatalogItems(recent)
                 });
+                if (created.length > 0) {
+                    eventBus.emit("item.created", {
+                        ts: Date.now(), count: created.length, items: projectCatalogItems(created)
+                    });
+                }
+                if (updated.length > 0) {
+                    eventBus.emit("item.updated", {
+                        ts: Date.now(), count: updated.length, items: updated.map(pair => ({
+                            id: pair.id,
+                            before: pair.before ? projectCatalogItem(pair.before) : null,
+                            after: projectCatalogItem(pair.after)
+                        }))
+                    });
+                }
+                savePersistedState(this.state);
                 return;
             }
 
@@ -395,6 +496,7 @@ class ItemWatcher {
                 });
             }
 
+            savePersistedState(this.state);
             this.lastRunTs = Date.now();
         };
 
@@ -424,6 +526,9 @@ module.exports = {
         shouldFetchNextPage,
         collectPaginatedItems,
         searchItemsPageFallback,
-        buildChangedItemRequests
+        buildChangedItemRequests,
+        classifyBootstrapItemChange,
+        serializeState,
+        deserializeState
     }
 };

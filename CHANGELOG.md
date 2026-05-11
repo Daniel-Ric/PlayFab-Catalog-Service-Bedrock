@@ -1,5 +1,42 @@
 # Changelog
 
+## 7.2.14 (2026-05-11)
+
+### Summary
+
+- Change type: CI and automation
+- Main change: PlayFab - Add FUNDING.yml to define funding (381e77a)
+- Impact: CI and automation with a small change footprint across CI and workflow automation.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- GitHub configuration: 1 file: .github/FUNDING.yml
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +4 / -0
+
+## 7.2.15 (2026-05-11)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Merge remote-tracking branch 'origin/main' (662a911)
+- Impact: Repository update with a small change footprint across repository files.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Changelog: 1 file: CHANGELOG.md
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +20 / -0
 ## 7.2.13 (2026-05-11)
 
 ### Summary
@@ -798,6 +835,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

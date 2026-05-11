@@ -1,5 +1,53 @@
 # Changelog
 
+## 7.2.16 (2026-05-11)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Bump fast-uri from 3.1.0 to 3.1.2 (b02c6fb)
+- Impact: Repository update with a small change footprint across project dependencies.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Dependencies: 1 file: package-lock.json
+
+### Notable Changes
+
+- Bumps [fast-uri](https://github.com/fastify/fast-uri) from 3.1.0 to 3.1.2.
+- [Release notes](https://github.com/fastify/fast-uri/releases)
+- [Commits](https://github.com/fastify/fast-uri/compare/v3.1.0...v3.1.2)
+- --
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +3 / -3
+
+## 7.2.17 (2026-05-11)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Merge (21313eb)
+- Impact: Repository update with a small change footprint across project dependencies.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Dependencies: 1 file: package-lock.json
+
+### Notable Changes
+
+- Bump fast-uri from 3.1.0 to 3.1.2
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +3 / -3
 ## 7.2.14 (2026-05-11)
 
 ### Summary
@@ -835,6 +883,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

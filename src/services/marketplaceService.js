@@ -29,6 +29,7 @@ const {loadCreators, resolveCreatorId} = require("../utils/creators");
 const {buildFilter, buildDateFilter, buildContentTypeFilter, filterItemsByDate} = require("../utils/filter");
 const {resolveMarketplaceEntityInput} = require("../utils/marketplaceTokens");
 const {buildPlayerMarketplaceFilter} = require("../utils/marketplaceFilters");
+const {SUBSCRIPTION_DEFS, subscriptionFilter} = require("../utils/marketplaceSubscriptions");
 const featuredServers = require("../config/featuredServers");
 const logger = require("../config/logger");
 const {normalizeParams} = require("../utils/pagination");
@@ -640,6 +641,21 @@ module.exports = {
         const titleId = resolveTitle(alias);
         const tagClause = `tags/any(t:t eq '${String(tag).replace(/'/g, "''")}')`;
         const filter = andFilter(buildFilter({query}, creatorsArr), tagClause);
+        const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
+        const enriched = await enrichWithFullItems(titleId, list);
+        const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
+        return withRefs;
+    },
+
+    async fetchSubscriptionItems(alias, subscriptionKey, query = {}) {
+        if (!SUBSCRIPTION_DEFS[subscriptionKey]) {
+            const e = new Error("Unknown marketplace subscription.");
+            e.status = 404;
+            throw e;
+        }
+        const titleId = resolveTitle(alias);
+        const filter = andFilter(buildFilter({query}, creatorsArr), subscriptionFilter(subscriptionKey));
         const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
         const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
         const enriched = await enrichWithFullItems(titleId, list);

@@ -43,7 +43,7 @@ function getCreatorNamesFromPayload(eventName, payload) {
                 if (afterCreator) names.add(String(afterCreator).toLowerCase());
                 if (directCreator) names.add(String(directCreator).toLowerCase());
             }
-        } else if (ev === "item.created" || ev === "item.snapshot") {
+        } else if (ev === "item.created" || ev === "item.snapshot" || ev.startsWith("marketplace.pass.") || ev.startsWith("realms.plus.")) {
             for (const it of payload.items) {
                 const creator = creatorNameOf(it);
                 if (creator) names.add(String(creator).toLowerCase());

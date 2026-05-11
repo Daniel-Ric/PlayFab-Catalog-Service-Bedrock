@@ -51,6 +51,7 @@ const mpSearchAdvanced = require("./routes/marketplace/search-advanced");
 const mpPlayerSearch = require("./routes/marketplace/player-search");
 const mpRecommendations = require("./routes/marketplace/recommendations");
 const mpStats = require("./routes/marketplace/stats");
+const mpSubscriptions = require("./routes/marketplace/subscriptions");
 const healthRoutes = require("./routes/health");
 const eventsRoutes = require("./routes/events");
 const {getConfiguredCorsOrigins, normalizeOrigin} = require("./utils/corsOrigins");
@@ -63,6 +64,7 @@ const OpenApiValidator = require("express-openapi-validator");
 const NodeCache = require("node-cache");
 const {salesWatcher} = require("./services/salesWatcher");
 const {itemWatcher} = require("./services/itemWatcher");
+const {subscriptionWatcher} = require("./services/subscriptionWatcher");
 const {priceWatcher} = require("./services/priceWatcher");
 const {trendingWatcher} = require("./services/trendingWatcher");
 const {creatorPartnerWatcher} = require("./services/creatorPartnerWatcher");
@@ -300,6 +302,7 @@ app.use("/marketplace/latest", enforceAuth, authLimiter, marketplaceLimiter, cac
 app.use("/marketplace/search", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(30, 180), mpSearch);
 app.use("/marketplace/popular", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(45, 240), mpPopular);
 app.use("/marketplace/tag", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpTag);
+app.use("/marketplace", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpSubscriptions);
 app.use("/marketplace/free", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpFree);
 app.use("/marketplace/details", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(120, 600), mpDetails);
 app.use("/marketplace/friendly", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(120, 600), mpFriendly);
@@ -356,6 +359,10 @@ app.listen(port, () => {
     if (process.env.ENABLE_ITEM_WATCHER === "true") {
         itemWatcher.start(eventBus);
         logger.info("Item watcher started");
+    }
+    if (process.env.ENABLE_SUBSCRIPTION_WATCHER === "true") {
+        subscriptionWatcher.start(eventBus);
+        logger.info("Subscription watcher started");
     }
     if (process.env.ENABLE_PRICE_WATCHER === "true") {
         priceWatcher.start(eventBus);

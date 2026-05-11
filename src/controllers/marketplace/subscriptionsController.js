@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------------
 //
-// File: src/config/eventNames.js
+// File: src/controllers/marketplace/subscriptionsController.js
 // Disclaimer: "PlayFab Catalog Service Bedrock" by SpindexGFX is an independent project.
 // It is not affiliated with, endorsed by, sponsored by, or otherwise connected to Mojang AB,
 // Microsoft Corporation, or any of their subsidiaries or affiliates.
@@ -12,29 +12,20 @@
 //
 // -----------------------------------------------------------------------------
 
-const EVENT_NAMES = Object.freeze([
-    "item.snapshot",
-    "item.created",
-    "item.updated",
-    "marketplace.pass.snapshot",
-    "marketplace.pass.added",
-    "marketplace.pass.removed",
-    "realms.plus.snapshot",
-    "realms.plus.added",
-    "realms.plus.removed",
-    "sale.snapshot",
-    "sale.update",
-    "price.changed",
-    "creator.trending",
-    "creator.partners.snapshot",
-    "creator.partners.updated",
-    "featured.content.updated"
-]);
+const withETag = require("../../middleware/etag");
+const withPagination = require("../../middleware/pagination");
+const {dataCache} = require("../../config/cache");
+const service = require("../../services/marketplaceService");
+const cacheKey = require("../../utils/cacheKey");
 
-const EVENT_NAME_SET = new Set(EVENT_NAMES);
-
-function isValidEventName(name) {
-    return EVENT_NAME_SET.has(String(name));
+function getSubscriptionItems(subscriptionKey) {
+    return withETag(withPagination(async (req) => {
+        const key = cacheKey(req);
+        return dataCache.getOrSetAsync(key, async () => {
+            return service.fetchSubscriptionItems(req.params.alias, subscriptionKey, req.query);
+        });
+    }));
 }
 
-module.exports = {EVENT_NAMES, EVENT_NAME_SET, isValidEventName};
+exports.getMarketplacePassItems = getSubscriptionItems("marketplacePass");
+exports.getRealmsPlusItems = getSubscriptionItems("realmsPlus");

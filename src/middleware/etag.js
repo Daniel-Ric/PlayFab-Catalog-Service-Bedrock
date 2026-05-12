@@ -13,8 +13,10 @@
 // -----------------------------------------------------------------------------
 
 const crypto = require("crypto");
+const {once} = require("events");
 
 const etagMemo = new WeakMap();
+const STREAM_ARRAY_MIN_ITEMS = Math.max(1, parseInt(process.env.ETAG_STREAM_ARRAY_MIN_ITEMS || "5000", 10));
 
 function buildEtagPayload(result) {
     if (!result || (typeof result !== "object" && !Array.isArray(result))) {
@@ -31,6 +33,24 @@ function buildEtagPayload(result) {
     return payload;
 }
 
+function shouldStreamJsonArray(result) {
+    return Array.isArray(result) && result.length >= STREAM_ARRAY_MIN_ITEMS;
+}
+
+async function writeChunk(res, chunk) {
+    if (!res.write(chunk)) await once(res, "drain");
+}
+
+async function streamJsonArray(res, items) {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    await writeChunk(res, "[");
+    for (let i = 0; i < items.length; i += 1) {
+        if (i > 0) await writeChunk(res, ",");
+        await writeChunk(res, JSON.stringify(items[i]));
+    }
+    res.end("]");
+}
+
 function withETag(handler) {
     return async (req, res, next) => {
         try {
@@ -38,6 +58,10 @@ function withETag(handler) {
             if (res.headersSent) return;
             if (typeof result === "undefined") {
                 res.status(204).end();
+                return;
+            }
+            if (shouldStreamJsonArray(result)) {
+                await streamJsonArray(res, result);
                 return;
             }
             const {body, tag} = buildEtagPayload(result);
@@ -55,3 +79,4 @@ function withETag(handler) {
 }
 
 module.exports = withETag;
+module.exports._internals = {buildEtagPayload, shouldStreamJsonArray, streamJsonArray};

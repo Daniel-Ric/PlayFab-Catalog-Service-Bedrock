@@ -81,6 +81,47 @@ test("latest marketplace order defaults to StartDate descending", () => {
     assert.equal(result, "startDate desc");
 });
 
+test("startDateRangeQueries splits large all-item ranges", () => {
+    const result = marketplaceServiceInternals.startDateRangeQueries({
+        startDateFrom: "2017-01-01T00:00:00Z",
+        startDateTo: "2026-01-01T00:00:00Z"
+    });
+
+    assert.ok(result.length > 1);
+    assert.equal(result[0].startDateTo, "2026-01-01T00:00:00.000Z");
+    assert.equal(result[result.length - 1].startDateFrom, "2017-01-01T00:00:00.000Z");
+});
+
+test("startDateRangeQueries covers very large ranges without exceeding the chunk cap", () => {
+    const result = marketplaceServiceInternals.startDateRangeQueries({
+        startDateFrom: "1900-01-01T00:00:00Z",
+        startDateTo: "2026-01-01T00:00:00Z"
+    });
+
+    assert.ok(result.length <= 80);
+    assert.equal(result[result.length - 1].startDateFrom, "1900-01-01T00:00:00.000Z");
+});
+
+test("uniqueById removes duplicate items from split all-item ranges", () => {
+    const result = marketplaceServiceInternals.uniqueById([
+        {Id: "one", StartDate: "2026-01-01T00:00:00Z"},
+        {Id: "one", StartDate: "2026-01-01T00:00:00Z"},
+        {Id: "two", StartDate: "2025-01-01T00:00:00Z"}
+    ]);
+
+    assert.deepEqual(result.map(item => item.Id), ["one", "two"]);
+});
+
+test("sortItemsByOrder keeps merged all-item ranges globally ordered", () => {
+    const result = marketplaceServiceInternals.sortItemsByOrder([
+        {Id: "old", StartDate: "2024-01-01T00:00:00Z"},
+        {Id: "new", StartDate: "2026-01-01T00:00:00Z"},
+        {Id: "middle", StartDate: "2025-01-01T00:00:00Z"}
+    ], "startDate desc");
+
+    assert.deepEqual(result.map(item => item.Id), ["new", "middle", "old"]);
+});
+
 test("buildContentTypeFilter supports multiple content types", () => {
     const result = buildContentTypeFilter(["3PServerContent_V1.2", "shell_3PServerContent_V1.2"]);
     assert.equal(result, "(ContentType eq '3PServerContent_V1.2' or ContentType eq 'shell_3PServerContent_V1.2')");

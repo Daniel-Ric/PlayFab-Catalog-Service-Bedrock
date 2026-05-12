@@ -43,6 +43,8 @@ const ENRICH_CONCURRENCY = Math.max(1, parseInt(process.env.MULTILANG_ENRICH_CON
 const FETCH_CONCURRENCY = Math.max(1, parseInt(process.env.FETCH_CONCURRENCY || "5", 10));
 const STORE_CONCURRENCY = Math.max(1, parseInt(process.env.STORE_CONCURRENCY || "4", 10));
 const STORE_MAX_FOR_PRICE_ENRICH = Math.max(1, parseInt(process.env.STORE_MAX_FOR_PRICE_ENRICH || "12", 10));
+const ALL_DATE_RANGE_CHUNK_DAYS = Math.max(1, parseInt(process.env.MARKETPLACE_ALL_DATE_RANGE_CHUNK_DAYS || "180", 10));
+const ALL_DATE_RANGE_MAX_CHUNKS = Math.max(1, parseInt(process.env.MARKETPLACE_ALL_DATE_RANGE_MAX_CHUNKS || "80", 10));
 
 const creatorsArr = loadCreators();
 const {loadTitles} = require("../utils/titles");
@@ -142,6 +144,79 @@ function normDate(v) {
     if (!v) return null;
     const d = new Date(v);
     return isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+function dateMs(v) {
+    const iso = normDate(v);
+    return iso ? Date.parse(iso) : null;
+}
+
+function startDateRangeQueries(query = {}) {
+    const fromMs = dateMs(query.startDateFrom);
+    const toMs = dateMs(query.startDateTo);
+    if (fromMs === null || toMs === null || fromMs >= toMs) return [query];
+
+    const spanMs = toMs - fromMs;
+    const chunkMs = Math.max(ALL_DATE_RANGE_CHUNK_DAYS * 86400000, Math.ceil(spanMs / ALL_DATE_RANGE_MAX_CHUNKS));
+    if (spanMs <= chunkMs) return [query];
+
+    const chunks = [];
+    let cursor = toMs;
+    while (cursor > fromMs && chunks.length < ALL_DATE_RANGE_MAX_CHUNKS) {
+        const chunkStart = Math.max(fromMs, cursor - chunkMs);
+        chunks.push({
+            ...query,
+            startDateFrom: new Date(chunkStart).toISOString(),
+            startDateTo: new Date(cursor).toISOString()
+        });
+        cursor = chunkStart;
+    }
+    return chunks;
+}
+
+function idOf(item) {
+    return item?.Id || item?.id || null;
+}
+
+function uniqueById(items) {
+    const seen = new Set();
+    const out = [];
+    for (const item of items) {
+        const id = idOf(item);
+        if (id && seen.has(id)) continue;
+        if (id) seen.add(id);
+        out.push(item);
+    }
+    return out;
+}
+
+function orderValue(item, field) {
+    const key = String(field || "").toLowerCase();
+    if (key === "creationdate") return Date.parse(item?.CreationDate || item?.creationDate || "") || 0;
+    if (key === "lastmodifieddate") return Date.parse(item?.LastModifiedDate || item?.lastModifiedDate || "") || 0;
+    if (key === "startdate") return Date.parse(item?.StartDate || item?.startDate || item?.CreationDate || "") || 0;
+    if (key === "rating/totalcount") return ratingCountOf(item);
+    return 0;
+}
+
+function sortItemsByOrder(items, orderBy) {
+    const clauses = String(orderBy || "").split(",").map(part => part.trim()).filter(Boolean).map(clause => {
+        const match = clause.match(/^([^,\s]+)(?:\s+(asc|desc))?$/i);
+        if (!match) return null;
+        return {
+            field: match[1],
+            dir: String(match[2] || "desc").toLowerCase() === "asc" ? 1 : -1
+        };
+    }).filter(Boolean);
+    if (!clauses.length) return items;
+
+    return items.slice().sort((a, b) => {
+        for (const clause of clauses) {
+            const diff = orderValue(a, clause.field) - orderValue(b, clause.field);
+            if (diff !== 0) return diff * clause.dir;
+        }
+        return String(idOf(a) || "").localeCompare(String(idOf(b) || ""));
+    });
 }
 
 async function fetchStores(titleId) {
@@ -533,11 +608,17 @@ function buildBasicSearchText(keyword) {
 module.exports = {
     async fetchAll(alias, query = {}) {
         const titleId = resolveTitle(alias);
-        const tagClause = query.tag ? `tags/any(t:t eq '${String(query.tag).replace(/'/g, "''")}')` : "";
-        const base = buildFilter({query}, creatorsArr);
-        const filter = andFilter(base, tagClause);
         const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
-        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
+        const queries = startDateRangeQueries(query);
+        const fetched = [];
+        for (const q of queries) {
+            const tagClause = q.tag ? `tags/any(t:t eq '${String(q.tag).replace(/'/g, "''")}')` : "";
+            const base = buildFilter({query: q}, creatorsArr);
+            const filter = andFilter(base, tagClause);
+            const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
+            fetched.push(...list);
+        }
+        const list = sortItemsByOrder(uniqueById(fetched), orderBy);
         const enriched = await enrichWithFullItems(titleId, list);
         const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
         return withRefs;
@@ -1158,7 +1239,10 @@ module.exports = {
 
     _internals: {
         buildBasicSearchText,
-        resolveOrderBy
+        resolveOrderBy,
+        startDateRangeQueries,
+        sortItemsByOrder,
+        uniqueById
     }
 };
 

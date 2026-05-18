@@ -1,5 +1,29 @@
 # Changelog
 
+## 8.2.0 (2026-05-18)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add Catalog Bridge with proxy and secure routes (69db005)
+- Impact: Test coverage with a medium change footprint across project dependencies, repository files, application logic.
+- Bump reason: medium change footprint (8 files, 694 total line changes)
+
+### Changed Areas
+
+- API routes: 1 file: src/routes/catalogBridge.js
+- Application source: 2 files: src/index.js, src/scripts/generate-bridge-token.js
+- Dependencies: 1 file: package.json
+- README: 1 file: readme.md
+- Runtime configuration: 1 file: src/config/catalogBridge.js
+- Service layer: 1 file: src/services/catalogBridgeService.js
+- Other areas: 1 additional group.
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 8
+- Line changes: +694 / -0
 ## 8.1.3 (2026-05-13)
 
 ### Summary
@@ -1052,6 +1076,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

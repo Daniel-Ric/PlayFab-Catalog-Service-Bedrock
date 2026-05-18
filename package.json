@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "setup": "node src/scripts/setup.js",
+    "bridge:token": "node src/scripts/generate-bridge-token.js",
     "test": "node src/scripts/run-node-tests.js",
     "wiki:generate": "node .github/scripts/generate-wiki.js",
     "start": "node src/index.js",

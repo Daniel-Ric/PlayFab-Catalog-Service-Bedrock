@@ -73,6 +73,7 @@ const {initSseHub} = require("./services/sseHub");
 const {initWebhookDispatcher} = require("./services/webhookDispatcher");
 const {eventBus} = require("./services/eventBus");
 const {createRateLimiter, createOptionalRateLimiter} = require("./config/rateLimiter");
+const {createCatalogBridgeRouter} = require("./routes/catalogBridge");
 
 const artLines = [
     " __                 ___       __      __       ___            __   __           __",
@@ -163,6 +164,11 @@ if (process.env.ENABLE_DOCS === "true") {
 }
 
 app.get("/", (_req, res) => res.json({ok: true, name: "View Marketplace API"}));
+
+const catalogBridgeRouter = createCatalogBridgeRouter();
+if (catalogBridgeRouter) {
+    app.use(catalogBridgeRouter);
+}
 
 const loginLimiter = createRateLimiter("LOGIN", {windowMs: 15 * 60 * 1000, max: 20});
 const marketplaceLimiter = createOptionalRateLimiter("MARKETPLACE", {windowMs: 60 * 60 * 1000, max: 2000});
@@ -349,6 +355,9 @@ app.use((err, req, res, next) => {
 app.listen(port, () => {
     console.log(buildBanner());
     logger.info(`API running at http://localhost:${port}`);
+    if (catalogBridgeRouter) {
+        logger.info("Catalog bridge enabled: /api/security/csrf, /api/security/catalog-handshake, /api/catalog/proxy, /api/catalog/secure");
+    }
     initSseHub(eventBus);
     initWebhookDispatcher(eventBus);
 

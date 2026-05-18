@@ -130,6 +130,45 @@ NODE_ENV=production LOG_LEVEL=info node src/index.js
 | `HTTP_MAX_SOCKETS`    | `512`        | Keep-alive sockets (HTTP)                 |
 | `HTTPS_MAX_SOCKETS`   | `512`        | Keep-alive sockets (HTTPS)                |
 
+### Optional Catalog Bridge
+
+The Catalog Bridge is disabled by default and adds no routes, handshakes, CORS rules, CSRF checks, or rate limiters unless `CATALOG_BRIDGE_ENABLED=true`.
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `CATALOG_BRIDGE_ENABLED` | `false` | Enable optional `/api/...` bridge routes |
+| `CATALOG_BRIDGE_PROXY_ENABLED` | follows bridge | Enable `POST /api/catalog/proxy` |
+| `CATALOG_BRIDGE_SECURE_ENABLED` | follows bridge | Enable handshake and `POST /api/catalog/secure` |
+| `CATALOG_BRIDGE_CSRF_ENABLED` | follows bridge | Require CSRF for plain proxy and secure payloads |
+| `CATALOG_BRIDGE_CORS_ENABLED` | `false` | Add bridge-specific CORS headers |
+| `CATALOG_BRIDGE_RATE_LIMIT_ENABLED` | follows bridge | Add bridge-specific rate limiting |
+| `ALLOWED_WEB_ORIGINS` | empty | Comma-separated origins for bridge CORS |
+| `CATALOG_UPSTREAM_ORIGIN` | empty | Upstream origin used for relative `/catalog/...` proxy targets |
+| `CATALOG_BEARER_TOKEN` | empty | Server-side bearer token injected into upstream catalog requests |
+| `CSRF_COOKIE_NAME` | `catalog_bridge_csrf` | CSRF cookie name |
+| `SESSION_COOKIE_NAME` | `catalog_bridge_session` | Reserved bridge session cookie name if deployments need one |
+| `CATALOG_BRIDGE_COOKIE_SAMESITE` | `Lax` | CSRF cookie SameSite value |
+| `CATALOG_BRIDGE_COOKIE_SECURE` | `true` in production | Add `Secure` to bridge cookies |
+| `CATALOG_BRIDGE_COOKIE_TTL_MS` | `1800000` | CSRF cookie TTL |
+| `CATALOG_BRIDGE_HANDSHAKE_TTL_MS` | `120000` | ECDH handshake TTL |
+| `CATALOG_BRIDGE_RATE_LIMIT_WINDOW_MS` | `60000` | Bridge rate-limit window |
+| `CATALOG_BRIDGE_RATE_LIMIT_MAX` | `120` | Bridge rate-limit max requests per window |
+| `CATALOG_BRIDGE_CORS_METHODS` | `GET,POST,OPTIONS` | Bridge CORS methods |
+| `CATALOG_BRIDGE_CORS_ALLOWED_HEADERS` | `Content-Type,X-CSRF-Token` | Bridge CORS request headers |
+| `CATALOG_BRIDGE_CORS_CREDENTIALS` | `true` | Add bridge CORS credentials support |
+| `CATALOG_BRIDGE_UPSTREAM_TIMEOUT_MS` | `UPSTREAM_TIMEOUT_MS` | Bridge upstream timeout |
+| `CATALOG_BRIDGE_MAX_BODY_BYTES` | `1048576` | Bridge JSON body limit |
+
+`POST /api/catalog/proxy` accepts only relative `url` values under `/catalog/`, blocks `/catalog/login`, ignores client-supplied `Authorization`, and injects the configured server-side bearer token. `GET /api/security/catalog-handshake` creates short-lived P-256 ECDH handshakes for `POST /api/catalog/secure`; the encrypted payload is the same proxy payload plus the handshake `csrfToken` when CSRF is enabled.
+
+If `CATALOG_BEARER_TOKEN` should authenticate against this API's JWT middleware, generate a deployment token locally and store it only in environment/secret storage:
+
+```bash
+CATALOG_BRIDGE_TOKEN_EXPIRES_IN=365d npm run bridge:token
+```
+
+Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_ROLE`, and `CATALOG_BRIDGE_TOKEN_EXPIRES_IN`. Rotate this token like any other server-side credential.
+
 ### PlayFab / Titles / OS
 
 | Variable                 | Default | Description                                     |
@@ -1110,6 +1149,17 @@ server {
   }
 }
 ```
+
+If `CATALOG_BRIDGE_ENABLED=true`, a reverse proxy can additionally route these paths to the same Node service:
+
+```text
+/api/security/csrf
+/api/security/catalog-handshake
+/api/catalog/proxy
+/api/catalog/secure
+```
+
+Existing public `/catalog/...` proxy rules can remain unchanged. The bridge accepts only relative `/catalog/...` targets and forwards them to the configured `CATALOG_UPSTREAM_ORIGIN`.
 
 ---
 

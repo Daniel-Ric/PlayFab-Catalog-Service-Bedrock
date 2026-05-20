@@ -267,7 +267,8 @@ function serializeState(state) {
     return Array.from(state.entries()).map(([id, entry]) => ({
         id,
         hash: entry?.hash || null,
-        raw: entry?.raw || null
+        raw: entry?.raw || null,
+        createdNotified: entry?.createdNotified === false ? false : true
     })).filter(entry => entry.id && entry.hash);
 }
 
@@ -280,10 +281,15 @@ function deserializeState(entries) {
         if (!id || !hash) continue;
         state.set(id, {
             hash,
-            raw: entry.raw || null
+            raw: entry.raw || null,
+            createdNotified: entry.createdNotified === false ? false : true
         });
     }
     return state;
+}
+
+function hasCreatedBeenNotified(prev) {
+    return !prev || prev.createdNotified !== false;
 }
 
 function loadPersistedState() {
@@ -316,14 +322,18 @@ function classifyBootstrapItemChange(it, prev, createdSinceTs, updatedSinceTs) {
     const looksRecentlyUpdated = modTs && modTs >= updatedSinceTs;
 
     if (!prev) {
-        return {kind: looksRecentlyCreated ? "created" : null, nextHash};
+        return {kind: looksRecentlyCreated ? "created" : null, nextHash, createdNotified: !looksRecentlyCreated};
+    }
+
+    if (!hasCreatedBeenNotified(prev) && looksRecentlyCreated) {
+        return {kind: "created", nextHash, createdNotified: true};
     }
 
     if (prev.hash !== nextHash && looksRecentlyUpdated) {
-        return {kind: "updated", nextHash};
+        return {kind: "updated", nextHash, createdNotified: true};
     }
 
-    return {kind: null, nextHash};
+    return {kind: null, nextHash, createdNotified: hasCreatedBeenNotified(prev)};
 }
 
 async function requestChangedItems(titleId, os, instantSinceIso, itemsPerRequest, maxItems, createdSinceIso = instantSinceIso) {
@@ -342,7 +352,7 @@ async function requestChangedItems(titleId, os, instantSinceIso, itemsPerRequest
     return Array.from(itemMap.values());
 }
 
-function classifyItemChange(it, prev, sinceTs) {
+function classifyItemChange(it, prev, updatedSinceTs, createdSinceTs = updatedSinceTs) {
     const creationTs = tsOf(creationDateOf(it));
     const startTs = tsOf(startDateOf(it));
     const modTs = tsOf(lastModifiedDateOf(it));
@@ -350,27 +360,31 @@ function classifyItemChange(it, prev, sinceTs) {
 
     const isFirstSeen = !prev;
     const hasChanged = !prev || prev.hash !== nextHash;
-    const looksRecentlyCreated = (startTs && startTs >= sinceTs) || (creationTs && creationTs >= sinceTs);
-    const looksRecentlyUpdated = modTs && modTs >= sinceTs;
+    const looksRecentlyCreated = (startTs && startTs >= createdSinceTs) || (creationTs && creationTs >= createdSinceTs);
+    const looksRecentlyUpdated = modTs && modTs >= updatedSinceTs;
 
     if (isFirstSeen) {
         if (looksRecentlyCreated) {
-            return {kind: "created", nextHash};
+            return {kind: "created", nextHash, createdNotified: true};
         }
         if (looksRecentlyUpdated) {
-            return {kind: "updated", nextHash};
+            return {kind: "updated", nextHash, createdNotified: true};
         }
         if (hasChanged) {
-            return {kind: "created", nextHash};
+            return {kind: "created", nextHash, createdNotified: true};
         }
-        return {kind: null, nextHash};
+        return {kind: null, nextHash, createdNotified: true};
+    }
+
+    if (!hasCreatedBeenNotified(prev) && looksRecentlyCreated) {
+        return {kind: "created", nextHash, createdNotified: true};
     }
 
     if (hasChanged && looksRecentlyUpdated) {
-        return {kind: "updated", nextHash};
+        return {kind: "updated", nextHash, createdNotified: hasCreatedBeenNotified(prev)};
     }
 
-    return {kind: null, nextHash};
+    return {kind: null, nextHash, createdNotified: hasCreatedBeenNotified(prev)};
 }
 
 class ItemWatcher {
@@ -411,7 +425,8 @@ class ItemWatcher {
                     const id = it.Id || it.id;
                     if (!id) continue;
                     const prev = persisted.state.get(id) || null;
-                    const {kind, nextHash} = classifyBootstrapItemChange(it, prev, createdSinceTs, updatedSinceTs);
+                    const {kind, nextHash, createdNotified} = classifyBootstrapItemChange(it, prev, createdSinceTs, updatedSinceTs);
+                    const createdWasEmitted = persisted.loaded && kind === "created";
                     if (persisted.loaded && kind === "created") {
                         created.push(it);
                     } else if (persisted.loaded && kind === "updated") {
@@ -420,7 +435,9 @@ class ItemWatcher {
                         });
                     }
                     bootstrapMap.set(id, {
-                        hash: nextHash, raw: it
+                        hash: nextHash,
+                        raw: it,
+                        createdNotified: kind === "created" ? createdWasEmitted : createdNotified
                     });
                 }
                 this.state = bootstrapMap;
@@ -449,7 +466,8 @@ class ItemWatcher {
 
             const sinceTs = Math.max(0, (this.lastRunTs || Date.now()) - overlapMs);
             const sinceIso = new Date(sinceTs).toISOString();
-            const createdSinceIso = new Date(Math.max(0, Date.now() - createdLookbackMs)).toISOString();
+            const createdSinceTs = Math.max(0, Date.now() - createdLookbackMs);
+            const createdSinceIso = new Date(createdSinceTs).toISOString();
 
             const changed = await requestChangedItems(titleId, os, sinceIso, itemsPerRequest, maxItems, createdSinceIso);
             if (!changed.length) {
@@ -465,7 +483,7 @@ class ItemWatcher {
                 if (!id) continue;
 
                 const prev = this.state.get(id) || null;
-                const {kind, nextHash} = classifyItemChange(it, prev, sinceTs);
+                const {kind, nextHash, createdNotified} = classifyItemChange(it, prev, sinceTs, createdSinceTs);
 
                 if (kind === "created") {
                     created.push(it);
@@ -476,7 +494,9 @@ class ItemWatcher {
                 }
 
                 this.state.set(id, {
-                    hash: nextHash, raw: it
+                    hash: nextHash,
+                    raw: it,
+                    createdNotified
                 });
             }
 

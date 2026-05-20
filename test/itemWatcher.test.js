@@ -50,6 +50,20 @@ test("classifyItemChange marks first-seen recent items as created", () => {
     assert.equal(result.kind, "created");
 });
 
+test("classifyItemChange uses the wider created window for first-seen items", () => {
+    const updatedSinceTs = Date.parse("2026-05-14T00:22:00.000Z");
+    const createdSinceTs = Date.parse("2026-05-13T00:22:00.000Z");
+    const item = makeItem({
+        CreationDate: "2026-05-14T00:21:28.261Z",
+        StartDate: "2026-05-13T17:00:00.000Z",
+        LastModifiedDate: "2026-05-14T00:21:59.000Z"
+    });
+
+    const result = _internals.classifyItemChange(item, null, updatedSinceTs, createdSinceTs);
+
+    assert.equal(result.kind, "created");
+});
+
 test("classifyItemChange marks first-seen items with recent mod date as updated", () => {
     const item = makeItem({
         CreationDate: OLD_DATE,
@@ -67,6 +81,20 @@ test("classifyItemChange keeps changed known items as updated", () => {
 
     const result = _internals.classifyItemChange(currentItem, previousStateFor(previousItem), SINCE_TS);
     assert.equal(result.kind, "updated");
+});
+
+test("classifyItemChange prefers created for known items whose created event was suppressed", () => {
+    const previousItem = makeItem({Title: {NEUTRAL: "Draft"}, ETag: "etag-draft"});
+    const currentItem = makeItem({Title: {NEUTRAL: "Published"}, ETag: "etag-published"});
+    const prev = {
+        ...previousStateFor(previousItem),
+        createdNotified: false
+    };
+
+    const result = _internals.classifyItemChange(currentItem, prev, SINCE_TS, SINCE_TS);
+
+    assert.equal(result.kind, "created");
+    assert.equal(result.createdNotified, true);
 });
 
 test("classifyItemChange does not re-emit unchanged known items", () => {
@@ -137,6 +165,7 @@ test("classifyBootstrapItemChange marks first-seen visible items as created", ()
     const result = _internals.classifyBootstrapItemChange(makeItem(), null, SINCE_TS, SINCE_TS);
 
     assert.equal(result.kind, "created");
+    assert.equal(result.createdNotified, false);
 });
 
 test("classifyBootstrapItemChange does not emit old first-seen bootstrap items", () => {
@@ -149,6 +178,7 @@ test("classifyBootstrapItemChange does not emit old first-seen bootstrap items",
     const result = _internals.classifyBootstrapItemChange(item, null, SINCE_TS, SINCE_TS);
 
     assert.equal(result.kind, null);
+    assert.equal(result.createdNotified, true);
 });
 
 test("classifyBootstrapItemChange marks changed persisted items as updated", () => {
@@ -160,14 +190,43 @@ test("classifyBootstrapItemChange marks changed persisted items as updated", () 
     assert.equal(result.kind, "updated");
 });
 
+test("classifyBootstrapItemChange prefers unsent created over updated", () => {
+    const previousItem = makeItem({Title: {NEUTRAL: "Draft"}, ETag: "etag-draft"});
+    const currentItem = makeItem({Title: {NEUTRAL: "Published"}, ETag: "etag-published"});
+    const prev = {
+        ...previousStateFor(previousItem),
+        createdNotified: false
+    };
+
+    const result = _internals.classifyBootstrapItemChange(currentItem, prev, SINCE_TS, SINCE_TS);
+
+    assert.equal(result.kind, "created");
+    assert.equal(result.createdNotified, true);
+});
+
 test("watcher state serializes and deserializes entries", () => {
     const item = makeItem();
-    const state = new Map([["item-1", previousStateFor(item)]]);
+    const state = new Map([["item-1", {
+        ...previousStateFor(item),
+        createdNotified: false
+    }]]);
 
     const restored = _internals.deserializeState(_internals.serializeState(state));
 
     assert.equal(restored.get("item-1").hash, state.get("item-1").hash);
     assert.deepEqual(restored.get("item-1").raw, item);
+    assert.equal(restored.get("item-1").createdNotified, false);
+});
+
+test("watcher state treats legacy entries as already created-notified", () => {
+    const item = makeItem();
+    const state = _internals.deserializeState([{
+        id: "item-1",
+        hash: previousStateFor(item).hash,
+        raw: item
+    }]);
+
+    assert.equal(state.get("item-1").createdNotified, true);
 });
 
 test("fallback offset helpers round-trip offsets", () => {

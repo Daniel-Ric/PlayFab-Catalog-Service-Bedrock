@@ -16,35 +16,31 @@ const {normalizeParams, buildPaginatedResult, sliceArray, setPaginationHeaders} 
 
 function withPagination(handler, opts = {}) {
     return async (req, res, next) => {
-        try {
-            const params = normalizeParams(req.query, opts);
-            const shouldPaginate = params.apply;
-            const result = await handler(req, res);
+        const params = normalizeParams(req.query, opts);
+        const shouldPaginate = params.apply;
+        const result = await handler(req, res, next);
 
-            if (!shouldPaginate) {
-                return result;
-            }
-
-            if (Array.isArray(result)) {
-                const {items, meta} = sliceArray(result, params);
-                setPaginationHeaders(res, meta);
-                return {items, meta};
-            }
-
-            if (result && Array.isArray(result.items)) {
-                const total = typeof result.total === "number" ? result.total : result.items.length;
-                const {serverPaginated, ...rest} = result;
-                const paginated = serverPaginated
-                    ? buildPaginatedResult(rest.items, params, total)
-                    : {...rest, ...sliceArray(rest.items, {...params, totalOverride: total}), total};
-                setPaginationHeaders(res, paginated.meta);
-                return paginated;
-            }
-
+        if (!shouldPaginate) {
             return result;
-        } catch (e) {
-            next(e);
         }
+
+        if (Array.isArray(result)) {
+            const {items, meta} = sliceArray(result, params);
+            setPaginationHeaders(res, meta);
+            return {items, meta};
+        }
+
+        if (result && Array.isArray(result.items)) {
+            const total = typeof result.total === "number" ? result.total : result.items.length;
+            const {serverPaginated, ...rest} = result;
+            const paginated = serverPaginated
+                ? buildPaginatedResult(rest.items, params, total)
+                : {...rest, ...sliceArray(rest.items, {...params, totalOverride: total}), total};
+            setPaginationHeaders(res, paginated.meta);
+            return paginated;
+        }
+
+        return result;
     };
 }
 

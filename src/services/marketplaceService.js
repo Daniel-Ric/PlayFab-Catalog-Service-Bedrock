@@ -103,6 +103,12 @@ function resolveCatalogTotal(data, skip, itemCount) {
     return skip + itemCount;
 }
 
+function buildAllFilter(query = {}) {
+    const tagClause = query.tag ? `tags/any(t:t eq '${String(query.tag).replace(/'/g, "''")}')` : "";
+    const base = buildFilter({query}, creatorsArr);
+    return andFilter(base, tagClause);
+}
+
 async function searchLoop(titleId, {
     filter = "", orderBy = "creationDate desc", batch = 300, maxBatches = Number(process.env.MAX_SEARCH_BATCHES || 10)
 }) {
@@ -404,6 +410,17 @@ async function enrichItemWithReviews(titleId, itemId, take = 10) {
     return {summary: summary || {}, reviews: reviews?.Reviews || reviews?.reviews || []};
 }
 
+async function fetchAllSearchItems(titleId, query = {}, orderBy = "startDate desc") {
+    const queries = startDateRangeQueries(query);
+    const fetched = [];
+    for (const q of queries) {
+        const filter = buildAllFilter(q);
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
+        fetched.push(...list);
+    }
+    return sortItemsByOrder(uniqueById(fetched), orderBy);
+}
+
 function parseExpand(expandParam) {
     const set = new Set(String(expandParam || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean));
     return {prices: set.has("prices"), reviews: set.has("reviews"), refs: set.has("refs") || set.has("references")};
@@ -609,16 +626,7 @@ module.exports = {
     async fetchAll(alias, query = {}) {
         const titleId = resolveTitle(alias);
         const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
-        const queries = startDateRangeQueries(query);
-        const fetched = [];
-        for (const q of queries) {
-            const tagClause = q.tag ? `tags/any(t:t eq '${String(q.tag).replace(/'/g, "''")}')` : "";
-            const base = buildFilter({query: q}, creatorsArr);
-            const filter = andFilter(base, tagClause);
-            const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
-            fetched.push(...list);
-        }
-        const list = sortItemsByOrder(uniqueById(fetched), orderBy);
+        const list = await fetchAllSearchItems(titleId, query, orderBy);
         const enriched = await enrichWithFullItems(titleId, list);
         const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
         return withRefs;
@@ -723,7 +731,7 @@ module.exports = {
         const tagClause = `tags/any(t:t eq '${String(tag).replace(/'/g, "''")}')`;
         const filter = andFilter(buildFilter({query}, creatorsArr), tagClause);
         const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
-        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
         const enriched = await enrichWithFullItems(titleId, list);
         const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
         return withRefs;
@@ -738,7 +746,7 @@ module.exports = {
         const titleId = resolveTitle(alias);
         const filter = andFilter(buildFilter({query}, creatorsArr), subscriptionFilter(subscriptionKey));
         const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
-        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
         const enriched = await enrichWithFullItems(titleId, list);
         const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
         return withRefs;
@@ -750,7 +758,7 @@ module.exports = {
         const freeClause = "displayProperties/price eq 0";
         const filter = andFilter(base, freeClause);
         const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
-        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, 5, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
         const enriched = await enrichWithFullItems(titleId, list);
         const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
         return withRefs;
@@ -776,7 +784,9 @@ module.exports = {
     },
 
     async fetchSummary(alias, query = {}) {
-        const all = await this.fetchAll(alias, query);
+        const titleId = resolveTitle(alias);
+        const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
+        const all = await fetchAllSearchItems(titleId, query, orderBy);
         return all.map(i => ({
             id: i.Id,
             title: i.Title?.NEUTRAL || i.Title?.neutral || "",

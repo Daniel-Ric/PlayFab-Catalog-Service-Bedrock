@@ -13,11 +13,12 @@
 // -----------------------------------------------------------------------------
 
 const {resolveTitle} = require("../utils/titles");
-const {sendPlayFabRequest, buildSearchPayload, isValidItem, transformItem} = require("../utils/playfab");
+const {fetchCatalogSearchItems} = require("../utils/playfab");
 const {buildContentTypeFilter} = require("../utils/filter");
 
 const PAGE_BATCH = Math.max(100, parseInt(process.env.ADV_SEARCH_BATCH || "300", 10));
 const MAX_BATCHES = Math.max(1, parseInt(process.env.ADV_SEARCH_MAX_BATCHES || "120", 10));
+const SEARCH_CONCURRENCY = Math.max(1, parseInt(process.env.ADV_SEARCH_CONCURRENCY || process.env.FETCH_CONCURRENCY || "5", 10));
 const OS = process.env.OS || "iOS";
 
 
@@ -525,16 +526,15 @@ function applyLocalSort(items, localSort) {
 }
 
 async function searchLoop(titleId, filter, search, orderBy, maxBatches = MAX_BATCHES) {
-    const out = [];
-    for (let i = 0, skip = 0; i < maxBatches; i += 1, skip += PAGE_BATCH) {
-        const payload = buildSearchPayload({filter, search, top: PAGE_BATCH, skip, orderBy});
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        const items = (data.Items || []).filter(isValidItem).map(transformItem);
-        if (!items.length) break;
-        out.push(...items);
-        if (items.length < PAGE_BATCH) break;
-    }
-    return out;
+    return fetchCatalogSearchItems(titleId, {
+        filter,
+        search,
+        orderBy,
+        batchSize: PAGE_BATCH,
+        concurrency: SEARCH_CONCURRENCY,
+        maxBatches,
+        os: OS
+    });
 }
 
 function paginate(items, page, pageSize) {

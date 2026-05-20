@@ -226,9 +226,11 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 | Variable                       | Default | Description                           |
 | ------------------------------ | ------- | ------------------------------------- |
 | `MAX_SEARCH_BATCHES`           | `10`    | Batches for paginated search          |
+| `FETCH_CONCURRENCY`            | `5`     | Parallel catalog search pages         |
 | `MAX_FETCH_BATCHES`            | `20`    | Batches for “all items” fetch         |
 | `ADV_SEARCH_BATCH`             | `300`   | Batch size advanced search            |
 | `ADV_SEARCH_MAX_BATCHES`       | `10`    | Max batches advanced search           |
+| `ADV_SEARCH_CONCURRENCY`       | `5`     | Parallel advanced search pages        |
 | `MULTILANG_ALL`                | `true`  | Enrich via `GetItems` for all results |
 | `MULTILANG_ENRICH_BATCH`       | `100`   | `GetItems` batch size                 |
 | `MULTILANG_ENRICH_CONCURRENCY` | `5`     | `GetItems` concurrency                |
@@ -1018,6 +1020,7 @@ SSE_HEARTBEAT_MS=15000
 ADV_SEARCH_TTL_MS=60000
 ADV_SEARCH_BATCH=300
 ADV_SEARCH_MAX_BATCHES=10
+ADV_SEARCH_CONCURRENCY=5
 
 WEBHOOK_TIMEOUT_MS=5000
 WEBHOOK_MAX_RETRIES=3
@@ -1025,6 +1028,7 @@ WEBHOOK_CONCURRENCY=4
 
 MAX_SEARCH_BATCHES=10
 MAX_FETCH_BATCHES=20
+FETCH_CONCURRENCY=5
 PLAYFAB_CONCURRENCY=12
 PLAYFAB_BATCH=600
 

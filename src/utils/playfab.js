@@ -192,6 +192,27 @@ const ORDER_BY_ALIASES = new Map([
     ["rating/totalcount", "rating/totalcount"]
 ]);
 
+function catalogItems(data) {
+    return data?.Items || data?.items || [];
+}
+
+function catalogTotalCount(data) {
+    const candidates = [data?.TotalCount, data?.totalCount, data?.Total, data?.total];
+    for (const candidate of candidates) {
+        const total = Number(candidate);
+        if (Number.isFinite(total) && total >= 0) return total;
+    }
+    return null;
+}
+
+function transformValidItems(items) {
+    const transformed = [];
+    for (const item of items || []) {
+        if (isValidItem(item)) transformed.push(transformItem(item));
+    }
+    return transformed;
+}
+
 function normalizeOrderBy(orderBy, fallback = "StartDate desc") {
     const candidate = String(orderBy || "").trim() || String(fallback || "").trim();
     if (!candidate) return "StartDate desc";
@@ -255,38 +276,88 @@ function transformItem(item) {
     };
 }
 
-async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSize = 300, concurrency = 5, maxBatches = Number(process.env.MAX_FETCH_BATCHES || 20), orderBy = "StartDate desc") {
+async function fetchCatalogSearchBatch(titleId, {
+    filter = "",
+    search = "",
+    os,
+    batchSize = 300,
+    skip = 0,
+    orderBy = "StartDate desc"
+}) {
+    const payload = buildSearchPayload({filter, search, top: batchSize, skip, orderBy});
+    const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, os);
+    const raw = catalogItems(data);
+    return {
+        rawCount: raw.length,
+        total: catalogTotalCount(data),
+        items: transformValidItems(raw)
+    };
+}
+
+async function fetchCatalogSearchItems(titleId, {
+    filter = "",
+    search = "",
+    os,
+    batchSize = 300,
+    concurrency = 5,
+    maxBatches = Number(process.env.MAX_FETCH_BATCHES || 20),
+    orderBy = "StartDate desc"
+}) {
+    const safeBatchSize = Math.max(1, batchSize);
+    const safeMaxBatches = Math.max(1, maxBatches);
+    const safeConcurrency = Math.max(1, concurrency);
     const batches = new Map();
 
+    const first = await fetchCatalogSearchBatch(titleId, {
+        filter,
+        search,
+        os,
+        batchSize: safeBatchSize,
+        skip: 0,
+        orderBy
+    });
+    batches.set(0, first.items);
+
+    if (first.rawCount < safeBatchSize) {
+        return first.items;
+    }
+
+    const totalBatches = first.total === null
+        ? safeMaxBatches
+        : Math.min(safeMaxBatches, Math.ceil(first.total / safeBatchSize));
+
+    if (totalBatches <= 1) {
+        return first.items;
+    }
+
     let nextBatchIndex = 0;
-    let stopAtBatch = maxBatches;
+    let stopAtBatch = totalBatches;
 
     async function worker() {
         while (true) {
-            const batchIndex = nextBatchIndex;
+            const batchIndex = nextBatchIndex + 1;
             nextBatchIndex += 1;
-            if (batchIndex >= stopAtBatch || batchIndex >= maxBatches) break;
+            if (batchIndex >= stopAtBatch || batchIndex >= totalBatches) break;
 
-            const payload = buildSearchPayload({
-                filter, search: "", top: batchSize, skip: batchIndex * batchSize, orderBy
+            const result = await fetchCatalogSearchBatch(titleId, {
+                filter,
+                search,
+                os,
+                batchSize: safeBatchSize,
+                skip: batchIndex * safeBatchSize,
+                orderBy
             });
-            const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, os);
-            const items = data.Items || [];
 
-            if (items.length < batchSize) {
+            if (first.total === null && result.rawCount < safeBatchSize) {
                 const discoveredStop = batchIndex + 1;
                 if (discoveredStop < stopAtBatch) stopAtBatch = discoveredStop;
             }
 
-            const transformed = [];
-            for (const item of items) {
-                if (isValidItem(item)) transformed.push(transformItem(item));
-            }
-            batches.set(batchIndex, transformed);
+            batches.set(batchIndex, result.items);
         }
     }
 
-    await Promise.all(Array.from({length: Math.max(1, concurrency)}, () => worker()));
+    await Promise.all(Array.from({length: safeConcurrency}, () => worker()));
 
     const all = [];
     const orderedIndexes = Array.from(batches.keys()).sort((a, b) => a - b);
@@ -295,6 +366,18 @@ async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSiz
         if (Array.isArray(chunk) && chunk.length) all.push(...chunk);
     }
     return all;
+}
+
+async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSize = 300, concurrency = 5, maxBatches = Number(process.env.MAX_FETCH_BATCHES || 20), orderBy = "StartDate desc") {
+    return fetchCatalogSearchItems(titleId, {
+        filter,
+        search: "",
+        os,
+        batchSize,
+        concurrency,
+        maxBatches,
+        orderBy
+    });
 }
 
 async function getItemsByIds(titleId, ids, os, batchSize = 100, concurrency = 5) {
@@ -380,6 +463,7 @@ module.exports = {
     getSession,
     sendPlayFabRequest,
     sendPlayFabRequestWithEntityToken,
+    fetchCatalogSearchItems,
     fetchAllMarketplaceItemsEfficiently,
     isValidItem,
     transformItem,

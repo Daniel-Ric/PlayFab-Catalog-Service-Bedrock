@@ -1,5 +1,28 @@
 # Changelog
 
+## 8.3.0 (2026-05-20)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add advanced search concurrency and fetch optimization (3a6c62f)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (8 files, 261 total line changes)
+
+### Changed Areas
+
+- Application source: 2 files: src/middleware/pagination.js, src/scripts/setup.js
+- README: 1 file: readme.md
+- Repository files: 1 file: .env
+- Service layer: 2 files: src/services/advancedSearchService.js, src/services/marketplaceService.js
+- Shared utilities: 1 file: src/utils/playfab.js
+- Tests: 1 file: test/pagination.test.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 8
+- Line changes: +194 / -67
 ## 8.2.1 (2026-05-20)
 
 ### Summary
@@ -1095,6 +1118,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

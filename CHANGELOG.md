@@ -1,5 +1,53 @@
 # Changelog
 
+## 8.3.5 (2026-05-23)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Bump express-rate-limit from 8.5.1 to 8.5.2 (8e66040)
+- Impact: Repository update with a small change footprint across project dependencies.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Dependencies: 2 files: package-lock.json, package.json
+
+### Notable Changes
+
+- Bumps [express-rate-limit](https://github.com/express-rate-limit/express-rate-limit) from 8.5.1 to 8.5.2.
+- [Release notes](https://github.com/express-rate-limit/express-rate-limit/releases)
+- [Commits](https://github.com/express-rate-limit/express-rate-limit/compare/v8.5.1...v8.5.2)
+- --
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +5 / -5
+
+## 8.3.6 (2026-05-23)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Merge (43b179a)
+- Impact: Repository update with a small change footprint across project dependencies.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Dependencies: 2 files: package-lock.json, package.json
+
+### Notable Changes
+
+- Bump express-rate-limit from 8.5.1 to 8.5.2
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +5 / -5
 ## 8.3.0 (2026-05-20)
 
 ### Summary
@@ -1118,6 +1166,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

@@ -28,7 +28,7 @@
         description: Comma-separated list of event names to receive.
         schema:
           type: string
-          maxLength: 200
+          maxLength: 500
       - in: query
         name: creatorName
         required: false

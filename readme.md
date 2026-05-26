@@ -666,8 +666,8 @@ Not allowed (returns `400`):
 #### Events (SSE)
 
 * `/events/stream` (optional query `events=<comma-separated-event-names>`):
-  `item.snapshot`, `item.created`, `item.updated`, `marketplace.pass.snapshot`, `marketplace.pass.added`, `marketplace.pass.removed`, `realms.plus.snapshot`, `realms.plus.added`, `realms.plus.removed`, `sale.snapshot`, `sale.update`, `price.changed`, `creator.trending`, `featured.content.updated`.
-* Subscription events compare the current `csb` / `realms_plus` tag memberships with the last persisted watcher state and include `subscription.startDate` / `subscription.endDate` from `csbStartDate`, `csbEndDate`, `realmsPlusStartDate`, and `realmsPlusEndDate`.
+  `item.snapshot`, `item.created`, `item.updated`, `marketplace.pass.snapshot`, `marketplace.pass.added`, `marketplace.pass.removed`, `marketplace.pass.updated`, `realms.plus.snapshot`, `realms.plus.added`, `realms.plus.removed`, `realms.plus.updated`, `sale.snapshot`, `sale.update`, `price.changed`, `creator.trending`, `featured.content.updated`.
+* Subscription events compare the current `csb` / `realms_plus` tag memberships with the last persisted watcher state. Added/removed events include the current item list, updated events include `before` / `after` entries, and each item includes `subscription.startDate` / `subscription.endDate` from `csbStartDate`, `csbEndDate`, `realmsPlusStartDate`, and `realmsPlusEndDate`.
 * `featured.content.updated` includes changed `/marketplace/featured-content` layout entries in `addedItems`, `removedItems`, and `changedItems`. `addedItemDetails`, `removedItemDetails`, and `changedItemDetails` contain the same endpoint item details plus `featuredContext` (`page`, `row`, `component`, `itemIndex`); `currentItemDetails` and `previousItemDetails` provide the full after/before featured item lists. Same-ID layout or metadata changes set `contentChanged=true` and include `previousContentSignature` / `currentContentSignature`.
 
 #### Admin Webhooks
@@ -804,7 +804,7 @@ curl -sS -X POST http://localhost:3000/webhooks \
   -d '{"event":"price.changed","url":"https://example.com/hook","secret":"<optional-256-max>"}'
 ```
 
-**Events**: `sale.update`, `item.snapshot`, `item.created`, `item.updated`, `price.changed`, `creator.trending`, `featured.content.updated`
+**Events**: `sale.update`, `item.snapshot`, `item.created`, `item.updated`, `marketplace.pass.snapshot`, `marketplace.pass.added`, `marketplace.pass.removed`, `marketplace.pass.updated`, `realms.plus.snapshot`, `realms.plus.added`, `realms.plus.removed`, `realms.plus.updated`, `price.changed`, `creator.trending`, `featured.content.updated`
 
 **Delivery**
 

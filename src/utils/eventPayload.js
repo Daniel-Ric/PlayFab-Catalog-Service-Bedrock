@@ -17,10 +17,18 @@ function creatorNameOf(item) {
     return item.creatorName
         || item.creator
         || item.DisplayProperties?.creatorName
+        || item.displayProperties?.creatorName
         || item.rawItem?.creatorName
         || item.rawItem?.creator
         || item.rawItem?.DisplayProperties?.creatorName
+        || item.rawItem?.displayProperties?.creatorName
         || null;
+}
+
+function isUpdatedItemListEvent(eventName) {
+    return eventName === "item.updated"
+        || eventName === "marketplace.pass.updated"
+        || eventName === "realms.plus.updated";
 }
 
 function getCreatorNamesFromPayload(eventName, payload) {
@@ -29,7 +37,7 @@ function getCreatorNamesFromPayload(eventName, payload) {
     const ev = String(eventName || "");
 
     if (Array.isArray(payload.items)) {
-        if (ev === "item.updated") {
+        if (isUpdatedItemListEvent(ev)) {
             for (const it of payload.items) {
                 if (!it) continue;
                 const before = it.before || it.previous || null;

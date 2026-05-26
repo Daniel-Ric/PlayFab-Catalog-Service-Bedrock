@@ -38,14 +38,25 @@ function normalizeDate(value) {
     return date.toISOString();
 }
 
+function itemTags(item) {
+    if (Array.isArray(item?.Tags)) return item.Tags;
+    if (Array.isArray(item?.tags)) return item.tags;
+    return [];
+}
+
+function itemDisplayProperties(item) {
+    return item?.DisplayProperties || item?.displayProperties || {};
+}
+
 function hasTag(item, tag) {
-    return (Array.isArray(item?.Tags) ? item.Tags : []).some(value => String(value).toLowerCase() === tag);
+    const needle = String(tag || "").toLowerCase();
+    return itemTags(item).some(value => String(value).toLowerCase() === needle);
 }
 
 function getSubscriptionWindow(item, subscriptionKey) {
     const def = SUBSCRIPTION_DEFS[subscriptionKey];
     if (!def) return {startDate: null, endDate: null};
-    const dp = item?.DisplayProperties || {};
+    const dp = itemDisplayProperties(item);
     return {
         startDate: normalizeDate(dp[def.startField]),
         endDate: normalizeDate(dp[def.endField])
@@ -93,6 +104,8 @@ module.exports = {
     getItemSubscriptionInfo,
     getSubscriptionIds,
     hasTag,
+    itemDisplayProperties,
+    itemTags,
     subscriptionEventName,
     subscriptionFilter
 };

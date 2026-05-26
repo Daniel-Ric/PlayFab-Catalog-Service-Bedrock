@@ -17,11 +17,14 @@ const path = require("path");
 const logger = require("../config/logger");
 const marketplaceService = require("./marketplaceService");
 const {resolveTitle} = require("../utils/titles");
-const {projectCatalogItem, projectCatalogItems} = require("../utils/projectors");
+const {projectCatalogItem} = require("../utils/projectors");
 const {readJson, writeJsonAtomic} = require("../utils/storage");
+const {stableHash} = require("../utils/hash");
 const {
     SUBSCRIPTION_DEFS,
     getItemSubscriptionInfo,
+    itemDisplayProperties,
+    itemTags,
     subscriptionEventName
 } = require("../utils/marketplaceSubscriptions");
 
@@ -45,6 +48,43 @@ function stateFilePath() {
 
 function itemId(item) {
     return item?.Id || item?.id || null;
+}
+
+function itemImages(item) {
+    if (Array.isArray(item?.Images)) return item.Images;
+    if (Array.isArray(item?.images)) return item.images;
+    return [];
+}
+
+function lastModifiedDateOf(item) {
+    return item?.LastModifiedDate || item?.lastModifiedDate || null;
+}
+
+function startDateOf(item) {
+    return item?.StartDate || item?.startDate || null;
+}
+
+function creationDateOf(item) {
+    return item?.CreationDate || item?.creationDate || null;
+}
+
+function hashSubscriptionItem(item, subscriptionKey) {
+    const core = {
+        Id: itemId(item),
+        Title: item?.Title || item?.title,
+        Description: item?.Description || item?.description,
+        Tags: itemTags(item).map(tag => String(tag).toLowerCase()).sort(),
+        ContentType: item?.ContentType || item?.contentType,
+        Platforms: item?.Platforms || item?.platforms,
+        Images: itemImages(item).map(i => [i.Tag || i.tag, i.Type || i.type, i.Url || i.url]),
+        DisplayProperties: itemDisplayProperties(item),
+        ETag: item?.ETag || item?.etag,
+        LastModifiedDate: lastModifiedDateOf(item),
+        StartDate: startDateOf(item),
+        CreationDate: creationDateOf(item),
+        subscription: getItemSubscriptionInfo(item, subscriptionKey)
+    };
+    return stableHash(core);
 }
 
 function serializeState(state) {
@@ -88,7 +128,7 @@ function savePersistedState(state) {
     }
 }
 
-function diffSubscriptionItems(previousMap, currentItems) {
+function diffSubscriptionItems(previousMap, currentItems, subscriptionKey) {
     const currentMap = new Map();
     for (const item of currentItems || []) {
         const id = itemId(item);
@@ -97,9 +137,17 @@ function diffSubscriptionItems(previousMap, currentItems) {
 
     const added = [];
     const removed = [];
+    const updated = [];
 
     for (const [id, item] of currentMap.entries()) {
-        if (!previousMap || !previousMap.has(id)) added.push(item);
+        const previous = previousMap ? previousMap.get(id) : null;
+        if (!previous) {
+            added.push(item);
+            continue;
+        }
+        if (hashSubscriptionItem(previous, subscriptionKey) !== hashSubscriptionItem(item, subscriptionKey)) {
+            updated.push({id, before: previous, after: item});
+        }
     }
 
     if (previousMap) {
@@ -108,20 +156,29 @@ function diffSubscriptionItems(previousMap, currentItems) {
         }
     }
 
-    return {currentMap, added, removed};
+    return {currentMap, added, removed, updated};
+}
+
+function projectSubscriptionItem(item, subscriptionKey) {
+    return {
+        ...projectCatalogItem(item),
+        subscription: getItemSubscriptionInfo(item, subscriptionKey)
+    };
 }
 
 function projectSubscriptionItems(items, subscriptionKey) {
-    return projectCatalogItems(items).map((item, index) => ({
-        ...item,
-        subscription: getItemSubscriptionInfo(items[index], subscriptionKey)
-    }));
+    return (items || []).map(item => projectSubscriptionItem(item, subscriptionKey));
 }
 
 function projectRemovedSubscriptionItems(items, subscriptionKey) {
+    return projectSubscriptionItems(items, subscriptionKey);
+}
+
+function projectUpdatedSubscriptionItems(items, subscriptionKey) {
     return (items || []).map(item => ({
-        ...projectCatalogItem(item),
-        subscription: getItemSubscriptionInfo(item, subscriptionKey)
+        id: item.id,
+        before: item.before ? projectSubscriptionItem(item.before, subscriptionKey) : null,
+        after: item.after ? projectSubscriptionItem(item.after, subscriptionKey) : null
     }));
 }
 
@@ -154,7 +211,7 @@ class SubscriptionWatcher {
                 const def = SUBSCRIPTION_DEFS[key];
                 const items = await marketplaceService.fetchSubscriptionItems(alias, key, {});
                 const previous = this.state[key] || new Map();
-                const {currentMap, added, removed} = diffSubscriptionItems(previous, items);
+                const {currentMap, added, removed, updated} = diffSubscriptionItems(previous, items, key);
                 this.state[key] = currentMap;
 
                 eventBus.emit(subscriptionEventName(key, "snapshot"), {
@@ -179,6 +236,15 @@ class SubscriptionWatcher {
                         subscription: {key: def.key, label: def.label, tag: def.tag},
                         count: removed.length,
                         items: projectRemovedSubscriptionItems(removed, key)
+                    });
+                }
+
+                if (updated.length && !this.suppressInitialChanges) {
+                    eventBus.emit(subscriptionEventName(key, "updated"), {
+                        ts: Date.now(),
+                        subscription: {key: def.key, label: def.label, tag: def.tag},
+                        count: updated.length,
+                        items: projectUpdatedSubscriptionItems(updated, key)
                     });
                 }
             }
@@ -210,8 +276,10 @@ module.exports = {
     _internals: {
         deserializeState,
         diffSubscriptionItems,
+        hashSubscriptionItem,
         projectRemovedSubscriptionItems,
         projectSubscriptionItems,
+        projectUpdatedSubscriptionItems,
         serializeState
     }
 };

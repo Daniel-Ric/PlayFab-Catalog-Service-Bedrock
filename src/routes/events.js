@@ -17,7 +17,7 @@ const {query} = require("express-validator");
 const validate = require("../middleware/validate");
 const ctrl = require("../controllers/eventsController");
 
-router.get("/stream", [query("events").optional().isString().isLength({max: 200}), query("creatorName").optional().isString().isLength({max: 100}), query("creatorNames").optional().isString().isLength({max: 400}), query("heartbeatMs").optional().isInt({
+router.get("/stream", [query("events").optional().isString().isLength({max: 500}), query("creatorName").optional().isString().isLength({max: 100}), query("creatorNames").optional().isString().isLength({max: 400}), query("heartbeatMs").optional().isInt({
     min: 5000,
     max: 600000
 })], validate, ctrl.stream);

@@ -37,3 +37,15 @@ test("getCreatorNamesFromPayload reads creator partner changes", () => {
 
     assert.deepEqual(names.sort(), ["afterpartner", "beforepartner", "newpartner", "oldpartner"]);
 });
+
+test("getCreatorNamesFromPayload reads subscription update before and after creators", () => {
+    const names = getCreatorNamesFromPayload("marketplace.pass.updated", {
+        items: [{
+            id: "item-1",
+            before: {creatorName: "Before Creator"},
+            after: {rawItem: {DisplayProperties: {creatorName: "After Creator"}}}
+        }]
+    });
+
+    assert.deepEqual(names.sort(), ["after creator", "before creator"]);
+});

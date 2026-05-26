@@ -1,5 +1,49 @@
 # Changelog
 
+## 8.4.0 (2026-05-26)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add updated subscription events and enhance item diff logic (48346be)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (9 files, 217 total line changes)
+
+### Changed Areas
+
+- API routes: 1 file: src/routes/events.js
+- OpenAPI documentation: 1 file: src/docs/paths/events.stream.yaml
+- README: 1 file: readme.md
+- Runtime configuration: 1 file: src/config/eventNames.js
+- Service layer: 1 file: src/services/subscriptionWatcher.js
+- Shared utilities: 2 files: src/utils/eventPayload.js, src/utils/marketplaceSubscriptions.js
+- Other areas: 1 additional group.
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 9
+- Line changes: +195 / -22
+
+## 8.5.0 (2026-05-26)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Merge remote-tracking branch 'origin/main' (81edded)
+- Impact: Repository update with a medium change footprint across repository files, project dependencies.
+- Bump reason: medium change footprint (3 files, 219 total line changes)
+
+### Changed Areas
+
+- Changelog: 1 file: CHANGELOG.md
+- Dependencies: 2 files: package-lock.json, package.json
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 3
+- Line changes: +196 / -23
 ## 8.3.9 (2026-05-25)
 
 ### Summary
@@ -1262,6 +1306,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

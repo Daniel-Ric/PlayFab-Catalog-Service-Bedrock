@@ -1,5 +1,53 @@
 # Changelog
 
+## 8.6.0 (2026-05-28)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Bump inquirer from 13.4.3 to 14.0.0 (fc1c151)
+- Impact: Repository update with a medium change footprint across project dependencies.
+- Bump reason: medium change footprint (2 files, 224 total line changes)
+
+### Changed Areas
+
+- Dependencies: 2 files: package-lock.json, package.json
+
+### Notable Changes
+
+- Bumps [inquirer](https://github.com/SBoudrias/Inquirer.js) from 13.4.3 to 14.0.0.
+- [Release notes](https://github.com/SBoudrias/Inquirer.js/releases)
+- [Commits](https://github.com/SBoudrias/Inquirer.js/compare/inquirer@13.4.3...inquirer@14.0.0)
+- --
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 2
+- Line changes: +107 / -117
+
+## 8.7.0 (2026-05-28)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Merge (94574a7)
+- Impact: Repository update with a medium change footprint across project dependencies.
+- Bump reason: medium change footprint (2 files, 224 total line changes)
+
+### Changed Areas
+
+- Dependencies: 2 files: package-lock.json, package.json
+
+### Notable Changes
+
+- Bump inquirer from 13.4.3 to 14.0.0
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 2
+- Line changes: +107 / -117
 ## 8.4.0 (2026-05-26)
 
 ### Summary
@@ -1306,6 +1354,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

@@ -16,7 +16,7 @@
     tags:
       - Marketplace
     summary: Get all marketplace items
-    description: Lists all items for a title alias with optional filters.
+    description: Lists all items for a title alias with optional filters. Pagination is pushed to PlayFab unless a large split date range has to be merged locally.
     security:
       - BearerAuth: [ ]
     parameters:
@@ -35,6 +35,13 @@
         required: false
         schema:
           type: string
+      - in: query
+        name: expand
+        required: false
+        description: Optional comma-separated expansions. Use refs or references to include ResolvedReferences.
+        schema:
+          type: string
+          example: refs
       - in: query
         name: creationDateFrom
         required: false

@@ -478,7 +478,7 @@ Paginated list of creators (from `src/data/creators.json`).
 
 #### `GET /marketplace/all/:alias`
 
-All catalog items for an alias, optional `?tag=...`. Supports pagination.
+All catalog items for an alias, optional `?tag=...`. Supports server-side pagination. `ResolvedReferences` are only included with `?expand=refs`.
 
 #### `GET /marketplace/latest/:alias?count=10`
 

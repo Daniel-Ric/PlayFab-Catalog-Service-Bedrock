@@ -122,6 +122,19 @@ test("sortItemsByOrder keeps merged all-item ranges globally ordered", () => {
     assert.deepEqual(result.map(item => item.Id), ["new", "middle", "old"]);
 });
 
+test("parseExpand only enables references when requested", () => {
+    assert.equal(marketplaceServiceInternals.parseExpand("").refs, false);
+    assert.equal(marketplaceServiceInternals.parseExpand("prices,reviews").refs, false);
+    assert.equal(marketplaceServiceInternals.parseExpand("refs").refs, true);
+    assert.equal(marketplaceServiceInternals.parseExpand("references").refs, true);
+});
+
+test("readCatalogTotal returns upstream total count variants", () => {
+    assert.equal(marketplaceServiceInternals.readCatalogTotal({TotalCount: 12}), 12);
+    assert.equal(marketplaceServiceInternals.readCatalogTotal({total: 4}), 4);
+    assert.equal(marketplaceServiceInternals.readCatalogTotal({}), null);
+});
+
 test("buildContentTypeFilter supports multiple content types", () => {
     const result = buildContentTypeFilter(["3PServerContent_V1.2", "shell_3PServerContent_V1.2"]);
     assert.equal(result, "(ContentType eq '3PServerContent_V1.2' or ContentType eq 'shell_3PServerContent_V1.2')");

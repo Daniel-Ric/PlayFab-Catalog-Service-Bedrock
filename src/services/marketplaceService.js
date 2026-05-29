@@ -94,12 +94,18 @@ function resolveCatalogPagination(query = {}, fallbackTop, maxTop = PAGE_SIZE) {
     };
 }
 
-function resolveCatalogTotal(data, skip, itemCount) {
+function readCatalogTotal(data) {
     const candidates = [data?.TotalCount, data?.totalCount, data?.Total, data?.total];
     for (const candidate of candidates) {
         const total = Number(candidate);
         if (Number.isFinite(total) && total >= 0) return total;
     }
+    return null;
+}
+
+function resolveCatalogTotal(data, skip, itemCount) {
+    const total = readCatalogTotal(data);
+    if (total !== null) return total;
     return skip + itemCount;
 }
 
@@ -421,6 +427,34 @@ async function fetchAllSearchItems(titleId, query = {}, orderBy = "startDate des
     return sortItemsByOrder(uniqueById(fetched), orderBy);
 }
 
+async function fetchAllSearchPage(titleId, query = {}, orderBy = "startDate desc") {
+    const {params} = resolveCatalogPagination(query, PAGE_SIZE, PAGE_SIZE);
+    const filter = buildAllFilter(query);
+    const items = [];
+    let total = null;
+    let skip = params.skip;
+    let remaining = params.limit;
+
+    while (remaining > 0) {
+        const top = Math.min(300, remaining);
+        const payload = buildSearchPayload({filter, search: "", top, skip, orderBy});
+        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
+        const raw = data.Items || data.items || [];
+
+        const upstreamTotal = readCatalogTotal(data);
+        if (upstreamTotal !== null) total = upstreamTotal;
+        else total = skip + raw.length;
+
+        items.push(...raw.filter(isValidItem).map(transformItem));
+        if (!raw.length || raw.length < top || (upstreamTotal !== null && skip + raw.length >= upstreamTotal)) break;
+
+        skip += top;
+        remaining -= top;
+    }
+
+    return {params, items, total: total ?? params.skip + items.length};
+}
+
 function parseExpand(expandParam) {
     const set = new Set(String(expandParam || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean));
     return {prices: set.has("prices"), reviews: set.has("reviews"), refs: set.has("refs") || set.has("references")};
@@ -626,10 +660,17 @@ module.exports = {
     async fetchAll(alias, query = {}) {
         const titleId = resolveTitle(alias);
         const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
+        const expand = parseExpand(query.expand);
+        const rangeQueries = startDateRangeQueries(query);
+        if (normalizeParams(query).apply && rangeQueries.length === 1) {
+            const page = await fetchAllSearchPage(titleId, query, orderBy);
+            let items = await enrichWithFullItems(titleId, page.items);
+            if (expand.refs) items = await enrichItemsWithResolvedReferences(titleId, items);
+            return {items, total: page.total, serverPaginated: true};
+        }
         const list = await fetchAllSearchItems(titleId, query, orderBy);
         const enriched = await enrichWithFullItems(titleId, list);
-        const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
-        return withRefs;
+        return expand.refs ? enrichItemsWithResolvedReferences(titleId, enriched) : enriched;
     },
 
     async fetchLatest(alias, count, query = {}) {
@@ -1250,9 +1291,11 @@ module.exports = {
     _internals: {
         buildBasicSearchText,
         resolveOrderBy,
+        readCatalogTotal,
         startDateRangeQueries,
         sortItemsByOrder,
-        uniqueById
+        uniqueById,
+        parseExpand
     }
 };
 

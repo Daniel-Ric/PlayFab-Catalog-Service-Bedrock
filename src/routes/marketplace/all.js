@@ -26,6 +26,7 @@ router.get(
         check("pageSize").optional().isInt({min: 1, max: 100}),
         check("skip").optional().isInt({min: 0}),
         check("limit").optional().isInt({min: 1, max: 1000}),
+        check("expand").optional().isString().isLength({max: 100}),
         ...dateQuery
     ],
     validate,

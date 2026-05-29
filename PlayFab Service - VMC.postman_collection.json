@@ -852,6 +852,12 @@
                       "description": "Filter by tag."
                     },
                     {
+                      "key": "expand",
+                      "value": "refs",
+                      "disabled": true,
+                      "description": "Resolve ItemReferences into ResolvedReferences."
+                    },
+                    {
                       "key": "page",
                       "value": "1",
                       "disabled": true,
@@ -913,7 +919,7 @@
                     }
                   ]
                 },
-                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag, page, pageSize, skip, limit."
+                "description": "Return catalog items for the title alias. Optional filters: creatorName, tag, expand=refs, page, pageSize, skip, limit."
               },
               "response": []
             },
@@ -968,6 +974,12 @@
                       "description": "Filter by tag."
                     },
                     {
+                      "key": "expand",
+                      "value": "refs",
+                      "disabled": true,
+                      "description": "Resolve ItemReferences into ResolvedReferences."
+                    },
+                    {
                       "key": "page",
                       "value": "1",
                       "disabled": true,
@@ -1029,7 +1041,7 @@
                     }
                   ]
                 },
-                "description": "Return catalog items filtered by creatorName."
+                "description": "Return catalog items filtered by creatorName. Enable expand=refs to include ResolvedReferences."
               },
               "response": []
             },
@@ -1084,6 +1096,12 @@
                       "description": "Filter by creator name."
                     },
                     {
+                      "key": "expand",
+                      "value": "refs",
+                      "disabled": true,
+                      "description": "Resolve ItemReferences into ResolvedReferences."
+                    },
+                    {
                       "key": "page",
                       "value": "1",
                       "disabled": true,
@@ -1145,7 +1163,7 @@
                     }
                   ]
                 },
-                "description": "Return catalog items filtered by tag."
+                "description": "Return catalog items filtered by tag. Enable expand=refs to include ResolvedReferences."
               },
               "response": []
             },
@@ -1198,6 +1216,12 @@
                       "value": "{{tag}}"
                     },
                     {
+                      "key": "expand",
+                      "value": "refs",
+                      "disabled": true,
+                      "description": "Resolve ItemReferences into ResolvedReferences."
+                    },
+                    {
                       "key": "page",
                       "value": "1",
                       "disabled": true,
@@ -1259,7 +1283,7 @@
                     }
                   ]
                 },
-                "description": "Return catalog items filtered by creatorName and tag."
+                "description": "Return catalog items filtered by creatorName and tag. Enable expand=refs to include ResolvedReferences."
               },
               "response": []
             },
@@ -1316,6 +1340,12 @@
                       "description": "Filter by tag."
                     },
                     {
+                      "key": "expand",
+                      "value": "refs",
+                      "disabled": true,
+                      "description": "Resolve ItemReferences into ResolvedReferences."
+                    },
+                    {
                       "key": "page",
                       "value": "1",
                       "disabled": true,
@@ -1377,7 +1407,7 @@
                     }
                   ]
                 },
-                "description": "Return catalog items for the Bedrock alias."
+                "description": "Return catalog items for the Bedrock alias. Enable expand=refs to include ResolvedReferences."
               },
               "response": []
             }

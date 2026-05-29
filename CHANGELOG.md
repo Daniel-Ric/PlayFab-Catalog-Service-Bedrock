@@ -1,5 +1,29 @@
 # Changelog
 
+## 8.8.0 (2026-05-29)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add expand=refs support and improved catalog pagination logic (d2cd632)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (7 files, 118 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/marketplace/allController.js
+- API routes: 1 file: src/routes/marketplace/all.js
+- OpenAPI documentation: 1 file: src/docs/paths/marketplace.all.yaml
+- Postman collection: 1 file: PlayFab Service - VMC.postman_collection.json
+- README: 1 file: readme.md
+- Service layer: 1 file: src/services/marketplaceService.js
+- Other areas: 1 additional group.
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 7
+- Line changes: +106 / -12
 ## 8.6.0 (2026-05-28)
 
 ### Summary
@@ -1354,6 +1378,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

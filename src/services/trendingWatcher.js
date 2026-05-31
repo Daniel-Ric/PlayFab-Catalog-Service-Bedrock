@@ -87,10 +87,7 @@ class TrendingWatcher {
         };
         const runOnce = createNonOverlappingRunner({
             run,
-            onError: e => {
-                logger.debug(`[TrendingWatcher] error ${e.message || "err"}`);
-                this.lastRunTs = Date.now();
-            },
+            onError: e => logger.debug(`[TrendingWatcher] error ${e.message || "err"}`),
             onSkip: () => logger.debug("[TrendingWatcher] previous run still in progress; skipping tick")
         });
         runOnce();

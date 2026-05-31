@@ -525,7 +525,6 @@ class ItemWatcher {
             run,
             onError: err => {
                 logger.error(`[ItemWatcher] run failed: ${err.stack || err.message}`);
-                this.lastRunTs = Date.now();
             },
             onSkip: () => logger.debug("[ItemWatcher] previous run still in progress; skipping tick")
         });

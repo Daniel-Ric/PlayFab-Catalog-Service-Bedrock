@@ -132,10 +132,7 @@ class PriceWatcher {
         };
         const runOnce = createNonOverlappingRunner({
             run,
-            onError: e => {
-                logger.debug(`[PriceWatcher] error ${e.message || "err"}`);
-                this.lastRunTs = Date.now();
-            },
+            onError: e => logger.debug(`[PriceWatcher] error ${e.message || "err"}`),
             onSkip: () => logger.debug("[PriceWatcher] previous run still in progress; skipping tick")
         });
         runOnce();

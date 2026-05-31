@@ -16,7 +16,15 @@ const withETag = require("../../middleware/etag");
 const withPagination = require("../../middleware/pagination");
 const {dataCache} = require("../../config/cache");
 const service = require("../../services/marketplaceService");
+const searchService = require("../../services/marketplaceSearchService");
 const cacheKey = require("../../utils/cacheKey");
+const {stableHash} = require("../../utils/hash");
+
+function postCacheKey(req) {
+    const u = new URL(req.originalUrl, "http://x");
+    u.searchParams.sort();
+    return `POST:${u.pathname}?${u.searchParams.toString()}#${stableHash(req.body || {})}`;
+}
 
 exports.search = withETag(withPagination(async (req) => {
     const key = cacheKey(req);
@@ -26,3 +34,33 @@ exports.search = withETag(withPagination(async (req) => {
         return items;
     });
 }));
+
+exports.searchItems = withETag(async (req) => {
+    const ttl = Number(process.env.MARKETPLACE_SEARCH_ITEMS_TTL_MS || 30 * 1000);
+    const key = postCacheKey(req);
+    return dataCache.getOrSetAsync(key, async () => searchService.searchItems(req.params.alias, req.body || {}), ttl);
+});
+
+exports.searchStore = withETag(async (req) => {
+    const ttl = Number(process.env.MARKETPLACE_SEARCH_STORE_TTL_MS || 30 * 1000);
+    const key = postCacheKey(req);
+    return dataCache.getOrSetAsync(key, async () => searchService.searchStore(req.params.alias, req.body || {}), ttl);
+});
+
+exports.suggest = withETag(async (req) => {
+    const ttl = Number(process.env.MARKETPLACE_SEARCH_SUGGEST_TTL_MS || 30 * 1000);
+    const key = cacheKey(req);
+    return dataCache.getOrSetAsync(key, async () => searchService.suggest(req.params.alias, req.query || {}), ttl);
+});
+
+exports.localizedSearch = withETag(async (req) => {
+    const ttl = Number(process.env.MARKETPLACE_SEARCH_LOCALIZED_TTL_MS || 30 * 1000);
+    const key = postCacheKey(req);
+    return dataCache.getOrSetAsync(key, async () => searchService.localizedSearch(req.params.alias, req.body || {}), ttl);
+});
+
+exports.searchAudit = withETag(async (req) => {
+    const ttl = Number(process.env.MARKETPLACE_SEARCH_AUDIT_TTL_MS || 60 * 1000);
+    const key = postCacheKey(req);
+    return dataCache.getOrSetAsync(key, async () => searchService.audit(req.params.alias, req.body || {}), ttl);
+});

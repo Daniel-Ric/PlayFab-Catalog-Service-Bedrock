@@ -13,9 +13,27 @@
 // -----------------------------------------------------------------------------
 
 const router = require("express").Router();
-const {check} = require("express-validator");
+const {check, body, param} = require("express-validator");
 const validate = require("../../middleware/validate");
 const ctrl = require("../../controllers/marketplace/resolveController");
+
+router.post(
+    "/batch/:alias",
+    [
+        param("alias").notEmpty().withMessage("Alias is required."),
+        body("ids").optional().isArray({max: 50}),
+        body("ids.*").optional().isString().isLength({max: 200}),
+        body("itemIds").optional().isArray({max: 50}),
+        body("itemIds.*").optional().isString().isLength({max: 200}),
+        body("alternateIds").optional().isArray({max: 50}),
+        body("alternateIds.*.type").optional().isString().isLength({max: 80}),
+        body("alternateIds.*.value").optional().isString().isLength({max: 200}),
+        body("alternateIds.*.Type").optional().isString().isLength({max: 80}),
+        body("alternateIds.*.Value").optional().isString().isLength({max: 200})
+    ],
+    validate,
+    ctrl.resolveBatch
+);
 
 router.get(
     "/:alias/:itemId",

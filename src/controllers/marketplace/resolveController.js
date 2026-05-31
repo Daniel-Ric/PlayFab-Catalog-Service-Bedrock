@@ -15,7 +15,15 @@
 const withETag = require("../../middleware/etag");
 const { dataCache } = require("../../config/cache");
 const service = require("../../services/marketplaceService");
+const searchService = require("../../services/marketplaceSearchService");
 const cacheKey = require("../../utils/cacheKey");
+const {stableHash} = require("../../utils/hash");
+
+function postCacheKey(req) {
+    const u = new URL(req.originalUrl, "http://x");
+    u.searchParams.sort();
+    return `POST:${u.pathname}?${u.searchParams.toString()}#${stableHash(req.body || {})}`;
+}
 
 exports.resolveByItemId = withETag(async (req) => {
     const key = cacheKey(req);
@@ -33,4 +41,9 @@ exports.resolveByFriendly = withETag(async (req) => {
         const item = await service.resolveByFriendly(req.params.alias, req.params.friendlyId, depth);
         return item;
     });
+});
+
+exports.resolveBatch = withETag(async (req) => {
+    const key = postCacheKey(req);
+    return dataCache.getOrSetAsync(key, async () => searchService.resolveBatch(req.params.alias, req.body || {}));
 });

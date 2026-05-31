@@ -13,10 +13,96 @@
 // -----------------------------------------------------------------------------
 
 const router = require("express").Router();
-const {check} = require("express-validator");
+const {check, body, query, param} = require("express-validator");
 const validate = require("../../middleware/validate");
 const ctrl = require("../../controllers/marketplace/searchController");
 const dateQuery = require("./dateQuery");
+
+const searchBodyValidators = [
+    body("search").optional().isString().isLength({max: 200}),
+    body("Search").optional().isString().isLength({max: 200}),
+    body("query").optional().isObject(),
+    body("query.text").optional().isString().isLength({max: 200}),
+    body("filter").optional().isString().isLength({max: 2000}),
+    body("Filter").optional().isString().isLength({max: 2000}),
+    body("orderBy").optional().isString().isLength({max: 500}),
+    body("OrderBy").optional().isString().isLength({max: 500}),
+    body("select").optional().isString().isLength({max: 500}),
+    body("Select").optional().isString().isLength({max: 500}),
+    body("language").optional().isString().isLength({max: 40}),
+    body("Language").optional().isString().isLength({max: 40}),
+    body("count").optional().isInt({min: 1, max: 50}),
+    body("Count").optional().isInt({min: 1, max: 50}),
+    body("continuationToken").optional().isString().isLength({max: 3000}),
+    body("ContinuationToken").optional().isString().isLength({max: 3000}),
+    body("store").optional().isObject(),
+    body("Store").optional().isObject(),
+    body("storeId").optional().isString().isLength({max: 200}),
+    body("StoreId").optional().isString().isLength({max: 200}),
+    body("storeAlternateId").optional().custom(v => typeof v === "string" || (v && typeof v === "object" && !Array.isArray(v))),
+    body("StoreAlternateId").optional().custom(v => typeof v === "string" || (v && typeof v === "object" && !Array.isArray(v))),
+    body("storeAlternateIdType").optional().isString().isLength({max: 80}),
+    body("StoreAlternateIdType").optional().isString().isLength({max: 80}),
+    body("includeRaw").optional().isBoolean()
+];
+
+router.post(
+    "/items/:alias",
+    [
+        param("alias").notEmpty().withMessage("Alias is required."),
+        ...searchBodyValidators
+    ],
+    validate,
+    ctrl.searchItems
+);
+
+router.post(
+    "/store/:alias",
+    [
+        param("alias").notEmpty().withMessage("Alias is required."),
+        ...searchBodyValidators
+    ],
+    validate,
+    ctrl.searchStore
+);
+
+router.get(
+    "/suggest/:alias",
+    [
+        param("alias").notEmpty().withMessage("Alias is required."),
+        query("q").trim().notEmpty().isLength({max: 100}).withMessage("q is required."),
+        query("language").optional().isString().isLength({max: 40}),
+        query("filter").optional().isString().isLength({max: 1000}),
+        query("count").optional().isInt({min: 1, max: 20})
+    ],
+    validate,
+    ctrl.suggest
+);
+
+router.post(
+    "/localized/:alias",
+    [
+        param("alias").notEmpty().withMessage("Alias is required."),
+        ...searchBodyValidators,
+        body("languages").optional().isArray({max: 8}),
+        body("languages.*").optional().isString().isLength({max: 40})
+    ],
+    validate,
+    ctrl.localizedSearch
+);
+
+router.post(
+    "/audit/:alias",
+    [
+        param("alias").notEmpty().withMessage("Alias is required."),
+        ...searchBodyValidators,
+        body("languages").optional().isArray({max: 8}),
+        body("languages.*").optional().isString().isLength({max: 40}),
+        body("maxPages").optional().isInt({min: 1, max: 10})
+    ],
+    validate,
+    ctrl.searchAudit
+);
 
 router.get(
     "/:alias",

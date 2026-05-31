@@ -2509,6 +2509,407 @@
               "description": "Advanced search with common filters, including exact contentType."
             },
             {
+              "name": "POST /marketplace/search/items/:alias",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"SearchItems shape\", () => { pm.expect(body.items).to.be.an(\"array\"); pm.expect(body.pagination).to.be.an(\"object\"); });",
+                      "if (body.pagination && body.pagination.continuationToken) pm.collectionVariables.set(\"nextSearchContinuationToken\", body.pagination.continuationToken);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"search\": \"{{keyword}}\",\n  \"filter\": \"ContentType eq '{{contentType}}'\",\n  \"orderBy\": \"StartDate desc\",\n  \"select\": \"title,description,images,priceOptions\",\n  \"language\": \"de-DE\",\n  \"count\": 24\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/search/items/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "search",
+                    "items",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Native PlayFab Catalog/SearchItems wrapper with language, select, count, and continuationToken support."
+              },
+              "response": []
+            },
+            {
+              "name": "POST /marketplace/search/items/:alias - continuation",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"SearchItems shape\", () => { pm.expect(body.items).to.be.an(\"array\"); pm.expect(body.pagination).to.be.an(\"object\"); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"search\": \"{{keyword}}\",\n  \"count\": 24,\n  \"continuationToken\": \"{{nextSearchContinuationToken}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/search/items/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "search",
+                    "items",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Fetch the next SearchItems page using the continuation token captured from the previous request."
+              },
+              "response": []
+            },
+            {
+              "name": "POST /marketplace/search/store/:alias",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Store SearchItems shape\", () => { pm.expect(body.items).to.be.an(\"array\"); pm.expect(body.meta.store).to.be.an(\"object\"); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"storeId\": \"{{storeId}}\",\n  \"search\": \"{{keyword}}\",\n  \"count\": 24,\n  \"language\": \"en-US\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/search/store/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "search",
+                    "store",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Store-scoped SearchItems request. Replace storeId or use storeAlternateId when available."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/search/suggest/:alias",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Suggestions shape\", () => pm.expect(body.suggestions).to.be.an(\"array\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/search/suggest/{{alias_prod}}?q={{keyword}}&language=de-DE&count=8",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "search",
+                    "suggest",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "q",
+                      "value": "{{keyword}"
+                    },
+                    {
+                      "key": "language",
+                      "value": "de-DE"
+                    },
+                    {
+                      "key": "count",
+                      "value": "8"
+                    }
+                  ]
+                },
+                "description": "Lightweight item, creator, and keyword suggestions for search inputs."
+              },
+              "response": []
+            },
+            {
+              "name": "POST /marketplace/search/localized/:alias",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Localized shape\", () => { pm.expect(body.languages).to.be.an(\"object\"); pm.expect(body.languages[\"de-DE\"].items).to.be.an(\"array\"); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"search\": \"{{keyword}}\",\n  \"languages\": [\"de-DE\", \"en-US\"],\n  \"select\": \"title,description,keywords,images\",\n  \"count\": 10\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/search/localized/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "search",
+                    "localized",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Run the same SearchItems request for multiple languages and return per-language result buckets."
+              },
+              "response": []
+            },
+            {
+              "name": "POST /marketplace/search/audit/:alias",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Audit shape\", () => { pm.expect(body.items).to.be.an(\"array\"); pm.expect(body.summary).to.be.an(\"object\"); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"filter\": \"ContentType eq '{{contentType}}'\",\n  \"languages\": [\"de-DE\", \"en-US\"],\n  \"count\": 50,\n  \"maxPages\": 2\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/search/audit/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "search",
+                    "audit",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Search-based content health scan for missing assets, contents, localization, deep links, platforms, and malformed URLs."
+              },
+              "response": []
+            },
+            {
+              "name": "POST /marketplace/search/advanced/:alias (cursor)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Advanced cursor shape\", () => { pm.expect(body.items).to.be.an(\"array\"); pm.expect(body.meta.mode).to.equal(\"cursor\"); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mode\": \"cursor\",\n  \"query\": {\n    \"text\": \"{{keyword}}\"\n  },\n  \"filters\": {\n    \"contentType\": \"{{contentType}}\"\n  },\n  \"language\": \"de-DE\",\n  \"select\": \"title,description,images,priceOptions\",\n  \"count\": 24,\n  \"continuationToken\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/search/advanced/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "search",
+                    "advanced",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Advanced search cursor mode using native Catalog/SearchItems continuation tokens."
+              },
+              "response": []
+            },
+            {
               "name": "POST /marketplace/player/search/:alias",
               "event": [
                 {
@@ -3172,6 +3573,63 @@
                   ]
                 },
                 "description": "Resolve a wrapper item by FriendlyId against the Bedrock alias."
+              },
+              "response": []
+            },
+            {
+              "name": "POST /marketplace/resolve/batch/:alias",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "pm.test(\"Batch resolve shape\", () => { pm.expect(body.items).to.be.an(\"array\"); pm.expect(body.meta).to.be.an(\"object\"); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"ids\": [\n    \"{{itemId}}\"\n  ],\n  \"alternateIds\": [\n    {\n      \"type\": \"FriendlyId\",\n      \"value\": \"{{friendlyId}}\"\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/resolve/batch/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "resolve",
+                    "batch",
+                    "{{alias_prod}}"
+                  ]
+                },
+                "description": "Resolve up to 50 item ids or alternate ids in one Catalog/GetItems call."
               },
               "response": []
             }
@@ -4062,6 +4520,18 @@
       "key": "contentType",
       "value": "3PServerContent_V1.2",
       "type": "string"
+    },
+    {
+      "key": "storeId",
+      "value": "REPLACE_WITH_STORE_ID"
+    },
+    {
+      "key": "storeFriendlyId",
+      "value": "REPLACE_WITH_STORE_FRIENDLY_ID"
+    },
+    {
+      "key": "nextSearchContinuationToken",
+      "value": ""
     }
   ],
   "auth": {

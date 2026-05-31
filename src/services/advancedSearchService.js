@@ -13,8 +13,9 @@
 // -----------------------------------------------------------------------------
 
 const {resolveTitle} = require("../utils/titles");
-const {fetchCatalogSearchItems} = require("../utils/playfab");
+const {fetchCatalogSearchItems, sendPlayFabRequest, transformItem} = require("../utils/playfab");
 const {buildContentTypeFilter} = require("../utils/filter");
+const { _internals: searchInternals } = require("./marketplaceSearchService");
 
 const PAGE_BATCH = Math.max(100, parseInt(process.env.ADV_SEARCH_BATCH || "300", 10));
 const MAX_BATCHES = Math.max(1, parseInt(process.env.ADV_SEARCH_MAX_BATCHES || "120", 10));
@@ -113,7 +114,7 @@ function parseDateRange(field, range) {
 function validateRequestBody(body) {
     if (!body || typeof body !== "object" || Array.isArray(body)) return {query: {}, filters: {}, sort: []};
 
-    const allowedTop = new Set(["query", "filters", "sort"]);
+    const allowedTop = new Set(["query", "filters", "sort", "mode", "language", "select", "store", "storeId", "storeAlternateId", "storeAlternateIdType", "count", "continuationToken"]);
     const unknownTop = Object.keys(body).filter(k => !allowedTop.has(k));
     if (unknownTop.length) {
         const e = new Error("Unsupported advanced search fields.");
@@ -166,7 +167,14 @@ function validateRequestBody(body) {
         throw e;
     }
 
-    return {query, filters, sort};
+    const mode = String(body.mode || "page").trim().toLowerCase() === "cursor" ? "cursor" : "page";
+    const language = typeof body.language === "string" ? body.language.trim().slice(0, 40) : "";
+    const select = typeof body.select === "string" ? body.select.trim().slice(0, 500) : "";
+    const count = Number.isFinite(Number(body.count)) ? Math.max(1, Math.min(50, Math.floor(Number(body.count)))) : null;
+    const continuationToken = typeof body.continuationToken === "string" ? body.continuationToken.trim().slice(0, 3000) : "";
+    const store = searchInternals.normalizeStore(body);
+
+    return {query, filters, sort, mode, language, select, count, continuationToken, store};
 }
 
 
@@ -612,6 +620,38 @@ exports.advancedSearch = async (alias, body, {page, pageSize}) => {
     const filter = buildPlayFabFilter(normalized.filters);
     const q = buildSearchText(normalized.query);
     const {orderBy, localSort} = parseSort(normalized.sort);
+
+    if (normalized.mode === "cursor") {
+        const payload = searchInternals.buildSearchItemsPayload({
+            search: q,
+            filter,
+            orderBy,
+            language: normalized.language,
+            select: normalized.select,
+            count: normalized.count || pageSize,
+            continuationToken: normalized.continuationToken,
+            store: normalized.store
+        });
+        const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, OS);
+        const raw = data?.Items || data?.items || [];
+        const transformed = raw.map(transformItem);
+        const filtered = applyApiLayerFilters(transformed, normalized.filters);
+        const sorted = applyLocalSort(filtered, localSort);
+        return {
+            items: sorted,
+            meta: {
+                mode: "cursor",
+                count: sorted.length,
+                requestedCount: payload.Count,
+                continuationToken: data?.ContinuationToken || data?.continuationToken || null,
+                hasNext: Boolean(data?.ContinuationToken || data?.continuationToken),
+                language: payload.Language || null,
+                select: payload.Select || "",
+                store: payload.Store || null
+            },
+            facets: buildFacets(sorted)
+        };
+    }
 
     let allFromPlayFab = await searchLoop(titleId, filter, q, orderBy);
     let filtered = applyApiLayerFilters(allFromPlayFab, normalized.filters);

@@ -15,6 +15,42 @@ AdvancedSearchRequest:
   type: object
   additionalProperties: false
   properties:
+    mode:
+      type: string
+      enum:
+        - page
+        - cursor
+      default: page
+    language:
+      type: string
+      maxLength: 40
+    select:
+      type: string
+      maxLength: 500
+    store:
+      $ref: '#/components/schemas/MarketplaceSearchStoreRef'
+    storeId:
+      type: string
+      maxLength: 200
+    storeAlternateId:
+      oneOf:
+        - type: string
+        - type: object
+          properties:
+            type:
+              type: string
+            value:
+              type: string
+    storeAlternateIdType:
+      type: string
+      maxLength: 80
+    count:
+      type: integer
+      minimum: 1
+      maximum: 50
+    continuationToken:
+      type: string
+      maxLength: 3000
     query:
       type: object
       additionalProperties: false

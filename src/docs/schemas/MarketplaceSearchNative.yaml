@@ -1,0 +1,286 @@
+# -----------------------------------------------------------------------------
+#
+# File: src/docs/schemas/MarketplaceSearchNative.yaml
+# Disclaimer: "PlayFab Catalog Service Bedrock" by SpindexGFX is an independent project.
+# It is not affiliated with, endorsed by, sponsored by, or otherwise connected to Mojang AB,
+# Microsoft Corporation, or any of their subsidiaries or affiliates.
+# No partnership, approval, or official relationship with Mojang AB or Microsoft is implied.
+#
+# All names, logos, brands, trademarks, service marks, and registered trademarks are the
+# property of their respective owners and are used strictly for identification/reference only.
+# This project does not claim ownership of third-party IP and provides no license to use it.
+#
+# -----------------------------------------------------------------------------
+MarketplaceSearchStoreRef:
+  type: object
+  additionalProperties: false
+  properties:
+    id:
+      type: string
+    Id:
+      type: string
+    alternateId:
+      type: object
+      additionalProperties: false
+      properties:
+        type:
+          type: string
+        value:
+          type: string
+    AlternateId:
+      type: object
+      additionalProperties: false
+      properties:
+        Type:
+          type: string
+        Value:
+          type: string
+MarketplaceSearchItemsRequest:
+  type: object
+  additionalProperties: true
+  properties:
+    search:
+      type: string
+      maxLength: 200
+    query:
+      type: object
+      properties:
+        text:
+          type: string
+          maxLength: 200
+    filter:
+      type: string
+      maxLength: 2000
+    orderBy:
+      type: string
+      maxLength: 500
+    select:
+      type: string
+      maxLength: 500
+    language:
+      type: string
+      maxLength: 40
+    count:
+      type: integer
+      minimum: 1
+      maximum: 50
+    continuationToken:
+      type: string
+      maxLength: 3000
+    store:
+      $ref: '#/components/schemas/MarketplaceSearchStoreRef'
+    storeId:
+      type: string
+    storeAlternateId:
+      oneOf:
+        - type: string
+        - type: object
+          properties:
+            type:
+              type: string
+            value:
+              type: string
+    storeAlternateIdType:
+      type: string
+    includeRaw:
+      type: boolean
+MarketplaceSearchItemSummary:
+  type: object
+  properties:
+    id:
+      type: string
+    friendlyId:
+      type: string
+      nullable: true
+    title:
+      type: string
+    description:
+      type: string
+    creatorId:
+      type: string
+      nullable: true
+    creatorName:
+      type: string
+    thumbnail:
+      type: string
+      nullable: true
+    contentType:
+      type: string
+    tags:
+      type: array
+      items:
+        type: string
+    platforms:
+      type: array
+      items:
+        type: string
+    price:
+      type: object
+      nullable: true
+      additionalProperties: true
+    rating:
+      type: object
+      properties:
+        average:
+          type: number
+          nullable: true
+        totalCount:
+          type: integer
+    deepLinks:
+      type: array
+      items:
+        type: object
+        additionalProperties: true
+    creationDate:
+      type: string
+      nullable: true
+    startDate:
+      type: string
+      nullable: true
+    lastModifiedDate:
+      type: string
+      nullable: true
+    clientUrl:
+      type: string
+      nullable: true
+MarketplaceSearchResponse:
+  type: object
+  properties:
+    items:
+      type: array
+      items:
+        $ref: '#/components/schemas/MarketplaceSearchItemSummary'
+    pagination:
+      type: object
+      properties:
+        count:
+          type: integer
+        requestedCount:
+          type: integer
+        continuationToken:
+          type: string
+          nullable: true
+        hasNext:
+          type: boolean
+    meta:
+      type: object
+      additionalProperties: true
+MarketplaceSearchSuggestionsResponse:
+  type: object
+  properties:
+    suggestions:
+      type: array
+      items:
+        type: object
+        properties:
+          type:
+            type: string
+            enum:
+              - item
+              - creator
+              - keyword
+          value:
+            type: string
+          itemId:
+            type: string
+            nullable: true
+    meta:
+      type: object
+      additionalProperties: true
+MarketplaceLocalizedSearchRequest:
+  allOf:
+    - $ref: '#/components/schemas/MarketplaceSearchItemsRequest'
+    - type: object
+      properties:
+        languages:
+          type: array
+          maxItems: 8
+          items:
+            type: string
+MarketplaceLocalizedSearchResponse:
+  type: object
+  properties:
+    languages:
+      type: object
+      additionalProperties:
+        type: object
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/MarketplaceSearchItemSummary'
+          pagination:
+            type: object
+            additionalProperties: true
+    meta:
+      type: object
+      additionalProperties: true
+MarketplaceSearchAuditRequest:
+  allOf:
+    - $ref: '#/components/schemas/MarketplaceLocalizedSearchRequest'
+    - type: object
+      properties:
+        maxPages:
+          type: integer
+          minimum: 1
+          maximum: 10
+MarketplaceSearchAuditResponse:
+  type: object
+  properties:
+    items:
+      type: array
+      items:
+        type: object
+        properties:
+          item:
+            $ref: '#/components/schemas/MarketplaceSearchItemSummary'
+          issues:
+            type: array
+            items:
+              type: string
+    summary:
+      type: object
+      additionalProperties: true
+    pagination:
+      type: object
+      additionalProperties: true
+    meta:
+      type: object
+      additionalProperties: true
+MarketplaceResolveBatchRequest:
+  type: object
+  properties:
+    ids:
+      type: array
+      maxItems: 50
+      items:
+        type: string
+    itemIds:
+      type: array
+      maxItems: 50
+      items:
+        type: string
+    alternateIds:
+      type: array
+      maxItems: 50
+      items:
+        type: object
+        properties:
+          type:
+            type: string
+          value:
+            type: string
+          Type:
+            type: string
+          Value:
+            type: string
+MarketplaceResolveBatchResponse:
+  type: object
+  properties:
+    items:
+      type: array
+      items:
+        type: object
+    meta:
+      type: object
+      additionalProperties: true

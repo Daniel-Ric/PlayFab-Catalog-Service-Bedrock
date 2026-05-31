@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------------------
 #
-# File: src/docs/paths/marketplace-search-advanced.yaml
+# File: src/docs/paths/marketplace-resolve-batch.yaml
 # Disclaimer: "PlayFab Catalog Service Bedrock" by SpindexGFX is an independent project.
 # It is not affiliated with, endorsed by, sponsored by, or otherwise connected to Mojang AB,
 # Microsoft Corporation, or any of their subsidiaries or affiliates.
@@ -11,13 +11,12 @@
 # This project does not claim ownership of third-party IP and provides no license to use it.
 #
 # -----------------------------------------------------------------------------
-/marketplace/search/advanced/{alias}:
+/marketplace/resolve/batch/{alias}:
   post:
-    summary: Advanced search
-    description: Default mode keeps page/facet behavior. Use `mode: cursor` for native SearchItems pagination with count, continuationToken, language, select, and store context.
-    operationId: searchAdvanced
     tags:
       - Marketplace
+    summary: Resolve multiple items by Id or AlternateId
+    description: Uses PlayFab Catalog/GetItems to resolve up to 50 item IDs or alternate IDs in one request.
     security:
       - BearerAuth: [ ]
     parameters:
@@ -26,50 +25,43 @@
         required: true
         schema:
           type: string
-      - in: query
-        name: page
-        schema:
-          type: integer
-          minimum: 1
-      - in: query
-        name: pageSize
-        schema:
-          type: integer
-          minimum: 1
-          maximum: 100
     requestBody:
-      required: false
+      required: true
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/AdvancedSearchRequest'
+            $ref: '#/components/schemas/MarketplaceResolveBatchRequest'
     responses:
-      '200':
+      "200":
         description: OK
+        headers:
+          ETag:
+            schema:
+              type: string
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AdvancedSearchResponse'
-      '400':
+              $ref: '#/components/schemas/MarketplaceResolveBatchResponse'
+      "400":
         description: Bad request
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/Error'
-      '401':
+      "401":
         description: Unauthorized
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/Error'
-      '403':
+      "403":
         description: Forbidden
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/Error'
-      '500':
-        description: Server error
+      "404":
+        description: Not found
         content:
           application/json:
             schema:

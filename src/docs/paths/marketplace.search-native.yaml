@@ -1,0 +1,263 @@
+# -----------------------------------------------------------------------------
+#
+# File: src/docs/paths/marketplace.search-native.yaml
+# Disclaimer: "PlayFab Catalog Service Bedrock" by SpindexGFX is an independent project.
+# It is not affiliated with, endorsed by, sponsored by, or otherwise connected to Mojang AB,
+# Microsoft Corporation, or any of their subsidiaries or affiliates.
+# No partnership, approval, or official relationship with Mojang AB or Microsoft is implied.
+#
+# All names, logos, brands, trademarks, service marks, and registered trademarks are the
+# property of their respective owners and are used strictly for identification/reference only.
+# This project does not claim ownership of third-party IP and provides no license to use it.
+#
+# -----------------------------------------------------------------------------
+/marketplace/search/items/{alias}:
+  post:
+    tags:
+      - Marketplace
+    summary: Native PlayFab SearchItems
+    description: Executes PlayFab Catalog/SearchItems with count, continuationToken, language, select, filter, orderBy, and optional store context.
+    security:
+      - BearerAuth: [ ]
+    parameters:
+      - in: path
+        name: alias
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MarketplaceSearchItemsRequest'
+    responses:
+      "200":
+        description: OK
+        headers:
+          ETag:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarketplaceSearchResponse'
+      "400":
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      "404":
+        description: Not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+/marketplace/search/store/{alias}:
+  post:
+    tags:
+      - Marketplace
+    summary: Store-scoped SearchItems
+    description: Runs SearchItems in a PlayFab store context using storeId, storeAlternateId, or store.
+    security:
+      - BearerAuth: [ ]
+    parameters:
+      - in: path
+        name: alias
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MarketplaceSearchItemsRequest'
+    responses:
+      "200":
+        description: OK
+        headers:
+          ETag:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarketplaceSearchResponse'
+      "400":
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+/marketplace/search/suggest/{alias}:
+  get:
+    tags:
+      - Marketplace
+    summary: Marketplace search suggestions
+    description: Returns lightweight item, creator, and keyword suggestions based on SearchItems.
+    security:
+      - BearerAuth: [ ]
+    parameters:
+      - in: path
+        name: alias
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: q
+        required: true
+        schema:
+          type: string
+          maxLength: 100
+      - in: query
+        name: language
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: filter
+        required: false
+        schema:
+          type: string
+      - in: query
+        name: count
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 20
+    responses:
+      "200":
+        description: OK
+        headers:
+          ETag:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarketplaceSearchSuggestionsResponse'
+      "400":
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+/marketplace/search/localized/{alias}:
+  post:
+    tags:
+      - Marketplace
+    summary: Localized SearchItems
+    description: Runs SearchItems for multiple languages and returns per-language normalized item results.
+    security:
+      - BearerAuth: [ ]
+    parameters:
+      - in: path
+        name: alias
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MarketplaceLocalizedSearchRequest'
+    responses:
+      "200":
+        description: OK
+        headers:
+          ETag:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarketplaceLocalizedSearchResponse'
+      "400":
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+/marketplace/search/audit/{alias}:
+  post:
+    tags:
+      - Marketplace
+    summary: Search-based content health audit
+    description: Scans SearchItems result pages for missing thumbnails, screenshots, contents, deep links, platforms, localization, and malformed URLs.
+    security:
+      - BearerAuth: [ ]
+    parameters:
+      - in: path
+        name: alias
+        required: true
+        schema:
+          type: string
+    requestBody:
+      required: false
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MarketplaceSearchAuditRequest'
+    responses:
+      "200":
+        description: OK
+        headers:
+          ETag:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MarketplaceSearchAuditResponse'
+      "400":
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'

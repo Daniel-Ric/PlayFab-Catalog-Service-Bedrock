@@ -231,6 +231,9 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 | `ADV_SEARCH_BATCH`             | `300`   | Batch size advanced search            |
 | `ADV_SEARCH_MAX_BATCHES`       | `10`    | Max batches advanced search           |
 | `ADV_SEARCH_CONCURRENCY`       | `5`     | Parallel advanced search pages        |
+| `MARKETPLACE_SEARCH_ITEMS_TTL_MS` | `30000` | Cache TTL for native SearchItems responses |
+| `MARKETPLACE_SEARCH_SUGGEST_TTL_MS` | `30000` | Cache TTL for suggestions             |
+| `MARKETPLACE_SEARCH_AUDIT_TTL_MS` | `60000` | Cache TTL for search health audits    |
 | `MULTILANG_ALL`                | `true`  | Enrich via `GetItems` for all results |
 | `MULTILANG_ENRICH_BATCH`       | `100`   | `GetItems` batch size                 |
 | `MULTILANG_ENRICH_CONCURRENCY` | `5`     | `GetItems` concurrency                |
@@ -431,9 +434,15 @@ Response:
 | GET    | `/marketplace/realms-plus/:alias`                  | Realms Plus items (`realms_plus`)      |
 | GET    | `/marketplace/tag/:alias/:tag`                     | Filter by tag                          |
 | GET    | `/marketplace/search/:alias`                       | Keyword full-text search                |
+| POST   | `/marketplace/search/items/:alias`                 | Native `SearchItems` with cursor pagination |
+| POST   | `/marketplace/search/store/:alias`                 | Store-scoped `SearchItems`             |
+| GET    | `/marketplace/search/suggest/:alias`               | Lightweight search suggestions         |
+| POST   | `/marketplace/search/localized/:alias`             | Multi-language search comparison       |
+| POST   | `/marketplace/search/audit/:alias`                 | Search-based content health scan       |
 | GET    | `/marketplace/details/:alias/:itemId`              | Item details (optional enrichments)    |
 | GET    | `/marketplace/friendly/:alias/:friendlyId`         | Resolve by FriendlyId                  |
 | GET    | `/marketplace/resolve/:alias/:itemId`              | Resolve by ItemId (with references)    |
+| POST   | `/marketplace/resolve/batch/:alias`                | Resolve up to 50 ids/alternateIds      |
 | GET    | `/marketplace/resolve/friendly/:alias/:friendlyId` | Resolve FriendlyId → item (+refs)      |
 | GET    | `/marketplace/summary/:alias`                      | Compact list (id/title/links)          |
 | GET    | `/marketplace/compare/:creatorName`                | Compare a creator across titles        |
@@ -442,7 +451,7 @@ Response:
 | GET    | `/marketplace/mc-token`                           | MC token for primary title             |
 | GET    | `/marketplace/sales`                               | Aggregated sales across aliases        |
 | GET    | `/marketplace/sales/:alias`                        | Aggregated sales for one alias         |
-| POST   | `/marketplace/search/advanced/:alias`              | Advanced search + facets               |
+| POST   | `/marketplace/search/advanced/:alias`              | Advanced search + facets or cursor mode |
 
 ---
 
@@ -507,6 +516,87 @@ Filter by tag; fully enriched items (optionally with references).
 #### `GET /marketplace/search/:alias?keyword=<q>`
 
 Runs a PlayFab Catalog full-text search across the selected title alias. `creatorName=<name>` is optional and, when present, is resolved via `creators.json` (matches `creatorName` or `displayName`, whitespace-insensitive).
+
+#### `POST /marketplace/search/items/:alias`
+
+Native `Catalog/SearchItems` wrapper with cursor pagination. Use this for efficient frontend search when you need PlayFab `Language`, `Select`, `Store`, `Count`, and `ContinuationToken` support.
+
+```json
+{
+  "search": "dragon",
+  "filter": "ContentType eq '3PServerContent_V1.2'",
+  "orderBy": "StartDate desc",
+  "select": "title,description,images,priceOptions",
+  "language": "de-DE",
+  "count": 24,
+  "continuationToken": ""
+}
+```
+
+Response shape:
+
+```json
+{
+  "items": [{ "id": "ItemId", "title": "Title", "thumbnail": "https://...", "price": { "amount": 660, "currencyId": "Minecoins" } }],
+  "pagination": { "count": 24, "requestedCount": 24, "continuationToken": "...", "hasNext": true },
+  "meta": { "source": "playfab.catalog.searchItems", "language": "de-DE" }
+}
+```
+
+#### `POST /marketplace/search/store/:alias`
+
+Same response shape as `/marketplace/search/items/:alias`, but SearchItems runs in a PlayFab store context. Provide one of:
+
+```json
+{ "storeId": "store-id", "search": "", "count": 24 }
+```
+
+or:
+
+```json
+{ "storeAlternateId": { "type": "FriendlyId", "value": "store-friendly-id" }, "count": 24 }
+```
+
+#### `GET /marketplace/search/suggest/:alias?q=<text>`
+
+Returns lightweight item, creator, and keyword suggestions. Optional query params: `language`, `filter`, `count` (`1..20`).
+
+#### `POST /marketplace/search/localized/:alias`
+
+Runs the same SearchItems request for multiple languages and returns one result bucket per language:
+
+```json
+{
+  "search": "dragon",
+  "languages": ["de-DE", "en-US"],
+  "select": "title,description,keywords,images",
+  "count": 10
+}
+```
+
+#### `POST /marketplace/search/audit/:alias`
+
+Search-based content health scan. It checks the returned SearchItems pages for missing thumbnails, screenshots, contents, platforms, deep links, requested localization texts, malformed URLs, and invalid min/max client version ranges.
+
+```json
+{
+  "filter": "ContentType eq '3PServerContent_V1.2'",
+  "languages": ["de-DE", "en-US"],
+  "count": 50,
+  "maxPages": 3
+}
+```
+
+#### `POST /marketplace/resolve/batch/:alias`
+
+Resolves up to 50 item IDs or alternate IDs with `Catalog/GetItems` in one request:
+
+```json
+{
+  "ids": ["item-id-1", "item-id-2"],
+  "alternateIds": [{ "type": "FriendlyId", "value": "friendly-id" }]
+}
+```
 
 #### Content type and date filters on search endpoints
 
@@ -579,7 +669,7 @@ Aggregate store sales (from `SearchStores` + `GetStoreItems`) with items resolve
 
 #### `POST /marketplace/search/advanced/:alias`
 
-Advanced Search now uses a **strict, fixed request body** with only three top-level fields: `query`, `filters`, `sort`.
+Advanced Search uses a **strict, fixed request body**. Default `mode: "page"` keeps the existing paged/faceted behavior with `query`, `filters`, and `sort`. `mode: "cursor"` uses native `Catalog/SearchItems` and accepts `language`, `select`, `store`, `storeId`, `storeAlternateId`, `count`, and `continuationToken`.
 Unknown fields are rejected with **400 Bad Request**.
 
 ```json
@@ -613,6 +703,20 @@ Unknown fields are rejected with **400 Bad Request**.
     { "field": "startDate", "dir": "desc" },
     { "field": "priceAmount", "dir": "asc" }
   ]
+}
+```
+
+Cursor mode example:
+
+```json
+{
+  "mode": "cursor",
+  "query": { "text": "dragon" },
+  "filters": { "contentType": "3PServerContent_V1.2" },
+  "language": "de-DE",
+  "select": "title,description,images,priceOptions",
+  "count": 24,
+  "continuationToken": ""
 }
 ```
 

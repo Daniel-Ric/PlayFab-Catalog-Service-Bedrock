@@ -18,7 +18,14 @@ const SESSION_TTL_MS = Number(process.env.SESSION_TTL_MS || 30 * 60 * 1000);
 const DATA_TTL_MS = Number(process.env.DATA_TTL_MS || 5 * 60 * 1000);
 
 function createCache({max, ttl}) {
-    const cache = new LRUCache({max, ttl, allowStale: false, updateAgeOnGet: false, updateAgeOnHas: false});
+    const cache = new LRUCache({
+        max,
+        ttl,
+        ttlAutopurge: true,
+        allowStale: false,
+        updateAgeOnGet: false,
+        updateAgeOnHas: false
+    });
     const inflight = new Map();
 
     async function getOrSetAsync(key, fn, ttlOverride) {
@@ -42,6 +49,12 @@ function createCache({max, ttl}) {
         has: k => cache.has(k),
         delete: k => cache.delete(k),
         clear: () => cache.clear(),
+        get size() {
+            return cache.size;
+        },
+        get inflightSize() {
+            return inflight.size;
+        },
         getOrSetAsync
     };
 }

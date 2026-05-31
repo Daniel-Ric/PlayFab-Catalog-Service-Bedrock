@@ -15,6 +15,7 @@
 const logger = require("../config/logger");
 const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
+const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const {fetchFeaturedPersona} = require("./featuredPersonaService");
 
 function featuredItemId(item) {
@@ -337,8 +338,13 @@ class FeaturedContentWatcher {
             }
         };
 
-        run();
-        this.timer = setInterval(run, intervalMs);
+        const runOnce = createNonOverlappingRunner({
+            run,
+            onError: e => logger.debug(`[FeaturedContentWatcher] error ${e.message || "err"}`),
+            onSkip: () => logger.debug("[FeaturedContentWatcher] previous run still in progress; skipping tick")
+        });
+        runOnce();
+        this.timer = setInterval(runOnce, intervalMs);
     }
 
     stop() {

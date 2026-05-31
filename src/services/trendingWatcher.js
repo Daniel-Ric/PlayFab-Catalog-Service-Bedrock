@@ -14,6 +14,8 @@
 
 const {sendPlayFabRequest, buildSearchPayload, isValidItem} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
+const {createNonOverlappingRunner} = require("../utils/watcherRun");
+const logger = require("../config/logger");
 
 function getTitleId() {
     const alias = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || "").trim();
@@ -83,10 +85,16 @@ class TrendingWatcher {
             this.lastRunTs = Date.now();
             eventBus.emit("creator.trending", payload);
         };
-        run().catch(() => {
+        const runOnce = createNonOverlappingRunner({
+            run,
+            onError: e => {
+                logger.debug(`[TrendingWatcher] error ${e.message || "err"}`);
+                this.lastRunTs = Date.now();
+            },
+            onSkip: () => logger.debug("[TrendingWatcher] previous run still in progress; skipping tick")
         });
-        this.timer = setInterval(() => run().catch(() => {
-        }), intervalMs);
+        runOnce();
+        this.timer = setInterval(runOnce, intervalMs);
     }
 
     stop() {

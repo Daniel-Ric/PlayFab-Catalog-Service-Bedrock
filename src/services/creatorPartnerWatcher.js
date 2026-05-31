@@ -14,6 +14,7 @@
 
 const logger = require("../config/logger");
 const {getTitleId, syncCreatorRegistry} = require("./creatorRegistryService");
+const {createNonOverlappingRunner} = require("../utils/watcherRun");
 
 function buildCreatorPartnerChangePayload({titleId, previous, current, diff, ts = Date.now()}) {
     const addedPartners = diff?.added || [];
@@ -75,8 +76,16 @@ class CreatorPartnerWatcher {
             }
         };
 
-        run();
-        this.timer = setInterval(run, intervalMs);
+        const runOnce = createNonOverlappingRunner({
+            run,
+            onError: e => {
+                logger.debug(`[CreatorPartnerWatcher] error ${e.message || "err"}`);
+                this.lastRunTs = Date.now();
+            },
+            onSkip: () => logger.debug("[CreatorPartnerWatcher] previous run still in progress; skipping tick")
+        });
+        runOnce();
+        this.timer = setInterval(runOnce, intervalMs);
     }
 
     stop() {

@@ -18,6 +18,7 @@ const logger = require("../config/logger");
 const marketplaceService = require("./marketplaceService");
 const {resolveTitle} = require("../utils/titles");
 const {projectCatalogItem} = require("../utils/projectors");
+const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const {readJson, writeJsonAtomic} = require("../utils/storage");
 const {stableHash} = require("../utils/hash");
 const {
@@ -253,12 +254,13 @@ class SubscriptionWatcher {
             this.suppressInitialChanges = false;
         };
 
-        run().catch(err => {
-            logger.error(`[SubscriptionWatcher] initial run failed: ${err.stack || err.message}`);
+        const runOnce = createNonOverlappingRunner({
+            run,
+            onError: err => logger.error(`[SubscriptionWatcher] run failed: ${err.stack || err.message}`),
+            onSkip: () => logger.debug("[SubscriptionWatcher] previous run still in progress; skipping tick")
         });
-        this.timer = setInterval(() => run().catch(err => {
-            logger.error(`[SubscriptionWatcher] scheduled run failed: ${err.stack || err.message}`);
-        }), intervalMs);
+        runOnce();
+        this.timer = setInterval(runOnce, intervalMs);
     }
 
     stop() {

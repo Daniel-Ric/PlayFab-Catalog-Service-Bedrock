@@ -18,6 +18,7 @@ const path = require("path");
 const {sendPlayFabRequest, isValidItem, getItemsByIds} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
+const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
 const {readJson, writeJsonAtomic} = require("../utils/storage");
 const SEARCH_ITEMS_MAX_COUNT = 50;
@@ -520,12 +521,16 @@ class ItemWatcher {
             this.lastRunTs = Date.now();
         };
 
-        run().catch(err => {
-            logger.error(`[ItemWatcher] initial run failed: ${err.stack || err.message}`);
+        const runOnce = createNonOverlappingRunner({
+            run,
+            onError: err => {
+                logger.error(`[ItemWatcher] run failed: ${err.stack || err.message}`);
+                this.lastRunTs = Date.now();
+            },
+            onSkip: () => logger.debug("[ItemWatcher] previous run still in progress; skipping tick")
         });
-        this.timer = setInterval(() => run().catch(err => {
-            logger.error(`[ItemWatcher] scheduled run failed: ${err.stack || err.message}`);
-        }), intervalMs);
+        runOnce();
+        this.timer = setInterval(runOnce, intervalMs);
     }
 
     stop() {

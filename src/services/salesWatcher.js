@@ -15,6 +15,7 @@
 const {sendPlayFabRequest, getStoreItems} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
+const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const logger = require("../config/logger");
 
 function getTitleId() {
@@ -137,8 +138,16 @@ class SalesWatcher {
                 this.lastRunTs = Date.now();
             }
         };
-        run();
-        this.timer = setInterval(run, intervalMs);
+        const runOnce = createNonOverlappingRunner({
+            run,
+            onError: e => {
+                logger.debug(`[SalesWatcher] error ${e.message || "err"}`);
+                this.lastRunTs = Date.now();
+            },
+            onSkip: () => logger.debug("[SalesWatcher] previous run still in progress; skipping tick")
+        });
+        runOnce();
+        this.timer = setInterval(runOnce, intervalMs);
     }
 
     stop() {

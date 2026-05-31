@@ -15,6 +15,8 @@
 const {sendPlayFabRequest, getStoreItems} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
+const {createNonOverlappingRunner} = require("../utils/watcherRun");
+const logger = require("../config/logger");
 
 function getTitleId() {
     const alias = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || "").trim();
@@ -128,10 +130,16 @@ class PriceWatcher {
             this.prev = best;
             this.lastRunTs = Date.now();
         };
-        run().catch(() => {
+        const runOnce = createNonOverlappingRunner({
+            run,
+            onError: e => {
+                logger.debug(`[PriceWatcher] error ${e.message || "err"}`);
+                this.lastRunTs = Date.now();
+            },
+            onSkip: () => logger.debug("[PriceWatcher] previous run still in progress; skipping tick")
         });
-        this.timer = setInterval(() => run().catch(() => {
-        }), intervalMs);
+        runOnce();
+        this.timer = setInterval(runOnce, intervalMs);
     }
 
     stop() {

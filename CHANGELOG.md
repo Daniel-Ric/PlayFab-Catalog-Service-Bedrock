@@ -1,5 +1,29 @@
 # Changelog
 
+## 9.0.0 (2026-05-31)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add native search endpoints and enhanced marketplace caching (27467cd)
+- Impact: Test coverage with a large change footprint across repository files, application logic, test coverage.
+- Bump reason: large change footprint (16 files, 2104 total line changes)
+
+### Changed Areas
+
+- API controllers: 2 files: src/controllers/marketplace/resolveController.js, src/controllers/marketplace/searchController.js
+- API routes: 3 files: src/routes/marketplace/resolve.js, src/routes/marketplace/search-advanced.js, plus 1 more
+- OpenAPI documentation: 5 files: src/docs/paths/marketplace-resolve-batch.yaml, src/docs/paths/marketplace-search-advanced.yaml, plus 3 more
+- Postman collection: 1 file: PlayFab Service - VMC.postman_collection.json
+- README: 1 file: readme.md
+- Service layer: 2 files: src/services/advancedSearchService.js, src/services/marketplaceSearchService.js
+- Other areas: 2 additional groups.
+
+### Release Metrics
+
+- Version bump: major
+- Files changed: 16
+- Line changes: +2096 / -8
 ## 8.8.0 (2026-05-29)
 
 ### Summary
@@ -1378,6 +1402,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

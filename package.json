@@ -30,7 +30,7 @@
     "express-validator": "^7.2.1",
     "fast-json-stable-stringify": "^2.1.0",
     "helmet": "^8.2.0",
-    "inquirer": "^14.0.0",
+    "inquirer": "^14.0.2",
     "jsonwebtoken": "^9.0.2",
     "lru-cache": "^11.5.0",
     "node-cache": "^5.1.2",

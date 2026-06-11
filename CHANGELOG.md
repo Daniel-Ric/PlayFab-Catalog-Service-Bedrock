@@ -1,5 +1,29 @@
 # Changelog
 
+## 10.0.0 (2026-06-11)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add lightweight list options and boolean query flags (e112020)
+- Impact: Test coverage with a large change footprint across repository files, application logic, test coverage.
+- Bump reason: large change footprint (22 files, 668 total line changes)
+
+### Changed Areas
+
+- API routes: 9 files: src/routes/marketplace/all.js, src/routes/marketplace/compare.js, plus 7 more
+- OpenAPI documentation: 8 files: src/docs/paths/marketplace.all.yaml, src/docs/paths/marketplace.compare.yaml, plus 6 more
+- Postman collection: 1 file: PlayFab Service - VMC.postman_collection.json
+- README: 1 file: readme.md
+- Service layer: 1 file: src/services/marketplaceService.js
+- Shared utilities: 1 file: src/utils/playfab.js
+- Other areas: 1 additional group.
+
+### Release Metrics
+
+- Version bump: major
+- Files changed: 22
+- Line changes: +619 / -49
 ## 9.1.6 (2026-06-05)
 
 ### Summary
@@ -1575,6 +1599,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

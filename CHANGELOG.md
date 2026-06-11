@@ -1,5 +1,53 @@
 # Changelog
 
+## 10.0.1 (2026-06-11)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Bump undici from 8.3.0 to 8.4.1 (7fa753f)
+- Impact: Repository update with a small change footprint across project dependencies.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Dependencies: 2 files: package-lock.json, package.json
+
+### Notable Changes
+
+- Bumps [undici](https://github.com/nodejs/undici) from 8.3.0 to 8.4.1.
+- [Release notes](https://github.com/nodejs/undici/releases)
+- [Commits](https://github.com/nodejs/undici/compare/v8.3.0...v8.4.1)
+- --
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +5 / -5
+
+## 10.0.2 (2026-06-11)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Merge (6b9e58b)
+- Impact: Repository update with a small change footprint across project dependencies.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Dependencies: 2 files: package-lock.json, package.json
+
+### Notable Changes
+
+- Bump undici from 8.3.0 to 8.4.1
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +5 / -5
 ## 10.0.0 (2026-06-11)
 
 ### Summary
@@ -1599,6 +1647,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

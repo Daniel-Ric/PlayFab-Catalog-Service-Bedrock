@@ -32,7 +32,7 @@
     "helmet": "^8.2.0",
     "inquirer": "^14.0.0",
     "jsonwebtoken": "^9.0.2",
-    "lru-cache": "^11.5.0",
+    "lru-cache": "^11.5.1",
     "node-cache": "^5.1.2",
     "prompts": "^2.4.2",
     "swagger-ui-express": "^5.0.1",

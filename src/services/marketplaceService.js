@@ -33,6 +33,7 @@ const {SUBSCRIPTION_DEFS, subscriptionFilter} = require("../utils/marketplaceSub
 const featuredServers = require("../config/featuredServers");
 const logger = require("../config/logger");
 const {normalizeParams} = require("../utils/pagination");
+const {dataCache} = require("../config/cache");
 
 const OS = process.env.OS || "iOS";
 const PAGE_SIZE = 100;
@@ -43,6 +44,7 @@ const ENRICH_CONCURRENCY = Math.max(1, parseInt(process.env.MULTILANG_ENRICH_CON
 const FETCH_CONCURRENCY = Math.max(1, parseInt(process.env.FETCH_CONCURRENCY || "5", 10));
 const STORE_CONCURRENCY = Math.max(1, parseInt(process.env.STORE_CONCURRENCY || "4", 10));
 const STORE_MAX_FOR_PRICE_ENRICH = Math.max(1, parseInt(process.env.STORE_MAX_FOR_PRICE_ENRICH || "12", 10));
+const STORE_PRICE_TTL_MS = Math.max(1000, parseInt(process.env.STORE_PRICE_TTL_MS || String(2 * 60 * 1000), 10));
 const ALL_DATE_RANGE_CHUNK_DAYS = Math.max(1, parseInt(process.env.MARKETPLACE_ALL_DATE_RANGE_CHUNK_DAYS || "180", 10));
 const ALL_DATE_RANGE_MAX_CHUNKS = Math.max(1, parseInt(process.env.MARKETPLACE_ALL_DATE_RANGE_MAX_CHUNKS || "80", 10));
 
@@ -202,6 +204,26 @@ function uniqueById(items) {
     return out;
 }
 
+function parseBooleanFlag(value) {
+    const raw = Array.isArray(value) ? value[0] : value;
+    if (typeof raw === "undefined" || raw === null || raw === "") return null;
+    if (typeof raw === "boolean") return raw;
+    const normalized = String(raw).trim().toLowerCase();
+    if (["1", "true", "yes", "y", "on"].includes(normalized)) return true;
+    if (["0", "false", "no", "n", "off"].includes(normalized)) return false;
+    return null;
+}
+
+function shouldEnrichFullItems(query = {}) {
+    const explicit = parseBooleanFlag(query.full ?? query.enrich ?? query.multilang);
+    return explicit === null ? MULTILANG_ALL : explicit;
+}
+
+function shouldResolveReferences(query = {}, defaultValue = true) {
+    const explicit = parseBooleanFlag(query.refs ?? query.references ?? query.resolveRefs);
+    return explicit === null ? defaultValue : explicit;
+}
+
 function orderValue(item, field) {
     const key = String(field || "").toLowerCase();
     if (key === "creationdate") return Date.parse(item?.CreationDate || item?.creationDate || "") || 0;
@@ -359,8 +381,8 @@ function buildSalesResponse(headers, itemDetails, creatorDisplayNameFilter) {
     return {totalItems, itemsPerCreator, sales};
 }
 
-async function enrichWithFullItems(titleId, items) {
-    if (!MULTILANG_ALL || !items || !items.length) return items;
+async function enrichWithFullItems(titleId, items, query = {}) {
+    if (!shouldEnrichFullItems(query) || !items || !items.length) return items;
     const ids = items.map(i => i.Id);
     const full = await getItemsByIds(titleId, ids, OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
     const byId = new Map(full.map(i => [i.Id, i]));
@@ -387,25 +409,28 @@ async function enrichItemsWithResolvedReferences(titleId, items) {
 }
 
 async function enrichItemWithStorePrices(titleId, itemId) {
-    const stores = await fetchStores(titleId);
-    if (!stores.length) return [];
-    const limited = stores.slice(0, STORE_MAX_FOR_PRICE_ENRICH);
-    const prices = [];
-    for (let i = 0; i < limited.length; i += STORE_CONCURRENCY) {
-        const chunk = limited.slice(i, i + STORE_CONCURRENCY);
-        const res = await Promise.all(chunk.map(async s => {
-            const r = await getStoreItems(titleId, s.Id || s.id, OS);
-            const items = r.Items || r.items || [];
-            const hit = items.find(si => si?.Item?.Id === itemId || si?.ItemId === itemId);
-            if (!hit) return null;
-            const amounts = (hit?.Price?.Prices || []).flatMap(p => (p.Amounts || []).map(a => ({
-                currencyId: a.CurrencyId, amount: a.Amount
-            })));
-            return {storeId: s.Id || s.id, storeTitle: s.Title || s.Name, amounts};
-        }));
-        for (const x of res) if (x && x.amounts && x.amounts.length) prices.push(x);
-    }
-    return prices;
+    const cacheKey = `store-prices:${titleId}:${OS}:${STORE_MAX_FOR_PRICE_ENRICH}:${itemId}`;
+    return dataCache.getOrSetAsync(cacheKey, async () => {
+        const stores = await fetchStores(titleId);
+        if (!stores.length) return [];
+        const limited = stores.slice(0, STORE_MAX_FOR_PRICE_ENRICH);
+        const prices = [];
+        for (let i = 0; i < limited.length; i += STORE_CONCURRENCY) {
+            const chunk = limited.slice(i, i + STORE_CONCURRENCY);
+            const res = await Promise.all(chunk.map(async s => {
+                const r = await getStoreItems(titleId, s.Id || s.id, OS);
+                const items = r.Items || r.items || [];
+                const hit = items.find(si => si?.Item?.Id === itemId || si?.ItemId === itemId);
+                if (!hit) return null;
+                const amounts = (hit?.Price?.Prices || []).flatMap(p => (p.Amounts || []).map(a => ({
+                    currencyId: a.CurrencyId, amount: a.Amount
+                })));
+                return {storeId: s.Id || s.id, storeTitle: s.Title || s.Name, amounts};
+            }));
+            for (const x of res) if (x && x.amounts && x.amounts.length) prices.push(x);
+        }
+        return prices;
+    }, STORE_PRICE_TTL_MS);
 }
 
 async function enrichItemWithReviews(titleId, itemId, take = 10) {
@@ -428,8 +453,16 @@ async function fetchAllSearchItems(titleId, query = {}, orderBy = "startDate des
 }
 
 async function fetchAllSearchPage(titleId, query = {}, orderBy = "startDate desc") {
-    const {params} = resolveCatalogPagination(query, PAGE_SIZE, PAGE_SIZE);
     const filter = buildAllFilter(query);
+    return fetchSearchPageByFilter(titleId, query, filter, orderBy);
+}
+
+async function maybeEnrichItemsWithResolvedReferences(titleId, items, query = {}, defaultValue = true) {
+    return shouldResolveReferences(query, defaultValue) ? enrichItemsWithResolvedReferences(titleId, items) : items;
+}
+
+async function fetchSearchPageByFilter(titleId, query = {}, filter = "", orderBy = "startDate desc") {
+    const {params} = resolveCatalogPagination(query, PAGE_SIZE, PAGE_SIZE);
     const items = [];
     let total = null;
     let skip = params.skip;
@@ -453,6 +486,10 @@ async function fetchAllSearchPage(titleId, query = {}, orderBy = "startDate desc
     }
 
     return {params, items, total: total ?? params.skip + items.length};
+}
+
+function canUseServerSearchPage(query = {}) {
+    return normalizeParams(query).apply && startDateRangeQueries(query).length === 1;
 }
 
 function parseExpand(expandParam) {
@@ -664,13 +701,13 @@ module.exports = {
         const rangeQueries = startDateRangeQueries(query);
         if (normalizeParams(query).apply && rangeQueries.length === 1) {
             const page = await fetchAllSearchPage(titleId, query, orderBy);
-            let items = await enrichWithFullItems(titleId, page.items);
-            if (expand.refs) items = await enrichItemsWithResolvedReferences(titleId, items);
+            let items = await enrichWithFullItems(titleId, page.items, query);
+            if (expand.refs || shouldResolveReferences(query, false)) items = await enrichItemsWithResolvedReferences(titleId, items);
             return {items, total: page.total, serverPaginated: true};
         }
         const list = await fetchAllSearchItems(titleId, query, orderBy);
-        const enriched = await enrichWithFullItems(titleId, list);
-        return expand.refs ? enrichItemsWithResolvedReferences(titleId, enriched) : enriched;
+        const enriched = await enrichWithFullItems(titleId, list, query);
+        return expand.refs || shouldResolveReferences(query, false) ? enrichItemsWithResolvedReferences(titleId, enriched) : enriched;
     },
 
     async fetchLatest(alias, count, query = {}) {
@@ -683,8 +720,8 @@ module.exports = {
         });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
         let items = (data.Items || []).filter(isValidItem);
-        items = await enrichWithFullItems(titleId, items);
-        items = await enrichItemsWithResolvedReferences(titleId, items);
+        items = await enrichWithFullItems(titleId, items, query);
+        items = await maybeEnrichItemsWithResolvedReferences(titleId, items, query);
         const transformed = items.map(transformItem);
         if (!params.apply) return transformed;
         return {
@@ -705,8 +742,8 @@ module.exports = {
         });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
         let items = (data.Items || []).filter(isValidItem);
-        items = await enrichWithFullItems(titleId, items);
-        items = await enrichItemsWithResolvedReferences(titleId, items);
+        items = await enrichWithFullItems(titleId, items, query);
+        items = await maybeEnrichItemsWithResolvedReferences(titleId, items, query);
         const transformed = items.map(transformItem);
         if (!params.apply) return transformed;
         return {
@@ -753,10 +790,23 @@ module.exports = {
     async fetchPopular(alias, query = {}) {
         const titleId = resolveTitle(alias);
         const filter = buildFilter({query}, creatorsArr);
-        const orderBy = resolveOrderBy(query.orderBy, "rating/totalcount desc");
+        const orderBy = resolveOrderBy(query.orderBy, "rating/totalcount desc, startDate desc");
+        if (canUseServerSearchPage(query)) {
+            const page = await fetchSearchPageByFilter(titleId, query, filter, orderBy);
+            let items = await enrichWithFullItems(titleId, page.items, query);
+            items = await maybeEnrichItemsWithResolvedReferences(titleId, items, query);
+            items.sort((a, b) => {
+                const diff = ratingCountOf(b) - ratingCountOf(a);
+                if (diff !== 0) return diff;
+                const bDate = Date.parse(b.StartDate || b.startDate || b.CreationDate || "") || 0;
+                const aDate = Date.parse(a.StartDate || a.startDate || a.CreationDate || "") || 0;
+                return bDate - aDate;
+            });
+            return {items, total: page.total, serverPaginated: true};
+        }
         let items = await searchLoop(titleId, {filter, orderBy, batch: 300});
-        items = await enrichWithFullItems(titleId, items);
-        items = await enrichItemsWithResolvedReferences(titleId, items);
+        items = await enrichWithFullItems(titleId, items, query);
+        items = await maybeEnrichItemsWithResolvedReferences(titleId, items, query);
         items.sort((a, b) => {
             const diff = ratingCountOf(b) - ratingCountOf(a);
             if (diff !== 0) return diff;
@@ -772,9 +822,15 @@ module.exports = {
         const tagClause = `tags/any(t:t eq '${String(tag).replace(/'/g, "''")}')`;
         const filter = andFilter(buildFilter({query}, creatorsArr), tagClause);
         const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
+        if (canUseServerSearchPage(query)) {
+            const page = await fetchSearchPageByFilter(titleId, query, filter, orderBy);
+            const enriched = await enrichWithFullItems(titleId, page.items, query);
+            const withRefs = await maybeEnrichItemsWithResolvedReferences(titleId, enriched, query);
+            return {items: withRefs, total: page.total, serverPaginated: true};
+        }
         const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
-        const enriched = await enrichWithFullItems(titleId, list);
-        const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
+        const enriched = await enrichWithFullItems(titleId, list, query);
+        const withRefs = await maybeEnrichItemsWithResolvedReferences(titleId, enriched, query);
         return withRefs;
     },
 
@@ -787,9 +843,15 @@ module.exports = {
         const titleId = resolveTitle(alias);
         const filter = andFilter(buildFilter({query}, creatorsArr), subscriptionFilter(subscriptionKey));
         const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
+        if (canUseServerSearchPage(query)) {
+            const page = await fetchSearchPageByFilter(titleId, query, filter, orderBy);
+            const enriched = await enrichWithFullItems(titleId, page.items, query);
+            const withRefs = await maybeEnrichItemsWithResolvedReferences(titleId, enriched, query);
+            return {items: withRefs, total: page.total, serverPaginated: true};
+        }
         const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
-        const enriched = await enrichWithFullItems(titleId, list);
-        const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
+        const enriched = await enrichWithFullItems(titleId, list, query);
+        const withRefs = await maybeEnrichItemsWithResolvedReferences(titleId, enriched, query);
         return withRefs;
     },
 
@@ -799,9 +861,15 @@ module.exports = {
         const freeClause = "displayProperties/price eq 0";
         const filter = andFilter(base, freeClause);
         const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
+        if (canUseServerSearchPage(query)) {
+            const page = await fetchSearchPageByFilter(titleId, query, filter, orderBy);
+            const enriched = await enrichWithFullItems(titleId, page.items, query);
+            const withRefs = await maybeEnrichItemsWithResolvedReferences(titleId, enriched, query);
+            return {items: withRefs, total: page.total, serverPaginated: true};
+        }
         const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
-        const enriched = await enrichWithFullItems(titleId, list);
-        const withRefs = await enrichItemsWithResolvedReferences(titleId, enriched);
+        const enriched = await enrichWithFullItems(titleId, list, query);
+        const withRefs = await maybeEnrichItemsWithResolvedReferences(titleId, enriched, query);
         return withRefs;
     },
 
@@ -827,6 +895,19 @@ module.exports = {
     async fetchSummary(alias, query = {}) {
         const titleId = resolveTitle(alias);
         const orderBy = resolveOrderBy(query.orderBy, "startDate desc");
+        if (canUseServerSearchPage(query)) {
+            const page = await fetchAllSearchPage(titleId, query, orderBy);
+            return {
+                items: page.items.map(i => ({
+                    id: i.Id,
+                    title: i.Title?.NEUTRAL || i.Title?.neutral || "",
+                    detailsUrl: `https://view-marketplace.net/details/${i.Id}`,
+                    clientUrl: `https://open.view-marketplace.net/StoreOffer/${i.Id}`
+                })),
+                total: page.total,
+                serverPaginated: true
+            };
+        }
         const all = await fetchAllSearchItems(titleId, query, orderBy);
         return all.map(i => ({
             id: i.Id,
@@ -841,8 +922,8 @@ module.exports = {
         const entries = Object.entries(titlesMap).map(async ([alias, {id: titleId}]) => {
             const filter = buildFilter({query: {...query, creatorName}}, creatorsArr);
             let items = await searchLoop(titleId, {filter, orderBy: "creationDate desc", batch: 300});
-            items = await enrichWithFullItems(titleId, items);
-            items = await enrichItemsWithResolvedReferences(titleId, items);
+            items = await enrichWithFullItems(titleId, items, query);
+            items = await maybeEnrichItemsWithResolvedReferences(titleId, items, query);
             return [alias, items];
         });
         return Object.fromEntries(await Promise.all(entries));
@@ -1023,7 +1104,7 @@ module.exports = {
         const filter = `creatorId eq '${esc(cid)}'`;
 
         const allItemsRaw = await searchLoopAllItems(titleId, {filter, orderBy: "creationDate desc", batch: 300});
-        const allItems = await enrichWithFullItems(titleId, allItemsRaw);
+        const allItems = await enrichWithFullItems(titleId, allItemsRaw, opts);
         const totalItems = allItems.length;
 
         const byDateDesc = allItems.slice().sort((a, b) => {
@@ -1295,7 +1376,9 @@ module.exports = {
         startDateRangeQueries,
         sortItemsByOrder,
         uniqueById,
-        parseExpand
+        parseExpand,
+        shouldEnrichFullItems,
+        shouldResolveReferences
     }
 };
 

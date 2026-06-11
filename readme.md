@@ -235,9 +235,10 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 | `MARKETPLACE_SEARCH_SUGGEST_TTL_MS` | `30000` | Cache TTL for suggestions             |
 | `MARKETPLACE_SEARCH_AUDIT_TTL_MS` | `60000` | Cache TTL for search health audits    |
 | `MULTILANG_ALL`                | `true`  | Enrich via `GetItems` for all results |
-| `MULTILANG_ENRICH_BATCH`       | `100`   | `GetItems` batch size                 |
+| `MULTILANG_ENRICH_BATCH`       | `100`   | Requested `GetItems` batch size; PlayFab calls are capped at 50 IDs |
 | `MULTILANG_ENRICH_CONCURRENCY` | `5`     | `GetItems` concurrency                |
 | `STORE_MAX_FOR_PRICE_ENRICH`   | `500`   | Stores consulted per item (prices)    |
+| `STORE_PRICE_TTL_MS`           | `120000` | Computed item store-price cache TTL (ms) |
 
 ### Reviews
 
@@ -843,6 +844,7 @@ es.addEventListener("ping", () => {});
 ## Pagination & Caching (ETag/Cache-Control)
 
 * **Opt-in pagination**: pass `page`/`pageSize` or `skip`/`limit`.
+* **Lightweight list responses**: pass `full=false` (or `enrich=false`) to skip full `GetItems` enrichment, and `refs=false` to skip resolving `ItemReferences` on list endpoints that include them by default.
 * Headers:
 
   * `X-Total-Count`

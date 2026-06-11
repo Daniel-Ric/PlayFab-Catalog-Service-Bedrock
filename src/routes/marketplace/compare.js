@@ -17,12 +17,14 @@ const {check} = require("express-validator");
 const validate = require("../../middleware/validate");
 const ctrl = require("../../controllers/marketplace/compareController");
 const dateQuery = require("./dateQuery");
+const listOptionsQuery = require("./listOptionsQuery");
 
 router.get(
     "/:creatorName",
     [
         check("creatorName")
             .notEmpty().withMessage("creatorName is required."),
+        ...listOptionsQuery,
         ...dateQuery
     ],
     validate,

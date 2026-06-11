@@ -34,11 +34,12 @@ const api = axios.create({
     }, validateStatus: () => true
 });
 
-const mutex = new Mutex();
+const sessionMutexes = new Map();
 const SESSION_SOFT_TTL_MS = 25 * 60 * 1000;
 const UPSTREAM_RESPONSE_CACHE_TTL_MS = Math.max(1000, Number(process.env.UPSTREAM_RESPONSE_CACHE_TTL_MS || 45000));
 const UPSTREAM_CACHEABLE_ENDPOINTS = new Set(["Catalog/Search", "Catalog/SearchItems", "Catalog/GetItems", "Catalog/SearchStores", "Catalog/GetStoreItems"]);
 const ITEM_BY_ID_CACHE_TTL_MS = Math.max(1000, Number(process.env.ITEM_BY_ID_CACHE_TTL_MS || 5 * 60 * 1000));
+const GET_ITEMS_MAX_IDS = 50;
 
 function sleep(ms) {
     return new Promise(r => setTimeout(r, ms));
@@ -83,6 +84,11 @@ async function getSession(titleId, os) {
     const key = `session_${titleId}`;
     const cached = sessionCache.get(key);
     if (cached && (!cached.expiresAt || cached.expiresAt > Date.now())) return cached;
+    let mutex = sessionMutexes.get(key);
+    if (!mutex) {
+        mutex = new Mutex();
+        sessionMutexes.set(key, mutex);
+    }
     return mutex.runExclusive(async () => {
         const again = sessionCache.get(key);
         if (again && (!again.expiresAt || again.expiresAt > Date.now())) return again;
@@ -383,6 +389,8 @@ async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSiz
 async function getItemsByIds(titleId, ids, os, batchSize = 100, concurrency = 5) {
     const list = Array.from(new Set((ids || []).filter(Boolean)));
     if (!list.length) return [];
+    const safeBatchSize = Math.min(GET_ITEMS_MAX_IDS, Math.max(1, parseInt(batchSize, 10) || GET_ITEMS_MAX_IDS));
+    const safeConcurrency = Math.max(1, parseInt(concurrency, 10) || 1);
 
     const byId = new Map();
     const missing = [];
@@ -400,11 +408,11 @@ async function getItemsByIds(titleId, ids, os, batchSize = 100, concurrency = 5)
         return list.map(id => byId.get(id)).filter(Boolean);
     }
 
-    for (let i = 0; i < missing.length; i += batchSize * concurrency) {
-        const window = missing.slice(i, i + batchSize * concurrency);
+    for (let i = 0; i < missing.length; i += safeBatchSize * safeConcurrency) {
+        const window = missing.slice(i, i + safeBatchSize * safeConcurrency);
         const groups = [];
-        for (let j = 0; j < window.length; j += batchSize) {
-            groups.push(window.slice(j, j + batchSize));
+        for (let j = 0; j < window.length; j += safeBatchSize) {
+            groups.push(window.slice(j, j + safeBatchSize));
         }
         const res = await Promise.all(groups.map(async g => {
             const r = await sendPlayFabRequest(titleId, "Catalog/GetItems", {

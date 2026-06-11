@@ -916,6 +916,18 @@
                       "value": "{{dateTo}}",
                       "disabled": true,
                       "description": "Filter items with StartDate <= this ISO date."
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
                     }
                   ]
                 },
@@ -1038,6 +1050,18 @@
                       "value": "{{dateTo}}",
                       "disabled": true,
                       "description": "Filter items with StartDate <= this ISO date."
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
                     }
                   ]
                 },
@@ -1160,6 +1184,18 @@
                       "value": "{{dateTo}}",
                       "disabled": true,
                       "description": "Filter items with StartDate <= this ISO date."
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
                     }
                   ]
                 },
@@ -1280,6 +1316,18 @@
                       "value": "{{dateTo}}",
                       "disabled": true,
                       "description": "Filter items with StartDate <= this ISO date."
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
                     }
                   ]
                 },
@@ -1404,6 +1452,18 @@
                       "value": "{{dateTo}}",
                       "disabled": true,
                       "description": "Filter items with StartDate <= this ISO date."
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
                     }
                   ]
                 },
@@ -1526,6 +1586,24 @@
                       "value": "{{dateTo}}",
                       "disabled": true,
                       "description": "Filter items with StartDate <= this ISO date."
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
+                    },
+                    {
+                      "key": "refs",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip resolving ItemReferences on list endpoints that include them by default."
                     }
                   ]
                 },
@@ -1640,6 +1718,24 @@
                       "value": "{{dateTo}}",
                       "disabled": true,
                       "description": "Filter items with StartDate <= this ISO date."
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
+                    },
+                    {
+                      "key": "refs",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip resolving ItemReferences on list endpoints that include them by default."
                     }
                   ]
                 },
@@ -1752,6 +1848,24 @@
                       "value": "{{dateTo}}",
                       "disabled": true,
                       "description": "Filter items with StartDate <= this ISO date."
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
+                    },
+                    {
+                      "key": "refs",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip resolving ItemReferences on list endpoints that include them by default."
                     }
                   ]
                 },
@@ -1862,6 +1976,24 @@
                       "value": "{{dateTo}}",
                       "disabled": true,
                       "description": "Filter items with StartDate <= this ISO date."
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
+                    },
+                    {
+                      "key": "refs",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip resolving ItemReferences on list endpoints that include them by default."
                     }
                   ]
                 },
@@ -1974,6 +2106,24 @@
                       "value": "{{dateTo}}",
                       "disabled": true,
                       "description": "Filter items with StartDate <= this ISO date."
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
+                    },
+                    {
+                      "key": "refs",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip resolving ItemReferences on list endpoints that include them by default."
                     }
                   ]
                 },
@@ -2084,6 +2234,24 @@
                       "value": "{{dateTo}}",
                       "disabled": true,
                       "description": "Filter items with StartDate <= this ISO date."
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
+                    },
+                    {
+                      "key": "refs",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip resolving ItemReferences on list endpoints that include them by default."
                     }
                   ]
                 },
@@ -2167,6 +2335,24 @@
                       "value": "{{dateTo}}",
                       "disabled": true,
                       "description": "Filter items with StartDate <= this ISO date."
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
+                    },
+                    {
+                      "key": "refs",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip resolving ItemReferences on list endpoints that include them by default."
                     }
                   ]
                 },
@@ -2301,6 +2487,24 @@
                       "key": "contentType",
                       "value": "{{contentType}}",
                       "description": "Exact PlayFab ContentType, for example 3PServerContent_V1.2."
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
+                    },
+                    {
+                      "key": "refs",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip resolving ItemReferences on list endpoints that include them by default."
                     }
                   ]
                 },
@@ -3792,6 +3996,24 @@
                       "value": "{{dateTo}}",
                       "disabled": true,
                       "description": "Filter items with StartDate <= this ISO date."
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
+                    },
+                    {
+                      "key": "refs",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip resolving ItemReferences on list endpoints that include them by default."
                     }
                   ]
                 },
@@ -3997,6 +4219,24 @@
                       "key": "orderBy",
                       "value": "startDate desc",
                       "disabled": true
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
+                    },
+                    {
+                      "key": "refs",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip resolving ItemReferences on list endpoints that include them by default."
                     }
                   ]
                 }
@@ -4066,6 +4306,24 @@
                       "key": "orderBy",
                       "value": "startDate desc",
                       "disabled": true
+                    },
+                    {
+                      "key": "full",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip full GetItems enrichment for faster list responses."
+                    },
+                    {
+                      "key": "enrich",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Alias for full=false."
+                    },
+                    {
+                      "key": "refs",
+                      "value": "false",
+                      "disabled": true,
+                      "description": "Skip resolving ItemReferences on list endpoints that include them by default."
                     }
                   ]
                 }

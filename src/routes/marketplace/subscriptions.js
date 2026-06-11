@@ -17,6 +17,7 @@ const {check} = require("express-validator");
 const validate = require("../../middleware/validate");
 const ctrl = require("../../controllers/marketplace/subscriptionsController");
 const dateQuery = require("./dateQuery");
+const listOptionsQuery = require("./listOptionsQuery");
 
 const queryValidation = [
     check("alias").notEmpty().withMessage("Alias not found."),
@@ -26,6 +27,7 @@ const queryValidation = [
     check("skip").optional().isInt({min: 0}),
     check("limit").optional().isInt({min: 1, max: 1000}),
     check("orderBy").optional().isString().isLength({max: 200}),
+    ...listOptionsQuery,
     ...dateQuery
 ];
 

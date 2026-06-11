@@ -30,6 +30,24 @@
         schema:
           type: string
       - in: query
+        name: full
+        required: false
+        description: Set to false to skip full `GetItems` enrichment for faster list responses.
+        schema:
+          type: boolean
+      - in: query
+        name: enrich
+        required: false
+        description: Alias for `full`.
+        schema:
+          type: boolean
+      - in: query
+        name: refs
+        required: false
+        description: Set to false to skip resolving ItemReferences.
+        schema:
+          type: boolean
+      - in: query
         name: creationDateFrom
         required: false
         schema:

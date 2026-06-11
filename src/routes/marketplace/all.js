@@ -17,6 +17,7 @@ const {check} = require("express-validator");
 const validate = require("../../middleware/validate");
 const ctrl = require("../../controllers/marketplace/allController");
 const dateQuery = require("./dateQuery");
+const listOptionsQuery = require("./listOptionsQuery");
 
 router.get(
     "/:alias",
@@ -27,6 +28,7 @@ router.get(
         check("skip").optional().isInt({min: 0}),
         check("limit").optional().isInt({min: 1, max: 1000}),
         check("expand").optional().isString().isLength({max: 100}),
+        ...listOptionsQuery,
         ...dateQuery
     ],
     validate,

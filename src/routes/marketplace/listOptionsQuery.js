@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------------
 //
-// File: src/routes/marketplace/tag.js
+// File: src/routes/marketplace/listOptionsQuery.js
 // Disclaimer: "PlayFab Catalog Service Bedrock" by SpindexGFX is an independent project.
 // It is not affiliated with, endorsed by, sponsored by, or otherwise connected to Mojang AB,
 // Microsoft Corporation, or any of their subsidiaries or affiliates.
@@ -12,27 +12,20 @@
 //
 // -----------------------------------------------------------------------------
 
-const router = require("express").Router();
 const {check} = require("express-validator");
-const validate = require("../../middleware/validate");
-const ctrl = require("../../controllers/marketplace/tagController");
-const dateQuery = require("./dateQuery");
-const listOptionsQuery = require("./listOptionsQuery");
 
-router.get(
-    "/:alias/:tag",
-    [
-        check("alias").notEmpty().withMessage("Alias not found."),
-        check("tag").notEmpty().withMessage("Tag is required."),
-        check("page").optional().isInt({min: 1}),
-        check("pageSize").optional().isInt({min: 1, max: 100}),
-        check("skip").optional().isInt({min: 0}),
-        check("limit").optional().isInt({min: 1, max: 1000}),
-        ...listOptionsQuery,
-        ...dateQuery
-    ],
-    validate,
-    ctrl.getByTag
-);
+const BOOLEAN_FLAG_VALUES = new Set(["1", "0", "true", "false", "yes", "no", "y", "n", "on", "off"]);
 
-module.exports = router;
+function isBooleanFlag(value) {
+    if (typeof value === "boolean") return true;
+    return BOOLEAN_FLAG_VALUES.has(String(value || "").trim().toLowerCase());
+}
+
+module.exports = [
+    check("full").optional().custom(isBooleanFlag),
+    check("enrich").optional().custom(isBooleanFlag),
+    check("multilang").optional().custom(isBooleanFlag),
+    check("refs").optional().custom(isBooleanFlag),
+    check("references").optional().custom(isBooleanFlag),
+    check("resolveRefs").optional().custom(isBooleanFlag)
+];

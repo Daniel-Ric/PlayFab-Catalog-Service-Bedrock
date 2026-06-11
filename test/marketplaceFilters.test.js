@@ -129,6 +129,16 @@ test("parseExpand only enables references when requested", () => {
     assert.equal(marketplaceServiceInternals.parseExpand("references").refs, true);
 });
 
+test("list enrichment flags can disable full items and references", () => {
+    assert.equal(marketplaceServiceInternals.shouldEnrichFullItems({full: "false"}), false);
+    assert.equal(marketplaceServiceInternals.shouldEnrichFullItems({enrich: "0"}), false);
+    assert.equal(marketplaceServiceInternals.shouldEnrichFullItems({full: "true"}), true);
+    assert.equal(marketplaceServiceInternals.shouldResolveReferences({refs: "false"}), false);
+    assert.equal(marketplaceServiceInternals.shouldResolveReferences({references: "0"}), false);
+    assert.equal(marketplaceServiceInternals.shouldResolveReferences({refs: "true"}), true);
+    assert.equal(marketplaceServiceInternals.shouldResolveReferences({}, false), false);
+});
+
 test("readCatalogTotal returns upstream total count variants", () => {
     assert.equal(marketplaceServiceInternals.readCatalogTotal({TotalCount: 12}), 12);
     assert.equal(marketplaceServiceInternals.readCatalogTotal({total: 4}), 4);

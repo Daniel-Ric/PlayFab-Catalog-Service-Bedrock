@@ -17,6 +17,7 @@ const {check, body, query, param} = require("express-validator");
 const validate = require("../../middleware/validate");
 const ctrl = require("../../controllers/marketplace/searchController");
 const dateQuery = require("./dateQuery");
+const listOptionsQuery = require("./listOptionsQuery");
 
 const searchBodyValidators = [
     body("search").optional().isString().isLength({max: 200}),
@@ -116,6 +117,7 @@ router.get(
         check("limit").optional().isInt({min: 1, max: 1000}),
         check("orderBy").optional().isString().isLength({max: 200}),
         check("contentType").optional().isString().isLength({max: 200}),
+        ...listOptionsQuery,
         ...dateQuery
     ],
     validate,

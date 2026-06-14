@@ -48,6 +48,11 @@ AdvancedSearchRequest:
       type: integer
       minimum: 1
       maximum: 50
+    cursorPages:
+      type: integer
+      minimum: 1
+      maximum: 25
+      description: Cursor mode only. Number of upstream SearchItems cursor pages to aggregate into one response.
     continuationToken:
       type: string
       maxLength: 3000

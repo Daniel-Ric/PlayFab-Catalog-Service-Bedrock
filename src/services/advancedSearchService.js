@@ -667,12 +667,18 @@ exports.advancedSearch = async (alias, body, {page, pageSize}) => {
             meta: {
                 mode: "cursor",
                 count: sorted.length,
-                requestedCount: payload.Count,
-                continuationToken: data?.ContinuationToken || data?.continuationToken || null,
-                hasNext: Boolean(data?.ContinuationToken || data?.continuationToken),
-                language: payload.Language || null,
-                select: payload.Select || "",
-                store: payload.Store || null
+                rawCount: raw.length,
+                requestedCount: latestPayload?.Count || null,
+                requestedCursorPages: normalized.cursorPages,
+                pagesScanned,
+                continuationToken: nextContinuationToken || null,
+                hasNext: Boolean(nextContinuationToken),
+                cursorRepeated,
+                language: latestPayload?.Language || null,
+                requestedSelect: normalized.select || "",
+                select: latestPayload?.Select || "",
+                selectSanitized: Boolean(normalized.select && normalized.select !== (latestPayload?.Select || "")),
+                store: latestPayload?.Store || null
             },
             facets: buildFacets(sorted)
         };

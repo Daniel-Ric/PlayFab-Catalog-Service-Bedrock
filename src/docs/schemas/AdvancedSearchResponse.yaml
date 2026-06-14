@@ -27,7 +27,26 @@ AdvancedSearchResponse:
           type: integer
         pageSize:
           type: integer
+        rawCount:
+          type: integer
+        requestedCount:
+          type: integer
+        requestedCursorPages:
+          type: integer
+        pagesScanned:
+          type: integer
+        continuationToken:
+          type: string
+          nullable: true
         hasNext:
+          type: boolean
+        cursorRepeated:
+          type: boolean
+        requestedSelect:
+          type: string
+        select:
+          type: string
+        selectSanitized:
           type: boolean
         nextPage:
           type: integer

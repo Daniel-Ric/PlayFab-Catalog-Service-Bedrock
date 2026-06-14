@@ -20,6 +20,7 @@ const { _internals: searchInternals } = require("./marketplaceSearchService");
 const PAGE_BATCH = Math.max(100, parseInt(process.env.ADV_SEARCH_BATCH || "300", 10));
 const MAX_BATCHES = Math.max(1, parseInt(process.env.ADV_SEARCH_MAX_BATCHES || "120", 10));
 const SEARCH_CONCURRENCY = Math.max(1, parseInt(process.env.ADV_SEARCH_CONCURRENCY || process.env.FETCH_CONCURRENCY || "5", 10));
+const CURSOR_MAX_PAGES_PER_REQUEST = Math.max(1, Math.min(25, parseInt(process.env.ADV_SEARCH_CURSOR_MAX_PAGES_PER_REQUEST || "10", 10)));
 const OS = process.env.OS || "iOS";
 
 
@@ -114,7 +115,7 @@ function parseDateRange(field, range) {
 function validateRequestBody(body) {
     if (!body || typeof body !== "object" || Array.isArray(body)) return {query: {}, filters: {}, sort: []};
 
-    const allowedTop = new Set(["query", "filters", "sort", "mode", "language", "select", "store", "storeId", "storeAlternateId", "storeAlternateIdType", "count", "continuationToken"]);
+    const allowedTop = new Set(["query", "filters", "sort", "mode", "language", "select", "store", "storeId", "storeAlternateId", "storeAlternateIdType", "count", "cursorPages", "continuationToken"]);
     const unknownTop = Object.keys(body).filter(k => !allowedTop.has(k));
     if (unknownTop.length) {
         const e = new Error("Unsupported advanced search fields.");
@@ -171,10 +172,11 @@ function validateRequestBody(body) {
     const language = typeof body.language === "string" ? body.language.trim().slice(0, 40) : "";
     const select = typeof body.select === "string" ? body.select.trim().slice(0, 500) : "";
     const count = Number.isFinite(Number(body.count)) ? Math.max(1, Math.min(50, Math.floor(Number(body.count)))) : null;
+    const cursorPages = Number.isFinite(Number(body.cursorPages)) ? Math.max(1, Math.min(CURSOR_MAX_PAGES_PER_REQUEST, Math.floor(Number(body.cursorPages)))) : 1;
     const continuationToken = typeof body.continuationToken === "string" ? body.continuationToken.trim().slice(0, 3000) : "";
     const store = searchInternals.normalizeStore(body);
 
-    return {query, filters, sort, mode, language, select, count, continuationToken, store};
+    return {query, filters, sort, mode, language, select, count, cursorPages, continuationToken, store};
 }
 
 
@@ -622,18 +624,41 @@ exports.advancedSearch = async (alias, body, {page, pageSize}) => {
     const {orderBy, localSort} = parseSort(normalized.sort);
 
     if (normalized.mode === "cursor") {
-        const payload = searchInternals.buildSearchItemsPayload({
-            search: q,
-            filter,
-            orderBy,
-            language: normalized.language,
-            select: normalized.select,
-            count: normalized.count || pageSize,
-            continuationToken: normalized.continuationToken,
-            store: normalized.store
-        });
-        const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, OS);
-        const raw = data?.Items || data?.items || [];
+        const raw = [];
+        const seenContinuationTokens = new Set();
+        let continuationToken = normalized.continuationToken;
+        let nextContinuationToken = "";
+        let pagesScanned = 0;
+        let latestPayload = null;
+        let cursorRepeated = false;
+
+        while (pagesScanned < normalized.cursorPages) {
+            const payload = searchInternals.buildSearchItemsPayload({
+                search: q,
+                filter,
+                orderBy,
+                language: normalized.language,
+                select: normalized.select,
+                count: normalized.count || pageSize,
+                continuationToken,
+                store: normalized.store
+            });
+            latestPayload = payload;
+            const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, OS);
+            raw.push(...(data?.Items || data?.items || []));
+            pagesScanned += 1;
+
+            nextContinuationToken = data?.ContinuationToken || data?.continuationToken || "";
+            if (!nextContinuationToken) break;
+            if (nextContinuationToken === continuationToken || seenContinuationTokens.has(nextContinuationToken)) {
+                cursorRepeated = true;
+                nextContinuationToken = "";
+                break;
+            }
+            seenContinuationTokens.add(nextContinuationToken);
+            continuationToken = nextContinuationToken;
+        }
+
         const transformed = raw.map(transformItem);
         const filtered = applyApiLayerFilters(transformed, normalized.filters);
         const sorted = applyLocalSort(filtered, localSort);

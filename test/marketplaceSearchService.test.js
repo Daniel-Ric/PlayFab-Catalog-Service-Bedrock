@@ -105,12 +105,14 @@ test("advanced search request accepts cursor top-level fields", () => {
         select: "title,images",
         storeId: "store-1",
         count: 24,
+        cursorPages: 8,
         continuationToken: "next"
     });
 
     assert.equal(result.mode, "cursor");
     assert.equal(result.language, "de-DE");
     assert.equal(result.count, 24);
+    assert.equal(result.cursorPages, 8);
     assert.deepEqual(result.store, {Id: "store-1"});
 });
 

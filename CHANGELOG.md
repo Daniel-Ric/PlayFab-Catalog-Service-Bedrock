@@ -1,5 +1,24 @@
 # Changelog
 
+## 10.2.3 (2026-06-14)
+
+### Summary
+
+- Change type: Documentation
+- Main change: PlayFab - Expand AdvancedSearchResponse schema and meta with new fields (8ed6e33)
+- Impact: Documentation with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- OpenAPI documentation: 1 file: src/docs/schemas/AdvancedSearchResponse.yaml
+- Service layer: 1 file: src/services/advancedSearchService.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +31 / -6
 ## 10.1.0 (2026-06-11)
 
 ### Summary
@@ -1695,6 +1714,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

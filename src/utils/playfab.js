@@ -40,6 +40,7 @@ const UPSTREAM_RESPONSE_CACHE_TTL_MS = Math.max(1000, Number(process.env.UPSTREA
 const UPSTREAM_CACHEABLE_ENDPOINTS = new Set(["Catalog/Search", "Catalog/SearchItems", "Catalog/GetItems", "Catalog/SearchStores", "Catalog/GetStoreItems"]);
 const ITEM_BY_ID_CACHE_TTL_MS = Math.max(1000, Number(process.env.ITEM_BY_ID_CACHE_TTL_MS || 5 * 60 * 1000));
 const GET_ITEMS_MAX_IDS = 50;
+const CATALOG_SEARCH_MAX_SKIP = 10000;
 
 function sleep(ms) {
     return new Promise(r => setTimeout(r, ms));
@@ -312,6 +313,7 @@ async function fetchCatalogSearchItems(titleId, {
     const safeBatchSize = Math.max(1, batchSize);
     const safeMaxBatches = Math.max(1, maxBatches);
     const safeConcurrency = Math.max(1, concurrency);
+    const safeSkipBatches = Math.max(1, Math.floor(CATALOG_SEARCH_MAX_SKIP / safeBatchSize) + 1);
     const batches = new Map();
 
     const first = await fetchCatalogSearchBatch(titleId, {
@@ -329,8 +331,8 @@ async function fetchCatalogSearchItems(titleId, {
     }
 
     const totalBatches = first.total === null
-        ? safeMaxBatches
-        : Math.min(safeMaxBatches, Math.ceil(first.total / safeBatchSize));
+        ? Math.min(safeMaxBatches, safeSkipBatches)
+        : Math.min(safeMaxBatches, safeSkipBatches, Math.ceil(first.total / safeBatchSize));
 
     if (totalBatches <= 1) {
         return first.items;

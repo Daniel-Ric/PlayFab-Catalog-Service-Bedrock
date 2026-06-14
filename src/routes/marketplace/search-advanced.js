@@ -31,6 +31,7 @@ router.post(
         body("storeAlternateId").optional().custom(v => typeof v === "string" || (v && typeof v === "object" && !Array.isArray(v))),
         body("storeAlternateIdType").optional().isString().isLength({max: 80}),
         body("count").optional().isInt({min: 1, max: 50}),
+        body("cursorPages").optional().isInt({min: 1, max: 25}),
         body("continuationToken").optional().isString().isLength({max: 3000}),
         body("query").optional().isObject(),
         body("query.text").optional().isString().isLength({max: 200}),

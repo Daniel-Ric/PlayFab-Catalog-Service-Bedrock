@@ -42,6 +42,22 @@ test("buildSearchItemsPayload maps SearchItems cursor fields", () => {
     });
 });
 
+test("buildSearchItemsPayload drops unsupported SearchItems select fields", () => {
+    const payload = _internals.buildSearchItemsPayload({
+        select: "id,Title,images,priceOptions,displayProperties,rating,alternateIds,StartDate,contentType,tags"
+    });
+
+    assert.equal(payload.Select, "title,images,startDate");
+});
+
+test("sanitizeSearchItemsSelect omits Select when no supported fields remain", () => {
+    const payload = _internals.buildSearchItemsPayload({
+        select: "id,priceOptions,displayProperties,rating,alternateIds,contentType,tags"
+    });
+
+    assert.equal(Object.hasOwn(payload, "Select"), false);
+});
+
 test("normalizeStore supports alternate ids", () => {
     const store = _internals.normalizeStore({
         storeAlternateId: {type: "FriendlyId", value: "sale-store"}

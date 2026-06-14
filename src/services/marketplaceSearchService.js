@@ -25,6 +25,14 @@ const MAX_AUDIT_PAGES = 10;
 const DEFAULT_SEARCH_SELECT = "";
 const AUDIT_SELECT = "contents,images,title,description,keywords";
 const LOCALIZED_SELECT = "title,description,keywords,images";
+const SEARCH_ITEMS_SELECT_FIELDS = new Map([
+    ["contents", "contents"],
+    ["description", "description"],
+    ["images", "images"],
+    ["keywords", "keywords"],
+    ["startdate", "startDate"],
+    ["title", "title"]
+]);
 
 function err(status, message) {
     const e = new Error(message);
@@ -42,6 +50,22 @@ function clampInt(value, fallback, min, max) {
 function trimString(value, max = 1000) {
     if (typeof value !== "string") return "";
     return value.trim().slice(0, max);
+}
+
+function sanitizeSearchItemsSelect(select) {
+    const raw = trimString(select, 500);
+    if (!raw) return "";
+
+    const seen = new Set();
+    const safeFields = [];
+    for (const entry of raw.split(",")) {
+        const field = entry.trim();
+        const safeField = SEARCH_ITEMS_SELECT_FIELDS.get(field.toLowerCase());
+        if (!safeField || seen.has(safeField)) continue;
+        seen.add(safeField);
+        safeFields.push(safeField);
+    }
+    return safeFields.join(",");
 }
 
 function normalizeArray(value, max = 100) {
@@ -225,7 +249,7 @@ function buildSearchItemsPayload(input = {}, defaults = {}) {
     const search = trimString(input.Search || input.search || query.text || defaults.search || "", 200);
     const filter = trimString(input.Filter || input.filter || defaults.filter || "", 2000);
     const orderBy = trimString(input.OrderBy || input.orderBy || defaults.orderBy || "", 500);
-    const select = trimString(input.Select || input.select || defaults.select || DEFAULT_SEARCH_SELECT, 500);
+    const select = sanitizeSearchItemsSelect(input.Select || input.select || defaults.select || DEFAULT_SEARCH_SELECT);
     const language = trimString(input.Language || input.language || defaults.language || "", 40);
     const continuationToken = trimString(input.ContinuationToken || input.continuationToken || defaults.continuationToken || "", 3000);
     const count = clampInt(input.Count ?? input.count ?? defaults.count, defaults.count || 24, 1, MAX_SEARCH_COUNT);
@@ -522,6 +546,7 @@ module.exports = {
     audit,
     _internals: {
         buildSearchItemsPayload,
+        sanitizeSearchItemsSelect,
         normalizeStore,
         normalizeSearchItem,
         normalizeAlternateId,

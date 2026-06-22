@@ -1,0 +1,195 @@
+# -----------------------------------------------------------------------------
+#
+# File: src/docs/paths/version.yaml
+# Disclaimer: "PlayFab Catalog Service Bedrock" by SpindexGFX is an independent project.
+# It is not affiliated with, endorsed by, sponsored by, or otherwise connected to Mojang AB,
+# Microsoft Corporation, or any of their subsidiaries or affiliates.
+# No partnership, approval, or official relationship with Mojang AB or Microsoft is implied.
+#
+# All names, logos, brands, trademarks, service marks, and registered trademarks are the
+# property of their respective owners and are used strictly for identification/reference only.
+# This project does not claim ownership of third-party IP and provides no license to use it.
+#
+# -----------------------------------------------------------------------------
+/version:
+  get:
+    tags:
+      - Health
+    summary: Service version and GitHub update status
+    description: Compares the local package version with the latest GitHub release or tag for the configured repository.
+    security:
+      - BearerAuth: [ ]
+    parameters:
+      - in: query
+        name: refresh
+        required: false
+        description: Bypass the local update-check cache and revalidate against GitHub.
+        schema:
+          type: boolean
+          default: false
+      - in: query
+        name: includePrerelease
+        required: false
+        description: Include prerelease GitHub releases when source is auto or release.
+        schema:
+          type: boolean
+          default: false
+      - in: query
+        name: source
+        required: false
+        description: Remote version source. Auto uses the latest release and falls back to tags when no release exists.
+        schema:
+          type: string
+          enum:
+            - auto
+            - release
+            - tag
+          default: auto
+    responses:
+      "200":
+        description: Version and update status
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                versionCheckerVersion:
+                  type: string
+                ok:
+                  type: boolean
+                timestamp:
+                  type: integer
+                  format: int64
+                local:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                      nullable: true
+                    version:
+                      type: string
+                    versionSource:
+                      type: string
+                      enum:
+                        - git_tag
+                        - package
+                    packageVersion:
+                      type: string
+                    normalizedVersion:
+                      type: string
+                      nullable: true
+                    repository:
+                      type: object
+                    git:
+                      type: object
+                repository:
+                  type: object
+                remote:
+                  type: object
+                  properties:
+                    ok:
+                      type: boolean
+                    status:
+                      type: string
+                      enum:
+                        - ok
+                        - not_modified
+                        - stale
+                        - disabled
+                        - error
+                    source:
+                      type: string
+                    latest:
+                      type: object
+                      nullable: true
+                      properties:
+                        version:
+                          type: string
+                          nullable: true
+                        tagName:
+                          type: string
+                          nullable: true
+                        name:
+                          type: string
+                          nullable: true
+                        url:
+                          type: string
+                          nullable: true
+                        targetCommitish:
+                          type: string
+                          nullable: true
+                        commit:
+                          type: object
+                          nullable: true
+                          properties:
+                            sha:
+                              type: string
+                            shortSha:
+                              type: string
+                              nullable: true
+                            type:
+                              type: string
+                              nullable: true
+                            url:
+                              type: string
+                              nullable: true
+                    cache:
+                      type: object
+                update:
+                  type: object
+                  properties:
+                    available:
+                      type: boolean
+                      nullable: true
+                    status:
+                      type: string
+                      enum:
+                        - current
+                        - outdated
+                        - ahead
+                        - unknown
+                        - disabled
+                    current:
+                      type: string
+                      nullable: true
+                    latest:
+                      type: string
+                      nullable: true
+                    compare:
+                      type: integer
+                      nullable: true
+                    reason:
+                      type: string
+                      nullable: true
+              required:
+                - versionCheckerVersion
+                - ok
+                - timestamp
+                - local
+                - repository
+                - remote
+                - update
+      "400":
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "500":
+        description: Server error
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"

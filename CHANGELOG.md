@@ -1,5 +1,23 @@
 # Changelog
 
+## 11.2.2 (2026-06-22)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Add repository details to package.json (c99eadc)
+- Impact: Repository update with a small change footprint across project dependencies.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Dependencies: 1 file: package.json
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +4 / -0
 ## 11.1.2 (2026-06-22)
 
 ### Summary
@@ -1769,6 +1787,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

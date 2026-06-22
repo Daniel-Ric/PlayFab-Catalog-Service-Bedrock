@@ -130,6 +130,26 @@ NODE_ENV=production LOG_LEVEL=info node src/index.js
 | `HTTP_MAX_SOCKETS`    | `512`        | Keep-alive sockets (HTTP)                 |
 | `HTTPS_MAX_SOCKETS`   | `512`        | Keep-alive sockets (HTTPS)                |
 
+### GitHub Version Updates
+
+| Variable                    | Default                                      | Description |
+| --------------------------- | -------------------------------------------- | ----------- |
+| `UPDATE_CHECK_ENABLED`      | `true`                                       | Enable GitHub-backed version checks for `GET /version` |
+| `UPDATE_CHECK_REPOSITORY`   | Git remote/package repository                | GitHub repository in `owner/name` or GitHub URL format |
+| `UPDATE_CHECK_TTL_MS`       | `900000`                                    | Cache TTL for GitHub version metadata |
+| `UPDATE_CHECK_TIMEOUT_MS`   | `5000`                                      | GitHub API request timeout |
+| `UPDATE_CHECK_STARTUP_LOG`  | `true`                                      | Log the public GitHub update status after server startup |
+
+When `UPDATE_CHECK_STARTUP_LOG=true`, the listener is opened first and the banner is printed with a version block above the attribution line. The checker uses the public GitHub API without a token. Local SemVer Git tags at the current commit are preferred over `package.json`; if no local tag is available, a matching local commit and latest GitHub release/tag commit still counts as current.
+
+```text
+VERSION CHECK Update available
+   Version  Current 1.0.0 (package.json) -> Latest 1.1.0 (GitHub release, ok, 900s cache)
+    Commit  Local b2b951b3bdbe on main -> Remote 2f1c4d8a91bd latest ref
+      Repo  Daniel-Ric/PlayFab-Catalog-Service-Bedrock
+   Release  https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/releases/tag/v1.1.0
+```
+
 ### Optional Catalog Bridge
 
 The Catalog Bridge is disabled by default and adds no routes, handshakes, CORS rules, CSRF checks, or rate limiters unless `CATALOG_BRIDGE_ENABLED=true`.
@@ -272,6 +292,8 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 | `RATE_LIMIT_ADMIN_MAX`             | `60`     | Max `/admin` requests per window       |
 | `RATE_LIMIT_HEALTH_WINDOW_MS`      | `10000`  | Window for health endpoints            |
 | `RATE_LIMIT_HEALTH_MAX`            | `120`    | Max health checks per window           |
+| `RATE_LIMIT_VERSION_WINDOW_MS`     | `300000` | Window for `/version` checks           |
+| `RATE_LIMIT_VERSION_MAX`           | `200`    | Max `/version` requests per window     |
 
 ---
 
@@ -403,6 +425,8 @@ Response:
 | Method | Path            | Description               | Auth |
 | ------ | --------------- | ------------------------- | ---- |
 | GET    | `/`             | Service banner/health     | ✅    |
+| GET    | `/health`       | Runtime health report     | ✅    |
+| GET    | `/version`      | GitHub update status      | ✅    |
 | GET    | `/openapi.json` | OpenAPI spec              | ❌    |
 | GET    | `/docs`         | Swagger UI (when enabled) | ❌    |
 
@@ -459,6 +483,48 @@ Response:
 ### Routes — Detailed Reference
 
 Below, `TOKEN` refers to the JWT from `/login`.
+
+#### `GET /version`
+
+Returns the detected local version, local Git metadata, configured GitHub repository, latest release or tag metadata, and whether an update is available. Local SemVer Git tags are preferred over `package.json`; when the deployed commit matches the latest GitHub release/tag commit, the response reports the service as current even if `package.json` still contains an older fallback version.
+
+```bash
+curl -s "http://localhost:3000/version" -H "Authorization: Bearer $TOKEN"
+```
+
+Optional query parameters:
+
+* `refresh=true`: bypass the local update-check cache and revalidate against GitHub.
+* `includePrerelease=true`: include GitHub prereleases when checking releases.
+* `source=auto|release|tag`: choose the remote source. `auto` checks the latest release and falls back to tags when no release exists.
+
+Example response:
+
+```json
+{
+  "versionCheckerVersion": "v1",
+  "local": {
+    "name": "playfab-bedrock-catalog",
+    "version": "1.0.0",
+    "git": { "branch": "main", "shortCommit": "abc123def456" }
+  },
+  "repository": {
+    "fullName": "Daniel-Ric/PlayFab-Catalog-Service-Bedrock",
+    "htmlUrl": "https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock"
+  },
+  "remote": {
+    "status": "ok",
+    "source": "release",
+    "latest": { "version": "1.1.0", "tagName": "v1.1.0" }
+  },
+  "update": {
+    "available": true,
+    "status": "outdated",
+    "current": "1.0.0",
+    "latest": "1.1.0"
+  }
+}
+```
 
 #### `GET /titles`
 
@@ -1095,6 +1161,12 @@ VALIDATE_REQUESTS=false
 VALIDATE_RESPONSES=false
 ENABLE_DOCS=false
 
+UPDATE_CHECK_ENABLED=true
+UPDATE_CHECK_REPOSITORY=Daniel-Ric/PlayFab-Catalog-Service-Bedrock
+UPDATE_CHECK_TTL_MS=900000
+UPDATE_CHECK_TIMEOUT_MS=5000
+UPDATE_CHECK_STARTUP_LOG=true
+
 PAGE_SIZE=100
 REVIEWS_ENABLED=true
 REVIEWS_FETCH_COUNT=20
@@ -1156,6 +1228,9 @@ RATE_LIMIT_ADMIN_MAX=60
 
 RATE_LIMIT_HEALTH_WINDOW_MS=10000
 RATE_LIMIT_HEALTH_MAX=120
+
+RATE_LIMIT_VERSION_WINDOW_MS=300000
+RATE_LIMIT_VERSION_MAX=200
 ```
 
 ---

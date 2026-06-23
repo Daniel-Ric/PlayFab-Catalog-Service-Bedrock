@@ -1,5 +1,78 @@
 # Changelog
 
+## 11.2.7 (2026-06-23)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Bump body-parser from 2.2.2 to 2.3.0 (246f2ab)
+- Impact: Repository update with a small change footprint across project dependencies.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Dependencies: 2 files: package-lock.json, package.json
+
+### Notable Changes
+
+- Bumps [body-parser](https://github.com/expressjs/body-parser) from 2.2.2 to 2.3.0.
+- [Release notes](https://github.com/expressjs/body-parser/releases)
+- [Changelog](https://github.com/expressjs/body-parser/blob/master/HISTORY.md)
+- [Commits](https://github.com/expressjs/body-parser/compare/v2.2.2...v2.3.0)
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +46 / -16
+
+## 12.0.0 (2026-06-23)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: Merge branch 'main' into dependabot/npm_and_yarn/body-parser-2.3.0 (aeb717a)
+- Impact: Test coverage with a large change footprint across repository files, project dependencies, application logic.
+- Bump reason: large change footprint (14 files, 1842 total line changes)
+
+### Changed Areas
+
+- API controllers: 2 files: src/controllers/healthController.js, src/controllers/versionController.js
+- API routes: 1 file: src/routes/version.js
+- Application source: 2 files: src/index.js, src/scripts/setup.js
+- Changelog: 1 file: CHANGELOG.md
+- Dependencies: 2 files: package-lock.json, package.json
+- OpenAPI documentation: 1 file: src/docs/paths/version.yaml
+- Other areas: 5 additional groups.
+
+### Release Metrics
+
+- Version bump: major
+- Files changed: 14
+- Line changes: +1821 / -21
+
+## 12.0.1 (2026-06-23)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Merge (4778380)
+- Impact: Repository update with a small change footprint across project dependencies.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Dependencies: 2 files: package-lock.json, package.json
+
+### Notable Changes
+
+- Bump body-parser from 2.2.2 to 2.3.0
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +48 / -18
 ## 11.2.5 (2026-06-23)
 
 ### Summary
@@ -1835,6 +1908,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

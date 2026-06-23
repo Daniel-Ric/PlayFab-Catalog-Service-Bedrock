@@ -92,6 +92,77 @@
           "response": []
         },
         {
+          "name": "GET /version",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                  "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                  "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                  "let body;",
+                  "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                  "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                  "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                  "pm.test(\"Version checker payload is present\", () => {",
+                  "  pm.expect(body).to.have.property(\"versionCheckerVersion\");",
+                  "  pm.expect(body).to.have.property(\"local\");",
+                  "  pm.expect(body).to.have.property(\"repository\");",
+                  "  pm.expect(body).to.have.property(\"remote\");",
+                  "  pm.expect(body).to.have.property(\"update\");",
+                  "});",
+                  "pm.test(\"Update status is known\", () => {",
+                  "  pm.expect(body.update).to.have.property(\"status\");",
+                  "  pm.expect([\"current\", \"outdated\", \"ahead\", \"unknown\", \"disabled\"]).to.include(body.update.status);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/version",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "version"
+              ],
+              "query": [
+                {
+                  "key": "refresh",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "Bypass the local update-check cache and revalidate against GitHub."
+                },
+                {
+                  "key": "includePrerelease",
+                  "value": "true",
+                  "disabled": true,
+                  "description": "Include GitHub prereleases when checking releases."
+                },
+                {
+                  "key": "source",
+                  "value": "auto",
+                  "disabled": true,
+                  "description": "Remote source: auto, release, or tag."
+                }
+              ]
+            },
+            "description": "Return local package/Git metadata and compare it with the latest GitHub release or tag."
+          },
+          "response": []
+        },
+        {
           "name": "GET /openapi.json",
           "event": [
             {

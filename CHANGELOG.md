@@ -1,5 +1,78 @@
 # Changelog
 
+## 11.2.2 (2026-06-22)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Add repository details to package.json (c99eadc)
+- Impact: Repository update with a small change footprint across project dependencies.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Dependencies: 1 file: package.json
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +4 / -0
+## 11.1.2 (2026-06-22)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Add GitHub version update step to setup (e74d899)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Application source: 1 file: src/scripts/setup.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +80 / -6
+## 11.0.3 (2026-06-22)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Add update check config and rate limits (8f1be96)
+- Impact: Repository update with a small change footprint across repository files, application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/healthController.js
+- Repository files: 1 file: .env
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +20 / -1
+## 11.0.0 (2026-06-22)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Add version update service implementation (35a5a18)
+- Impact: Repository update with a large change footprint across application logic.
+- Bump reason: large change footprint (1 files, 890 total line changes)
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/versionUpdateService.js
+
+### Release Metrics
+
+- Version bump: major
+- Files changed: 1
+- Line changes: +890 / -0
 ## 10.2.3 (2026-06-14)
 
 ### Summary
@@ -1714,6 +1787,10 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
+
+
+
 
 
 

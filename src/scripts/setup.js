@@ -64,6 +64,21 @@ function loadEnvFile(envPath) {
 
 function writeEnvFile(envPath, cfg) {
     const lines = [`PORT=${cfg.PORT}`, `NODE_ENV=${cfg.NODE_ENV}`, `DEFAULT_ALIAS=${cfg.DEFAULT_ALIAS}`, `FEATURED_PRIMARY_ALIAS=${cfg.FEATURED_PRIMARY_ALIAS}`, `TITLE_ID=${cfg.TITLE_ID}`, `OS=${cfg.OS}`, `TRUST_PROXY=${cfg.TRUST_PROXY}`, `LOG_LEVEL=${cfg.LOG_LEVEL}`, `JWT_SECRET=${cfg.JWT_SECRET}`, `ADMIN_USER=${cfg.ADMIN_USER}`, `ADMIN_PASS=${cfg.ADMIN_PASS}`, `CORS_ORIGINS=${cfg.CORS_ORIGINS}`, `HTTP_MAX_SOCKETS=${cfg.HTTP_MAX_SOCKETS}`, `HTTPS_MAX_SOCKETS=${cfg.HTTPS_MAX_SOCKETS}`, `UPSTREAM_TIMEOUT_MS=${cfg.UPSTREAM_TIMEOUT_MS}`, `RETRY_BUDGET=${cfg.RETRY_BUDGET}`, `SESSION_TTL_MS=${cfg.SESSION_TTL_MS}`, `SESSION_CACHE_MAX=${cfg.SESSION_CACHE_MAX}`, `DATA_CACHE_MAX=${cfg.DATA_CACHE_MAX}`, `DATA_TTL_MS=${cfg.DATA_TTL_MS}`, `MULTILANG_ALL=${cfg.MULTILANG_ALL}`, `MULTILANG_ENRICH_BATCH=${cfg.MULTILANG_ENRICH_BATCH}`, `MULTILANG_ENRICH_CONCURRENCY=${cfg.MULTILANG_ENRICH_CONCURRENCY}`, `STORE_CONCURRENCY=${cfg.STORE_CONCURRENCY}`, `STORE_MAX_FOR_PRICE_ENRICH=${cfg.STORE_MAX_FOR_PRICE_ENRICH}`, `VALIDATE_REQUESTS=${cfg.VALIDATE_REQUESTS}`, `VALIDATE_RESPONSES=${cfg.VALIDATE_RESPONSES}`, `ENABLE_DOCS=${cfg.ENABLE_DOCS}`, `PAGE_SIZE=${cfg.PAGE_SIZE}`, `REVIEWS_ENABLED=${cfg.REVIEWS_ENABLED}`, `REVIEWS_FETCH_COUNT=${cfg.REVIEWS_FETCH_COUNT}`, `ENABLE_SALES_WATCHER=${cfg.ENABLE_SALES_WATCHER}`, `SALES_WATCH_INTERVAL_MS=${cfg.SALES_WATCH_INTERVAL_MS}`, `ENABLE_ITEM_WATCHER=${cfg.ENABLE_ITEM_WATCHER}`, `ITEM_WATCH_INTERVAL_MS=${cfg.ITEM_WATCH_INTERVAL_MS}`, `ITEM_WATCH_CREATED_LOOKBACK_MS=${cfg.ITEM_WATCH_CREATED_LOOKBACK_MS}`, `ITEM_WATCH_TOP=${cfg.ITEM_WATCH_TOP}`, `ITEM_WATCH_PAGES=${cfg.ITEM_WATCH_PAGES}`, `ENABLE_PRICE_WATCHER=${cfg.ENABLE_PRICE_WATCHER}`, `PRICE_WATCH_INTERVAL_MS=${cfg.PRICE_WATCH_INTERVAL_MS}`, `PRICE_WATCH_MAX_STORES=${cfg.PRICE_WATCH_MAX_STORES}`, `ENABLE_TRENDING_WATCHER=${cfg.ENABLE_TRENDING_WATCHER}`, `TRENDING_INTERVAL_MS=${cfg.TRENDING_INTERVAL_MS}`, `TRENDING_WINDOW_HOURS=${cfg.TRENDING_WINDOW_HOURS}`, `TRENDING_PAGE_TOP=${cfg.TRENDING_PAGE_TOP}`, `TRENDING_PAGES=${cfg.TRENDING_PAGES}`, `TRENDING_TOP_N=${cfg.TRENDING_TOP_N}`, `ENABLE_CREATOR_PARTNER_WATCHER=${cfg.ENABLE_CREATOR_PARTNER_WATCHER}`, `CREATOR_PARTNER_WATCH_INTERVAL_MS=${cfg.CREATOR_PARTNER_WATCH_INTERVAL_MS}`, `CREATORNAME_MODE=${cfg.CREATORNAME_MODE}`, `ENABLE_FEATURED_CONTENT_WATCHER=${cfg.ENABLE_FEATURED_CONTENT_WATCHER}`, `FEATURED_CONTENT_WATCH_INTERVAL_MS=${cfg.FEATURED_CONTENT_WATCH_INTERVAL_MS}`, `ADV_SEARCH_TTL_MS=${cfg.ADV_SEARCH_TTL_MS}`, `ADV_SEARCH_BATCH=${cfg.ADV_SEARCH_BATCH}`, `ADV_SEARCH_MAX_BATCHES=${cfg.ADV_SEARCH_MAX_BATCHES}`, `ADV_SEARCH_CONCURRENCY=${cfg.ADV_SEARCH_CONCURRENCY}`, `MAX_SEARCH_BATCHES=${cfg.MAX_SEARCH_BATCHES}`, `MAX_FETCH_BATCHES=${cfg.MAX_FETCH_BATCHES}`, `FETCH_CONCURRENCY=${cfg.FETCH_CONCURRENCY}`, `PLAYFAB_CONCURRENCY=${cfg.PLAYFAB_CONCURRENCY}`, `PLAYFAB_BATCH=${cfg.PLAYFAB_BATCH}`];
+    const enableDocsIndex = lines.indexOf(`ENABLE_DOCS=${cfg.ENABLE_DOCS}`);
+    const updateCheckLines = [
+        `UPDATE_CHECK_ENABLED=${cfg.UPDATE_CHECK_ENABLED}`,
+        `UPDATE_CHECK_REPOSITORY=${cfg.UPDATE_CHECK_REPOSITORY}`,
+        `UPDATE_CHECK_TTL_MS=${cfg.UPDATE_CHECK_TTL_MS}`,
+        `UPDATE_CHECK_TIMEOUT_MS=${cfg.UPDATE_CHECK_TIMEOUT_MS}`,
+        `UPDATE_CHECK_STARTUP_LOG=${cfg.UPDATE_CHECK_STARTUP_LOG}`
+    ];
+    if (enableDocsIndex >= 0) {
+        lines.splice(enableDocsIndex + 1, 0, ...updateCheckLines);
+    } else {
+        lines.push(...updateCheckLines);
+    }
+    lines.push(`RATE_LIMIT_VERSION_WINDOW_MS=${cfg.RATE_LIMIT_VERSION_WINDOW_MS}`);
+    lines.push(`RATE_LIMIT_VERSION_MAX=${cfg.RATE_LIMIT_VERSION_MAX}`);
     fs.writeFileSync(envPath, lines.join("\n") + "\n", "utf8");
 }
 
@@ -156,7 +171,7 @@ function screenLines(linesArr) {
 
 async function pageSecurity(baseCfg) {
     console.clear();
-    frameBox(BRAND_NAME + " Setup", ["Interactive setup wizard", "by " + BRAND_BY, "", "Step 1/4: Security / Access", "Configure admin credentials for protected routes."]);
+    frameBox(BRAND_NAME + " Setup", ["Interactive setup wizard", "by " + BRAND_BY, "", "Step 1/5: Security / Access", "Configure admin credentials for protected routes."]);
     console.log("");
 
     screenHeader("Security / Access", "These credentials are required for protected admin endpoints like /marketplace/* and /health.");
@@ -187,7 +202,7 @@ async function pageSecurity(baseCfg) {
 
 async function pageRuntime(baseCfg) {
     console.clear();
-    frameBox(BRAND_NAME + " Setup", ["Step 2/4: Runtime / Network", "Control how and where the API listens and how it logs."]);
+    frameBox(BRAND_NAME + " Setup", ["Step 2/5: Runtime / Network", "Control how and where the API listens and how it logs."]);
     console.log("");
 
     screenHeader("Runtime / Network", "Port, production/dev mode, reverse proxy trust, log level and CORS.");
@@ -239,7 +254,7 @@ async function pageRuntime(baseCfg) {
 
 async function pageValidation(baseCfg) {
     console.clear();
-    frameBox(BRAND_NAME + " Setup", ["Step 3/4: Validation / Docs", "Enable Swagger UI and OpenAPI validation."]);
+    frameBox(BRAND_NAME + " Setup", ["Step 3/5: Validation / Docs", "Enable Swagger UI and OpenAPI validation."]);
     console.log("");
 
     screenHeader("Validation / Docs", "Strict validation can block bad requests and catch server bugs. Swagger UI helps developers explore the API.");
@@ -277,9 +292,60 @@ async function pageValidation(baseCfg) {
     return qDocs;
 }
 
+async function pageVersionUpdates(baseCfg) {
+    console.clear();
+    frameBox(BRAND_NAME + " Setup", ["Step 4/5: GitHub Version Updates", "Compare this API version with the GitHub repository."]);
+    console.log("");
+
+    screenHeader("GitHub Version Updates", "The /version endpoint checks GitHub releases or tags and reports whether an update is available.");
+
+    screenLines(["The default check uses the public GitHub API and does not require a token."]);
+
+    const qVersion = await prompts([{
+        type: "toggle",
+        name: "UPDATE_CHECK_ENABLED",
+        message: BRAND_TEXT("Enable GitHub-backed version checks at /version?"),
+        initial: (baseCfg.UPDATE_CHECK_ENABLED || "true") !== "false",
+        active: "yes",
+        inactive: "no"
+    }, {
+        type: "toggle",
+        name: "UPDATE_CHECK_STARTUP_LOG",
+        message: BRAND_TEXT("Log version update status when the API starts?"),
+        initial: (baseCfg.UPDATE_CHECK_STARTUP_LOG || "true") !== "false",
+        active: "yes",
+        inactive: "no"
+    }, {
+        type: "text",
+        name: "UPDATE_CHECK_REPOSITORY",
+        message: BRAND_TEXT("GitHub repository (owner/name or URL)"),
+        initial: baseCfg.UPDATE_CHECK_REPOSITORY || "Daniel-Ric/PlayFab-Catalog-Service-Bedrock",
+        validate: v => (v && v.trim().length > 0 ? true : "Required")
+    }, {
+        type: "text",
+        name: "UPDATE_CHECK_TTL_MS",
+        message: BRAND_TEXT("GitHub metadata cache TTL in milliseconds"),
+        initial: baseCfg.UPDATE_CHECK_TTL_MS || "900000",
+        validate: v => (/^\d+$/.test(v) ? true : "Must be a number")
+    }, {
+        type: "text",
+        name: "UPDATE_CHECK_TIMEOUT_MS",
+        message: BRAND_TEXT("GitHub request timeout in milliseconds"),
+        initial: baseCfg.UPDATE_CHECK_TIMEOUT_MS || "5000",
+        validate: v => (/^\d+$/.test(v) ? true : "Must be a number")
+    }], {
+        onCancel() {
+            console.log(BRAND_ERROR("Setup aborted."));
+            process.exit(1);
+        }
+    });
+
+    return qVersion;
+}
+
 async function pageWatchers(baseCfg) {
     console.clear();
-    frameBox(BRAND_NAME + " Setup", ["Step 4/4: Background Watchers", "Automated discovery of sales, new items, price changes and trending content."]);
+    frameBox(BRAND_NAME + " Setup", ["Step 5/5: Background Watchers", "Automated discovery of sales, new items, price changes and trending content."]);
     console.log("");
 
     screenHeader("Background Watchers", "These background tasks continuously poll PlayFab and generate market intel.");
@@ -365,6 +431,7 @@ function askConfig(baseCfg) {
         const qAdminRaw = await pageSecurity(baseCfg);
         const qRuntime = await pageRuntime(baseCfg);
         const qDocs = await pageValidation(baseCfg);
+        const qVersion = await pageVersionUpdates(baseCfg);
         const qWatchers = await pageWatchers(baseCfg);
 
         const adminUserInput = typeof qAdminRaw.ADMIN_USER === "string" ? qAdminRaw.ADMIN_USER.trim() : "";
@@ -404,6 +471,11 @@ function askConfig(baseCfg) {
             VALIDATE_REQUESTS: qDocs.VALIDATE_REQUESTS ? "true" : "false",
             VALIDATE_RESPONSES: qDocs.VALIDATE_RESPONSES ? "true" : "false",
             ENABLE_DOCS: qDocs.ENABLE_DOCS ? "true" : "false",
+            UPDATE_CHECK_ENABLED: qVersion.UPDATE_CHECK_ENABLED ? "true" : "false",
+            UPDATE_CHECK_REPOSITORY: qVersion.UPDATE_CHECK_REPOSITORY || baseCfg.UPDATE_CHECK_REPOSITORY || "Daniel-Ric/PlayFab-Catalog-Service-Bedrock",
+            UPDATE_CHECK_TTL_MS: qVersion.UPDATE_CHECK_TTL_MS || baseCfg.UPDATE_CHECK_TTL_MS || "900000",
+            UPDATE_CHECK_TIMEOUT_MS: qVersion.UPDATE_CHECK_TIMEOUT_MS || baseCfg.UPDATE_CHECK_TIMEOUT_MS || "5000",
+            UPDATE_CHECK_STARTUP_LOG: qVersion.UPDATE_CHECK_STARTUP_LOG ? "true" : "false",
             PAGE_SIZE: baseCfg.PAGE_SIZE || "100",
             REVIEWS_ENABLED: baseCfg.REVIEWS_ENABLED || "true",
             REVIEWS_FETCH_COUNT: baseCfg.REVIEWS_FETCH_COUNT || "20",
@@ -436,7 +508,9 @@ function askConfig(baseCfg) {
             MAX_FETCH_BATCHES: baseCfg.MAX_FETCH_BATCHES || "20",
             FETCH_CONCURRENCY: baseCfg.FETCH_CONCURRENCY || "5",
             PLAYFAB_CONCURRENCY: baseCfg.PLAYFAB_CONCURRENCY || "12",
-            PLAYFAB_BATCH: baseCfg.PLAYFAB_BATCH || "600"
+            PLAYFAB_BATCH: baseCfg.PLAYFAB_BATCH || "600",
+            RATE_LIMIT_VERSION_WINDOW_MS: baseCfg.RATE_LIMIT_VERSION_WINDOW_MS || "300000",
+            RATE_LIMIT_VERSION_MAX: baseCfg.RATE_LIMIT_VERSION_MAX || "200"
         };
 
         summaryIdentity(out);
@@ -450,7 +524,7 @@ async function run() {
     const gitignorePath = path.join(rootDir, ".gitignore");
 
     console.clear();
-    frameBox(BRAND_NAME + " Setup", ["Welcome", "This wizard will configure your instance.", "", "You will define:", "  • Admin security", "  • Runtime / Network", "  • Validation / Docs", "  • Background Watchers"]);
+    frameBox(BRAND_NAME + " Setup", ["Welcome", "This wizard will configure your instance.", "", "You will define:", "  • Admin security", "  • Runtime / Network", "  • Validation / Docs", "  • GitHub Version Updates", "  • Background Watchers"]);
     console.log("");
     console.log(BRAND_DIM("Press enter to continue..."));
     await prompts({

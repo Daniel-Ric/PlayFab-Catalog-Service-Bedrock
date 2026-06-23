@@ -24,6 +24,7 @@ const requestLogger = require("./middleware/requestLogger");
 const titlesRoutes = require("./routes/titles");
 const creatorsRoutes = require("./routes/creators");
 const sessionRoutes = require("./routes/session");
+const versionRoutes = require("./routes/version");
 const rateLimit = require("express-rate-limit");
 
 const authLimiter = rateLimit({
@@ -74,6 +75,7 @@ const {initWebhookDispatcher} = require("./services/webhookDispatcher");
 const {eventBus} = require("./services/eventBus");
 const {createRateLimiter, createOptionalRateLimiter} = require("./config/rateLimiter");
 const {createCatalogBridgeRouter} = require("./routes/catalogBridge");
+const {versionUpdateService} = require("./services/versionUpdateService");
 
 const artLines = [
     " __                 ___       __      __       ___            __   __           __",
@@ -91,7 +93,7 @@ const attributionLine = {
 const disclaimerLine = "This project is not affiliated with Mojang or Microsoft.";
 const repoLine = "Repository: https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock";
 
-function buildBanner() {
+function buildBanner(versionStatus = null) {
     const orange = chalk.hex("#ff8c00");
     const darkGray = chalk.hex("#4a4a4a");
     const lightGray = chalk.hex("#d3d3d3");
@@ -104,14 +106,20 @@ function buildBanner() {
         yellow(attributionLine.contributors),
         lightGray(attributionLine.suffix),
     ].join("");
-    return [
+    const lines = [
         art,
         "",
         darkGray(separatorLine),
+    ];
+    if (versionStatus) {
+        lines.push("", formatVersionCheck(versionStatus), "");
+    }
+    lines.push(
         attribution,
         lightGray(disclaimerLine),
-        lightGray(repoLine),
-    ].join("\n");
+        lightGray(repoLine)
+    );
+    return lines.join("\n");
 }
 
 const app = express();
@@ -163,6 +171,104 @@ if (process.env.ENABLE_DOCS === "true") {
     app.use("/docs", swaggerUi.serve, swaggerUi.setup(openapi, {explorer: true}));
 }
 
+function readBoolEnv(key, def = false) {
+    const raw = process.env[key];
+    if (typeof raw === "undefined" || raw === null || raw === "") return def;
+    return /^(1|true|yes|on)$/i.test(String(raw));
+}
+
+function formatVersionCheck(status) {
+    const heading = chalk.bgCyan.black.bold(" VERSION CHECK ");
+    const dim = chalk.hex("#8a8f98");
+    const repo = status.repository?.fullName || "unknown";
+    const current = status.update?.current || status.local?.version || "unknown";
+    const latest = status.update?.latest || status.remote?.latest?.version || "unknown";
+    const source = status.remote?.source || "unknown";
+    const remoteStatus = status.remote?.status || "unknown";
+    const releaseUrl = status.remote?.latest?.url;
+    const versionSource = status.local?.versionSource === "git_tag" ? "git tag" : "package.json";
+    const localCommit = status.local?.git?.shortCommit;
+    const localBranch = status.local?.git?.branch || status.local?.git?.tag || "detached";
+    const remoteCommit = status.remote?.latest?.commit?.shortSha;
+    const cacheTtl = status.remote?.cache?.ttlMs ? `${Math.round(status.remote.cache.ttlMs / 1000)}s cache` : "cache disabled";
+    const row = (label, value) => `${dim(String(label).padStart(10, " "))}  ${value}`;
+    const versionMeta = status.update?.reason === "local_commit_matches_latest_remote_ref" ? "commit match" : versionSource;
+    const latestMeta = `GitHub ${source}, ${remoteStatus}, ${cacheTtl}`;
+    const versionRow = (currentColor, latestColor) => row("Version", [
+        chalk.cyan("Current"),
+        currentColor(current),
+        dim(`(${versionMeta})`),
+        dim("->"),
+        chalk.cyan("Latest"),
+        latestColor(latest),
+        dim(`(${latestMeta})`)
+    ].join(" "));
+    const commitRow = () => {
+        const left = [
+            chalk.cyan("Local"),
+            localCommit ? chalk.white(localCommit) : chalk.gray("unknown"),
+            dim(`on ${localBranch}`)
+        ].join(" ");
+        const right = remoteCommit
+            ? ` ${dim("->")} ${chalk.cyan("Remote")} ${chalk.white(remoteCommit)} ${dim("latest ref")}`
+            : "";
+        return row("Commit", `${left}${right}`);
+    };
+
+    if (status.update?.status === "outdated") {
+        return [
+            `${heading} ${chalk.yellow.bold("Update available")}`,
+            versionRow(chalk.white, chalk.green.bold),
+            commitRow(),
+            row("Repo", chalk.white(repo)),
+            releaseUrl ? row("Release", chalk.cyan(releaseUrl)) : null
+        ].filter(Boolean).join("\n");
+    }
+
+    if (status.update?.status === "current") {
+        return [
+            `${heading} ${chalk.green.bold("Up to date")}`,
+            versionRow(chalk.green.bold, chalk.white),
+            commitRow(),
+            row("Repo", chalk.white(repo))
+        ].join("\n");
+    }
+
+    if (status.update?.status === "ahead") {
+        return [
+            `${heading} ${chalk.blue.bold("Local version is ahead")}`,
+            versionRow(chalk.blue.bold, chalk.white),
+            commitRow(),
+            row("Repo", chalk.white(repo))
+        ].filter(Boolean).join("\n");
+    }
+
+    if (status.update?.status === "disabled") {
+        return `${heading} ${chalk.gray("Update check disabled")}`;
+    }
+
+    const reason = status.update?.reason || status.remote?.error?.message || "remote unavailable";
+    return [
+        `${heading} ${chalk.yellow.bold("Update status unknown")}`,
+        versionRow(chalk.white, chalk.white),
+        commitRow(),
+        row("Repo", chalk.white(repo)),
+        row("Reason", chalk.yellow(reason))
+    ].join("\n");
+}
+
+async function getStartupVersionStatus() {
+    if (!readBoolEnv("UPDATE_CHECK_STARTUP_LOG", true)) return null;
+
+    try {
+        return await versionUpdateService.getVersionStatus({source: "auto"});
+    } catch (err) {
+        const message = err && err.message ? err.message : "unknown error";
+        logger.warn(`Version check failed at startup: ${message}`);
+        return null;
+    }
+}
+
 app.get("/", (_req, res) => res.json({ok: true, name: "View Marketplace API"}));
 
 const catalogBridgeRouter = createCatalogBridgeRouter();
@@ -175,6 +281,7 @@ const marketplaceLimiter = createOptionalRateLimiter("MARKETPLACE", {windowMs: 6
 const playerMarketplaceLimiter = createRateLimiter("MARKETPLACE_PLAYER", {windowMs: 60 * 60 * 1000, max: 2000});
 const adminLimiter = createOptionalRateLimiter("ADMIN", {windowMs: 60 * 60 * 1000, max: 1000});
 const healthLimiter = createOptionalRateLimiter("HEALTH", {windowMs: 5 * 60 * 1000, max: 500});
+const versionLimiter = createOptionalRateLimiter("VERSION", {windowMs: 5 * 60 * 1000, max: 200});
 
 app.post(["/login", "/login/"], loginLimiter, express.json({limit: "100kb"}), (req, res) => {
     const {username, password} = req.body || {};
@@ -328,6 +435,7 @@ app.use("/events", enforceAuth, authLimiter, marketplaceLimiter, eventsRoutes);
 app.use("/webhooks", enforceAuth, authLimiter, requireRole("admin"), adminLimiter, webhookRoutes);
 
 app.use("/health", enforceAuth, authLimiter, healthLimiter, cacheHeaders(5, 5), healthRoutes);
+app.use("/version", enforceAuth, authLimiter, versionLimiter, versionRoutes);
 
 app.use((req, res) => {
     res.status(404).json({error: "Route not found."});
@@ -352,8 +460,9 @@ app.use((err, req, res, next) => {
     res.status(status).json(payload);
 });
 
-app.listen(port, () => {
-    console.log(buildBanner());
+app.listen(port, async () => {
+    const startupVersionStatus = await getStartupVersionStatus();
+    console.log(buildBanner(startupVersionStatus));
     logger.info(`API running at http://localhost:${port}`);
     if (catalogBridgeRouter) {
         logger.info("Catalog bridge enabled: /api/security/csrf, /api/security/catalog-handshake, /api/catalog/proxy, /api/catalog/secure");

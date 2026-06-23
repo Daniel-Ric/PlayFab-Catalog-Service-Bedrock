@@ -283,7 +283,8 @@ function getRoutesInfo() {
         webhooks: {
             base: "/webhooks"
         },
-        health: "/health"
+        health: "/health",
+        version: "/version"
     };
 }
 
@@ -318,6 +319,13 @@ function getConfigInfo() {
             pageDefault: 1, pageSizeDefault: 24, pageSizeMax: 100, limitMax: 1000
         }, rateLimits: {
             loginWindowMs, loginMax
+        }, updateCheck: {
+            enabled: process.env.UPDATE_CHECK_ENABLED !== "false",
+            repository: process.env.UPDATE_CHECK_REPOSITORY || process.env.GITHUB_REPOSITORY || null,
+            ttlMs: readIntEnv("UPDATE_CHECK_TTL_MS", 900000),
+            timeoutMs: readIntEnv("UPDATE_CHECK_TIMEOUT_MS", 5000),
+            startupLog: process.env.UPDATE_CHECK_STARTUP_LOG !== "false",
+            auth: "public"
         }, watchersEnabled: {
             sales: readBoolEnv("ENABLE_SALES_WATCHER"),
             item: readBoolEnv("ENABLE_ITEM_WATCHER"),

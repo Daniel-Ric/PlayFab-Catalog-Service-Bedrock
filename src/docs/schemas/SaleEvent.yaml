@@ -16,6 +16,71 @@ SaleEvent:
   properties:
     ts:
       type: integer
+    stores:
+      type: integer
+    count:
+      type: integer
+    totalItems:
+      type: integer
+    itemsPerCreator:
+      type: object
+      additionalProperties:
+        type: integer
+    sales:
+      type: object
+      additionalProperties:
+        $ref: "#/components/schemas/Sale"
+    items:
+      type: array
+      items:
+        allOf:
+          - $ref: "#/components/schemas/Item"
+          - type: object
+            properties:
+              prices:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PriceAmount"
+              sale:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  catalogVersion:
+                    type: string
+                    nullable: true
+                  title:
+                    type: string
+                  description:
+                    type: string
+                    nullable: true
+                  startDate:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  endDate:
+                    type: string
+                    format: date-time
+                    nullable: true
+                  discountPercent:
+                    type: integer
+                    nullable: true
+                  virtualCurrencyPrices:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                  realCurrencyPrices:
+                    type: object
+                    nullable: true
+                    additionalProperties: true
+                  tags:
+                    type: array
+                    items:
+                      type: string
+                  platforms:
+                    type: array
+                    items:
+                      type: string
     changes:
       type: array
       items:
@@ -25,3 +90,9 @@ SaleEvent:
             type: string
           type:
             type: string
+          before:
+            $ref: "#/components/schemas/Sale"
+            nullable: true
+          after:
+            $ref: "#/components/schemas/Sale"
+            nullable: true

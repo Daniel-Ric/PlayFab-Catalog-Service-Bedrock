@@ -56,6 +56,21 @@ function getCreatorNamesFromPayload(eventName, payload) {
                 const creator = creatorNameOf(it);
                 if (creator) names.add(String(creator).toLowerCase());
             }
+        } else if (ev === "sale.snapshot" || ev === "sale.update") {
+            for (const it of payload.items) {
+                const creator = creatorNameOf(it);
+                if (creator) names.add(String(creator).toLowerCase());
+            }
+        }
+    }
+
+    if ((ev === "sale.snapshot" || ev === "sale.update") && payload.sales && typeof payload.sales === "object") {
+        for (const sale of Object.values(payload.sales)) {
+            if (!sale || !Array.isArray(sale.items)) continue;
+            for (const item of sale.items) {
+                const creator = creatorNameOf(item);
+                if (creator) names.add(String(creator).toLowerCase());
+            }
         }
     }
 

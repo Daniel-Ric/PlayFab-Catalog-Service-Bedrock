@@ -1,5 +1,26 @@
 # Changelog
 
+## 12.1.0 (2026-06-30)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add sales event handling (b28f7ac)
+- Impact: Test coverage with a medium change footprint across application logic, test coverage.
+- Bump reason: medium change footprint (5 files, 357 total line changes)
+
+### Changed Areas
+
+- OpenAPI documentation: 1 file: src/docs/schemas/SaleEvent.yaml
+- Service layer: 1 file: src/services/salesWatcher.js
+- Shared utilities: 1 file: src/utils/eventPayload.js
+- Tests: 2 files: test/eventPayload.test.js, test/salesWatcher.test.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 5
+- Line changes: +332 / -25
 ## 12.0.2 (2026-06-25)
 
 ### Summary
@@ -1956,6 +1977,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

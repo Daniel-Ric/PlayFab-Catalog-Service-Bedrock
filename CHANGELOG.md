@@ -1,5 +1,44 @@
 # Changelog
 
+## 12.2.0 (2026-07-02)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Improve sales event handling with item change tracking (3dfffc0)
+- Impact: Test coverage with a medium change footprint across application logic, test coverage.
+- Bump reason: medium change footprint (4 files, 220 total line changes)
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/salesWatcher.js
+- Shared utilities: 1 file: src/utils/eventPayload.js
+- Tests: 2 files: test/eventPayload.test.js, test/salesWatcher.test.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 4
+- Line changes: +195 / -25
+
+## 12.2.1 (2026-07-02)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Merge remote-tracking branch 'origin/main' (ac2435d)
+- Impact: Repository update with a small change footprint across repository files.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Changelog: 1 file: CHANGELOG.md
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +58 / -0
 ## 12.1.1 (2026-07-02)
 
 ### Summary
@@ -2034,6 +2073,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

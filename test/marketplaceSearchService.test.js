@@ -113,6 +113,23 @@ test("auditOne returns health issues for incomplete catalog content", () => {
     assert.ok(result.issues.includes("missingDescription:de-DE"));
 });
 
+test("sortSuggestions ranks exact item titles ahead of generic keyword hits", () => {
+    const suggestions = _internals.sortSuggestions([
+        {type: "keyword", value: "Mob"},
+        {type: "item", value: "Hover Mob Add-On", itemId: "item-1"},
+        {type: "creator", value: "Mob Studio"},
+        {type: "item", value: "Random Mobs"}
+    ], "Hover Mob Add-On");
+
+    assert.deepEqual(suggestions.map(entry => entry.value), [
+        "Hover Mob Add-On",
+        "Random Mobs",
+        "Mob Studio",
+        "Mob"
+    ]);
+    assert.ok(suggestions[0].score > suggestions[1].score);
+});
+
 test("advanced search request accepts cursor top-level fields", () => {
     const result = advancedSearchInternals.validateRequestBody({
         mode: "cursor",

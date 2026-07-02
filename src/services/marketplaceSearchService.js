@@ -351,6 +351,69 @@ function addSuggestion(map, value, type, extra = {}) {
     if (!map.has(key)) map.set(key, {type, value: clean, ...extra});
 }
 
+function normalizeSuggestionText(value) {
+    return trimString(value, 240)
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+}
+
+function buildSuggestionScoreContext(query) {
+    const q = normalizeSuggestionText(query);
+    return {
+        q,
+        compactQ: q.replace(/\s+/g, ""),
+        terms: q.split(/\s+/).filter(Boolean)
+    };
+}
+
+function scoreSuggestionWithContext(suggestion, context) {
+    const value = normalizeSuggestionText(suggestion?.value);
+    if (!context.q || !value) return 0;
+
+    const compactValue = value.replace(/\s+/g, "");
+    let score = 0;
+
+    if (suggestion.type === "item") score += 80;
+    if (suggestion.type === "creator") score += 45;
+    if (suggestion.type === "keyword") score += 25;
+    if (value === context.q) score += 1000;
+    if (compactValue === context.compactQ) score += 920;
+    if (value.startsWith(context.q)) score += 720;
+    if (compactValue.startsWith(context.compactQ)) score += 680;
+    if (value.includes(context.q)) score += 520;
+    if (compactValue.includes(context.compactQ)) score += 460;
+
+    if (context.terms.length) {
+        const hits = context.terms.filter(term => value.includes(term) || compactValue.includes(term)).length;
+        score += hits * 65;
+        if (hits === context.terms.length) score += 120;
+    }
+
+    return score;
+}
+
+function scoreSuggestion(suggestion, query) {
+    return scoreSuggestionWithContext(suggestion, buildSuggestionScoreContext(query));
+}
+
+function sortSuggestions(suggestions, query) {
+    const context = buildSuggestionScoreContext(query);
+    return suggestions
+        .map(suggestion => ({...suggestion, score: scoreSuggestionWithContext(suggestion, context)}))
+        .sort((a, b) => b.score - a.score || String(a.value || "").localeCompare(String(b.value || "")));
+}
+
+function groupSuggestions(suggestions) {
+    return {
+        items: suggestions.filter(suggestion => suggestion.type === "item"),
+        creators: suggestions.filter(suggestion => suggestion.type === "creator"),
+        keywords: suggestions.filter(suggestion => suggestion.type === "keyword")
+    };
+}
+
 async function suggest(alias, query = {}) {
     const q = trimString(query.q || query.search || "", 100);
     if (!q) throw err(400, "q is required.");
@@ -361,25 +424,30 @@ async function suggest(alias, query = {}) {
         search: q,
         filter,
         language,
-        select: "title,keywords,images",
+        select: "",
         count: Math.min(MAX_SEARCH_COUNT, Math.max(count * 2, count))
     });
 
     const suggestions = new Map();
+    const normalizedQuery = normalizeSuggestionText(q);
     for (const item of response.items) {
         addSuggestion(suggestions, item.title, "item", {
             itemId: item.id,
             friendlyId: item.friendlyId,
-            thumbnail: item.thumbnail
+            thumbnail: item.thumbnail,
+            creatorName: item.creatorName
         });
         addSuggestion(suggestions, item.creatorName, "creator", {itemId: item.id});
         for (const keyword of item.keywords || []) {
-            if (keyword.toLowerCase().includes(q.toLowerCase())) addSuggestion(suggestions, keyword, "keyword", {itemId: item.id});
+            if (normalizeSuggestionText(keyword).includes(normalizedQuery)) addSuggestion(suggestions, keyword, "keyword", {itemId: item.id});
         }
     }
+    const rankedSuggestions = sortSuggestions(Array.from(suggestions.values()), q);
+    const limitedSuggestions = rankedSuggestions.slice(0, count);
 
     return {
-        suggestions: Array.from(suggestions.values()).slice(0, count),
+        suggestions: limitedSuggestions,
+        groups: groupSuggestions(limitedSuggestions),
         meta: {
             alias,
             query: q,
@@ -551,6 +619,8 @@ module.exports = {
         normalizeSearchItem,
         normalizeAlternateId,
         auditOne,
-        clampInt
+        clampInt,
+        sortSuggestions,
+        scoreSuggestion
     }
 };

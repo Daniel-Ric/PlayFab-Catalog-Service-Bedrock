@@ -165,25 +165,54 @@ MarketplaceSearchResponse:
     meta:
       type: object
       additionalProperties: true
+MarketplaceSearchSuggestion:
+  type: object
+  properties:
+    type:
+      type: string
+      enum:
+        - item
+        - creator
+        - keyword
+    value:
+      type: string
+    itemId:
+      type: string
+      nullable: true
+    friendlyId:
+      type: string
+      nullable: true
+    thumbnail:
+      type: string
+      nullable: true
+    creatorName:
+      type: string
+      nullable: true
+    score:
+      type: number
 MarketplaceSearchSuggestionsResponse:
   type: object
   properties:
     suggestions:
       type: array
       items:
-        type: object
-        properties:
-          type:
-            type: string
-            enum:
-              - item
-              - creator
-              - keyword
-          value:
-            type: string
-          itemId:
-            type: string
-            nullable: true
+        $ref: '#/components/schemas/MarketplaceSearchSuggestion'
+    groups:
+      type: object
+      description: Ranked suggestions grouped by type for clients that want structured autocomplete sections.
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketplaceSearchSuggestion'
+        creators:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketplaceSearchSuggestion'
+        keywords:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketplaceSearchSuggestion'
     meta:
       type: object
       additionalProperties: true

@@ -53,6 +53,10 @@ test("getCreatorNamesFromPayload reads subscription update before and after crea
 test("getCreatorNamesFromPayload reads sale event item creators", () => {
     const names = getCreatorNamesFromPayload("sale.update", {
         items: [{id: "item-1", creatorName: "Top Creator"}],
+        changes: [{
+            type: "updated",
+            items: [{id: "item-3", creatorName: "Changed Creator"}]
+        }],
         sales: {
             "sale-store": {
                 items: [{id: "item-2", rawItem: {DisplayProperties: {creatorName: "Bucket Creator"}}}]
@@ -60,5 +64,17 @@ test("getCreatorNamesFromPayload reads sale event item creators", () => {
         }
     });
 
-    assert.deepEqual(names.sort(), ["bucket creator", "top creator"]);
+    assert.deepEqual(names.sort(), ["changed creator", "top creator"]);
+});
+
+test("getCreatorNamesFromPayload reads sale snapshot bucket creators", () => {
+    const names = getCreatorNamesFromPayload("sale.snapshot", {
+        sales: {
+            "sale-store": {
+                items: [{id: "item-2", rawItem: {DisplayProperties: {creatorName: "Bucket Creator"}}}]
+            }
+        }
+    });
+
+    assert.deepEqual(names.sort(), ["bucket creator"]);
 });

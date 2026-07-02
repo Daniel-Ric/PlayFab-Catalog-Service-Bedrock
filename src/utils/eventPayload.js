@@ -31,6 +31,22 @@ function isUpdatedItemListEvent(eventName) {
         || eventName === "realms.plus.updated";
 }
 
+function addCreatorNamesFromItems(names, items) {
+    if (!Array.isArray(items)) return;
+    for (const item of items) {
+        const creator = creatorNameOf(item);
+        if (creator) names.add(String(creator).toLowerCase());
+    }
+}
+
+function getSaleChangeItems(change) {
+    if (!change || typeof change !== "object") return [];
+    if (Array.isArray(change.items)) return change.items;
+    const type = String(change.type || "").trim().toLowerCase();
+    const source = type === "deleted" ? (change.before || change.Before) : (change.after || change.After || change.before || change.Before);
+    return Array.isArray(source?.items) ? source.items : [];
+}
+
 function getCreatorNamesFromPayload(eventName, payload) {
     if (!payload) return [];
     const names = new Set();
@@ -52,25 +68,22 @@ function getCreatorNamesFromPayload(eventName, payload) {
                 if (directCreator) names.add(String(directCreator).toLowerCase());
             }
         } else if (ev === "item.created" || ev === "item.snapshot" || ev.startsWith("marketplace.pass.") || ev.startsWith("realms.plus.")) {
-            for (const it of payload.items) {
-                const creator = creatorNameOf(it);
-                if (creator) names.add(String(creator).toLowerCase());
-            }
+            addCreatorNamesFromItems(names, payload.items);
         } else if (ev === "sale.snapshot" || ev === "sale.update") {
-            for (const it of payload.items) {
-                const creator = creatorNameOf(it);
-                if (creator) names.add(String(creator).toLowerCase());
-            }
+            addCreatorNamesFromItems(names, payload.items);
         }
     }
 
-    if ((ev === "sale.snapshot" || ev === "sale.update") && payload.sales && typeof payload.sales === "object") {
+    if (ev === "sale.update" && Array.isArray(payload.changes)) {
+        for (const change of payload.changes) {
+            addCreatorNamesFromItems(names, getSaleChangeItems(change));
+        }
+    }
+
+    if (ev === "sale.snapshot" && payload.sales && typeof payload.sales === "object") {
         for (const sale of Object.values(payload.sales)) {
             if (!sale || !Array.isArray(sale.items)) continue;
-            for (const item of sale.items) {
-                const creator = creatorNameOf(item);
-                if (creator) names.add(String(creator).toLowerCase());
-            }
+            addCreatorNamesFromItems(names, sale.items);
         }
     }
 

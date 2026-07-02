@@ -177,6 +177,52 @@ function snapshot(storesWithItems, itemDetails) {
     return map;
 }
 
+function saleItemKey(item) {
+    const id = item?.id || item?.Id || item?.itemId || item?.ItemId || item?.rawItem?.Id || item?.rawItem?.id || null;
+    const saleId = item?.sale?.id || item?.sale?.Id || item?.saleId || item?.SaleId || null;
+    return `${String(id || "").trim().toLowerCase()}|${String(saleId || "").trim().toLowerCase()}`;
+}
+
+function mapSaleItems(items) {
+    const map = new Map();
+    if (!Array.isArray(items)) return map;
+    for (const item of items) {
+        const key = saleItemKey(item);
+        if (!key || key === "|") continue;
+        map.set(key, item);
+    }
+    return map;
+}
+
+function hashSaleItem(item) {
+    if (!item || typeof item !== "object") return "";
+    const {sale, Sale, __saleChangeType, ...rest} = item;
+    return stableHash(rest);
+}
+
+function projectSaleEventItems(items, type) {
+    return (items || []).map(item => ({...item, __saleChangeType: type}));
+}
+
+function diffSaleItems(beforeSale, afterSale) {
+    const before = mapSaleItems(beforeSale?.items || []);
+    const after = mapSaleItems(afterSale?.items || []);
+    const items = [];
+    const allKeys = new Set([...Array.from(before.keys()), ...Array.from(after.keys())]);
+    for (const key of allKeys) {
+        const beforeItem = before.get(key);
+        const afterItem = after.get(key);
+        if (!beforeItem && afterItem) {
+            items.push({...afterItem, __saleChangeType: "created"});
+        } else if (beforeItem && !afterItem) {
+            items.push({...beforeItem, __saleChangeType: "deleted"});
+        } else if (beforeItem && afterItem && hashSaleItem(beforeItem) !== hashSaleItem(afterItem)) {
+            items.push({...afterItem, __saleChangeType: "updated"});
+        }
+    }
+    return items;
+}
+
 function diff(prev, next) {
     const changes = [];
     const allKeys = new Set([...Array.from(prev.keys()), ...Array.from(next.keys())]);
@@ -184,20 +230,46 @@ function diff(prev, next) {
         const a = prev.get(k);
         const b = next.get(k);
         if (!a && b) {
-            changes.push({storeId: k, type: "created", before: null, after: b.sale});
+            changes.push({
+                storeId: k,
+                type: "created",
+                before: null,
+                after: b.sale,
+                items: projectSaleEventItems(b.sale.items, "created")
+            });
         } else if (a && !b) {
-            changes.push({storeId: k, type: "deleted", before: a.sale, after: null});
+            changes.push({
+                storeId: k,
+                type: "deleted",
+                before: a.sale,
+                after: null,
+                items: projectSaleEventItems(a.sale.items, "deleted")
+            });
         } else if (a && b && a.hash !== b.hash) {
-            changes.push({storeId: k, type: "updated", before: a.sale, after: b.sale});
+            changes.push({
+                storeId: k,
+                type: "updated",
+                before: a.sale,
+                after: b.sale,
+                items: diffSaleItems(a.sale, b.sale)
+            });
         }
     }
     return changes;
 }
 
+function countItemsPerCreator(items) {
+    const itemsPerCreator = {};
+    for (const item of items) {
+        const creator = item.creatorName || item.rawItem?.DisplayProperties?.creatorName || "Unknown";
+        itemsPerCreator[creator] = (itemsPerCreator[creator] || 0) + 1;
+    }
+    return itemsPerCreator;
+}
+
 function buildPayload(ts, snap, changes) {
     const sales = {};
-    const items = [];
-    const itemsPerCreator = {};
+    const snapshotItems = [];
     const seenItems = new Set();
     let totalItems = 0;
 
@@ -206,26 +278,27 @@ function buildPayload(ts, snap, changes) {
         if (!sale) continue;
         sales[sale.id] = sale;
         for (const item of sale.items || []) {
-            const creator = item.creatorName || item.rawItem?.DisplayProperties?.creatorName || "Unknown";
-            itemsPerCreator[creator] = (itemsPerCreator[creator] || 0) + 1;
             totalItems += 1;
             const itemKey = `${item.id}:${sale.id}`;
             if (!seenItems.has(itemKey)) {
                 seenItems.add(itemKey);
-                items.push(item);
+                snapshotItems.push(item);
             }
         }
     }
+    const items = Array.isArray(changes)
+        ? changes.flatMap(change => Array.isArray(change.items) ? change.items : [])
+        : snapshotItems;
 
     return {
         ts,
         stores: snap.size,
         count: items.length,
         totalItems,
-        itemsPerCreator,
+        itemsPerCreator: countItemsPerCreator(items),
         sales,
         items,
-        ...(changes ? {changes} : {})
+        ...(Array.isArray(changes) ? {changes} : {})
     };
 }
 
@@ -294,6 +367,7 @@ module.exports = {
     _internals: {
         buildSaleEntry,
         buildPayload,
+        diffSaleItems,
         diff,
         refsFromStoreAndItems,
         snapshot

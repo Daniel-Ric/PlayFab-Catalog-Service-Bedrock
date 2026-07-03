@@ -19,10 +19,11 @@ const {getCreatorNamesFromPayload} = require("../src/utils/eventPayload");
 test("getCreatorNamesFromPayload reads featured content item detail creators", () => {
     const names = getCreatorNamesFromPayload("featured.content.updated", {
         addedItemDetails: [{id: "new", creatorName: "New Creator"}],
-        removedItemDetails: [{id: "old", rawItem: {DisplayProperties: {creatorName: "Old Creator"}}}]
+        removedItemDetails: [{id: "old", rawItem: {DisplayProperties: {creatorName: "Old Creator"}}}],
+        changedItemDetails: [{id: "changed", creatorName: "Changed Creator"}]
     });
 
-    assert.deepEqual(names.sort(), ["new creator", "old creator"]);
+    assert.deepEqual(names.sort(), ["changed creator", "new creator", "old creator"]);
 });
 
 test("getCreatorNamesFromPayload reads creator partner changes", () => {

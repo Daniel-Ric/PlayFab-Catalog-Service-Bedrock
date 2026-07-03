@@ -206,6 +206,10 @@ function detailsFromEntries(entries) {
     }));
 }
 
+function markFeaturedItems(items, type) {
+    return (items || []).map(item => ({...item, __featuredChangeType: type}));
+}
+
 function buildFeaturedContentChangePayload({
                                                titleId,
                                                previousEntries,
@@ -239,6 +243,14 @@ function buildFeaturedContentChangePayload({
     const changedEntries = entriesForIds(changedItemIds, currentMap);
     const currentEntriesOrdered = entriesForIds(currentItemIds, currentMap);
     const previousEntriesOrdered = entriesForIds(previousItemIds, previousMap);
+    const addedItemDetails = detailsFromEntries(addedEntries);
+    const removedItemDetails = detailsFromEntries(removedEntries);
+    const changedItemDetails = detailsFromEntries(changedEntries);
+    const items = [
+        ...markFeaturedItems(addedItemDetails, "added"),
+        ...markFeaturedItems(removedItemDetails, "removed"),
+        ...markFeaturedItems(changedItemDetails, "updated")
+    ];
 
     return {
         ts,
@@ -249,9 +261,11 @@ function buildFeaturedContentChangePayload({
         addedItems: addedEntries.map(entry => entry.item),
         removedItems: removedEntries.map(entry => entry.item),
         changedItems: changedEntries.map(entry => entry.item),
-        addedItemDetails: detailsFromEntries(addedEntries),
-        removedItemDetails: detailsFromEntries(removedEntries),
-        changedItemDetails: detailsFromEntries(changedEntries),
+        addedItemDetails,
+        removedItemDetails,
+        changedItemDetails,
+        items,
+        count: items.length,
         currentItemIds,
         previousItemIds,
         currentItemDetails: detailsFromEntries(currentEntriesOrdered),

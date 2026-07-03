@@ -91,10 +91,13 @@ function getCreatorNamesFromPayload(eventName, payload) {
         const lists = [
             payload.addedItemDetails,
             payload.removedItemDetails,
+            payload.changedItemDetails,
+            payload.items,
             payload.currentItemDetails,
             payload.previousItemDetails,
             payload.addedItems,
-            payload.removedItems
+            payload.removedItems,
+            payload.changedItems
         ];
 
         for (const list of lists) {

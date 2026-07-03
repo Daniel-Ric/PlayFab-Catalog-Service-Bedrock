@@ -156,5 +156,9 @@ test("buildFeaturedContentChangePayload emits same-id featured content changes",
     assert.deepEqual(payload.removedItemIds, []);
     assert.deepEqual(payload.changedItemIds, ["one"]);
     assert.deepEqual(payload.changedItems, [layoutItem("one", "One Updated")]);
+    assert.equal(payload.count, 1);
+    assert.equal(payload.items.length, 1);
+    assert.equal(payload.items[0].id, "one");
+    assert.equal(payload.items[0].__featuredChangeType, "updated");
     assert.equal(payload.changedItemDetails[0].featuredContext.row.telemetryId, "dr.header.featured");
 });

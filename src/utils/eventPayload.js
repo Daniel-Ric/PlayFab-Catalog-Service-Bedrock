@@ -107,6 +107,14 @@ function getCreatorNamesFromPayload(eventName, payload) {
                 if (creator) names.add(String(creator).toLowerCase());
             }
         }
+        if (Array.isArray(payload.changedItemChanges)) {
+            for (const change of payload.changedItemChanges) {
+                const beforeCreator = creatorNameOf(change?.before);
+                const afterCreator = creatorNameOf(change?.after);
+                if (beforeCreator) names.add(String(beforeCreator).toLowerCase());
+                if (afterCreator) names.add(String(afterCreator).toLowerCase());
+            }
+        }
     }
 
     if (ev === "creator.trending" && Array.isArray(payload.leaders)) {

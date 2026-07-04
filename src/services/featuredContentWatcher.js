@@ -241,6 +241,15 @@ function buildFeaturedContentChangePayload({
     const addedEntries = entriesForIds(addedItemIds, currentMap);
     const removedEntries = entriesForIds(removedItemIds, previousMap);
     const changedEntries = entriesForIds(changedItemIds, currentMap);
+    const changedItemChanges = changedItemIds.map(id => {
+        const previousEntry = previousMap.get(normalizeId(id));
+        const currentEntry = currentMap.get(normalizeId(id));
+        return {
+            id: normalizeId(id),
+            before: previousEntry ? detailsFromEntries([previousEntry])[0] : null,
+            after: currentEntry ? detailsFromEntries([currentEntry])[0] : null
+        };
+    }).filter(change => change.before || change.after);
     const currentEntriesOrdered = entriesForIds(currentItemIds, currentMap);
     const previousEntriesOrdered = entriesForIds(previousItemIds, previousMap);
     const addedItemDetails = detailsFromEntries(addedEntries);
@@ -261,6 +270,7 @@ function buildFeaturedContentChangePayload({
         addedItems: addedEntries.map(entry => entry.item),
         removedItems: removedEntries.map(entry => entry.item),
         changedItems: changedEntries.map(entry => entry.item),
+        changedItemChanges,
         addedItemDetails,
         removedItemDetails,
         changedItemDetails,

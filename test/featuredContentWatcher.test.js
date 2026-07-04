@@ -156,6 +156,10 @@ test("buildFeaturedContentChangePayload emits same-id featured content changes",
     assert.deepEqual(payload.removedItemIds, []);
     assert.deepEqual(payload.changedItemIds, ["one"]);
     assert.deepEqual(payload.changedItems, [layoutItem("one", "One Updated")]);
+    assert.equal(payload.changedItemChanges.length, 1);
+    assert.equal(payload.changedItemChanges[0].id, "one");
+    assert.equal(payload.changedItemChanges[0].before.title, "One");
+    assert.equal(payload.changedItemChanges[0].after.title, "One Updated");
     assert.equal(payload.count, 1);
     assert.equal(payload.items.length, 1);
     assert.equal(payload.items[0].id, "one");

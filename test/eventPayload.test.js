@@ -20,10 +20,14 @@ test("getCreatorNamesFromPayload reads featured content item detail creators", (
     const names = getCreatorNamesFromPayload("featured.content.updated", {
         addedItemDetails: [{id: "new", creatorName: "New Creator"}],
         removedItemDetails: [{id: "old", rawItem: {DisplayProperties: {creatorName: "Old Creator"}}}],
-        changedItemDetails: [{id: "changed", creatorName: "Changed Creator"}]
+        changedItemDetails: [{id: "changed", creatorName: "Changed Creator"}],
+        changedItemChanges: [{
+            before: {id: "pair", creatorName: "Before Creator"},
+            after: {id: "pair", creatorName: "After Creator"}
+        }]
     });
 
-    assert.deepEqual(names.sort(), ["changed creator", "new creator", "old creator"]);
+    assert.deepEqual(names.sort(), ["after creator", "before creator", "changed creator", "new creator", "old creator"]);
 });
 
 test("getCreatorNamesFromPayload reads creator partner changes", () => {

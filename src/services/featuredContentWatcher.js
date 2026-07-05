@@ -233,8 +233,11 @@ function buildFeaturedContentChangePayload({
 
     const previousMap = entryMapById(prevEntries);
     const currentMap = entryMapById(currEntries);
-    const changedItemIds = changedIdsFromEntryMaps(previousItemIds, previousMap, currentMap);
+    const detectedChangedItemIds = changedIdsFromEntryMaps(previousItemIds, previousMap, currentMap);
     const contentChanged = Boolean(previousContentSignature && currentContentSignature && previousContentSignature !== currentContentSignature);
+    const changedItemIds = detectedChangedItemIds.length || !contentChanged
+        ? detectedChangedItemIds
+        : currentItemIds.filter(id => currentMap.has(normalizeId(id)));
 
     if (!addedItemIds.length && !removedItemIds.length && !changedItemIds.length && !contentChanged) return null;
 

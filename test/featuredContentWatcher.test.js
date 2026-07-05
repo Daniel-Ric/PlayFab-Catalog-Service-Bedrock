@@ -166,3 +166,31 @@ test("buildFeaturedContentChangePayload emits same-id featured content changes",
     assert.equal(payload.items[0].__featuredChangeType, "updated");
     assert.equal(payload.changedItemDetails[0].featuredContext.row.telemetryId, "dr.header.featured");
 });
+
+test("buildFeaturedContentChangePayload emits updated details for content-only changes", () => {
+    const previousPayload = featuredPayload([layoutItem("one", "One")]);
+    const currentPayload = featuredPayload([layoutItem("one", "One")]);
+    currentPayload.result.layoutVersion = "changed";
+    const previousEntries = _internals.collectFeaturedItemEntries(previousPayload);
+    const currentEntries = _internals.collectFeaturedItemEntries(currentPayload);
+    const previousContentSignature = _internals.featuredContentSignature(previousPayload, previousEntries);
+    const currentContentSignature = _internals.featuredContentSignature(currentPayload, currentEntries);
+
+    const payload = _internals.buildFeaturedContentChangePayload({
+        titleId: "20CA2",
+        previousEntries,
+        currentEntries,
+        previousContentSignature,
+        currentContentSignature,
+        content: currentPayload,
+        ts: 789
+    });
+
+    assert.equal(payload.contentChanged, true);
+    assert.deepEqual(payload.addedItemIds, []);
+    assert.deepEqual(payload.removedItemIds, []);
+    assert.deepEqual(payload.changedItemIds, ["one"]);
+    assert.equal(payload.changedItemDetails.length, 1);
+    assert.equal(payload.changedItemChanges.length, 1);
+    assert.equal(payload.items[0].__featuredChangeType, "updated");
+});

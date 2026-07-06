@@ -180,10 +180,7 @@ function entrySignature(entry) {
 }
 
 function featuredContentSignature(payload, entries) {
-    return stableHash({
-        content: payload || null,
-        entries: (entries || []).map(signatureEntry)
-    });
+    return stableHash((entries || []).map(signatureEntry));
 }
 
 function changedIdsFromEntryMaps(previousItemIds, previousMap, currentMap) {
@@ -233,13 +230,10 @@ function buildFeaturedContentChangePayload({
 
     const previousMap = entryMapById(prevEntries);
     const currentMap = entryMapById(currEntries);
-    const detectedChangedItemIds = changedIdsFromEntryMaps(previousItemIds, previousMap, currentMap);
+    const changedItemIds = changedIdsFromEntryMaps(previousItemIds, previousMap, currentMap);
     const contentChanged = Boolean(previousContentSignature && currentContentSignature && previousContentSignature !== currentContentSignature);
-    const changedItemIds = detectedChangedItemIds.length || !contentChanged
-        ? detectedChangedItemIds
-        : currentItemIds.filter(id => currentMap.has(normalizeId(id)));
 
-    if (!addedItemIds.length && !removedItemIds.length && !changedItemIds.length && !contentChanged) return null;
+    if (!addedItemIds.length && !removedItemIds.length && !changedItemIds.length) return null;
 
     const addedEntries = entriesForIds(addedItemIds, currentMap);
     const removedEntries = entriesForIds(removedItemIds, previousMap);

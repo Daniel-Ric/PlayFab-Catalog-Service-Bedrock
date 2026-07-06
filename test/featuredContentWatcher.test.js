@@ -118,7 +118,7 @@ test("buildFeaturedContentChangePayload returns null when the featured item set 
     assert.equal(payload, null);
 });
 
-test("featuredContentSignature changes when featured content metadata changes with the same ids", () => {
+test("featuredContentSignature changes when featured item metadata changes with the same ids", () => {
     const previousPayload = featuredPayload([layoutItem("one", "One")]);
     const currentPayload = featuredPayload([layoutItem("one", "One Updated")]);
     const previousEntries = _internals.collectFeaturedItemEntries(previousPayload);
@@ -128,6 +128,19 @@ test("featuredContentSignature changes when featured content metadata changes wi
     const currentSignature = _internals.featuredContentSignature(currentPayload, currentEntries);
 
     assert.notEqual(previousSignature, currentSignature);
+});
+
+test("featuredContentSignature ignores non-item payload metadata changes", () => {
+    const previousPayload = featuredPayload([layoutItem("one", "One")]);
+    const currentPayload = featuredPayload([layoutItem("one", "One")]);
+    currentPayload.result.layoutVersion = "changed";
+    const previousEntries = _internals.collectFeaturedItemEntries(previousPayload);
+    const currentEntries = _internals.collectFeaturedItemEntries(currentPayload);
+
+    const previousSignature = _internals.featuredContentSignature(previousPayload, previousEntries);
+    const currentSignature = _internals.featuredContentSignature(currentPayload, currentEntries);
+
+    assert.equal(previousSignature, currentSignature);
 });
 
 test("buildFeaturedContentChangePayload emits same-id featured content changes", () => {
@@ -167,7 +180,7 @@ test("buildFeaturedContentChangePayload emits same-id featured content changes",
     assert.equal(payload.changedItemDetails[0].featuredContext.row.telemetryId, "dr.header.featured");
 });
 
-test("buildFeaturedContentChangePayload emits updated details for content-only changes", () => {
+test("buildFeaturedContentChangePayload ignores content-only changes without item changes", () => {
     const previousPayload = featuredPayload([layoutItem("one", "One")]);
     const currentPayload = featuredPayload([layoutItem("one", "One")]);
     currentPayload.result.layoutVersion = "changed";
@@ -186,11 +199,5 @@ test("buildFeaturedContentChangePayload emits updated details for content-only c
         ts: 789
     });
 
-    assert.equal(payload.contentChanged, true);
-    assert.deepEqual(payload.addedItemIds, []);
-    assert.deepEqual(payload.removedItemIds, []);
-    assert.deepEqual(payload.changedItemIds, ["one"]);
-    assert.equal(payload.changedItemDetails.length, 1);
-    assert.equal(payload.changedItemChanges.length, 1);
-    assert.equal(payload.items[0].__featuredChangeType, "updated");
+    assert.equal(payload, null);
 });

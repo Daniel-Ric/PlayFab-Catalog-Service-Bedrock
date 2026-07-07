@@ -1,5 +1,27 @@
 # Changelog
 
+## 12.3.0 (2026-07-07)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add separate events for featured content added/removed (620b0d5)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (6 files, 179 total line changes)
+
+### Changed Areas
+
+- README: 1 file: readme.md
+- Runtime configuration: 1 file: src/config/eventNames.js
+- Service layer: 1 file: src/services/featuredContentWatcher.js
+- Shared utilities: 1 file: src/utils/eventPayload.js
+- Tests: 2 files: test/eventPayload.test.js, test/featuredContentWatcher.test.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 6
+- Line changes: +170 / -9
 ## 12.2.5 (2026-07-06)
 
 ### Summary
@@ -2151,6 +2173,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

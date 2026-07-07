@@ -30,6 +30,8 @@ const EVENT_NAMES = Object.freeze([
     "creator.trending",
     "creator.partners.snapshot",
     "creator.partners.updated",
+    "featured.content.added",
+    "featured.content.removed",
     "featured.content.updated"
 ]);
 

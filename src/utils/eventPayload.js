@@ -87,7 +87,7 @@ function getCreatorNamesFromPayload(eventName, payload) {
         }
     }
 
-    if (ev === "featured.content.updated") {
+    if (ev.startsWith("featured.content.")) {
         const lists = [
             payload.addedItemDetails,
             payload.removedItemDetails,

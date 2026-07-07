@@ -75,7 +75,7 @@ The service is intentionally stateless (except JSON files on disk) and productio
 - 🧩 **Item enrichment** (resolved references, prices, reviews).
 - 🧭 **Featured servers** backed by config + live catalog resolution.
 - 🛍️ **Sales aggregator** across stores; per-creator slicing.
-- 📡 **SSE** for `item.*`, `price.changed`, `sale.*`, `creator.trending`, `featured.content.updated`.
+- 📡 **SSE** for `item.*`, `price.changed`, `sale.*`, `creator.trending`, `featured.content.added`, `featured.content.removed`, `featured.content.updated`.
 - 🔔 **Webhooks** with HMAC signature (`sha256=<hex>` over JSON body) and retry/backoff.
 - 🧰 **Tooling**: OpenAPI ref fixer, request logger, pagination helpers.
 
@@ -837,9 +837,9 @@ Not allowed (returns `400`):
 #### Events (SSE)
 
 * `/events/stream` (optional query `events=<comma-separated-event-names>`):
-  `item.snapshot`, `item.created`, `item.updated`, `marketplace.pass.snapshot`, `marketplace.pass.added`, `marketplace.pass.removed`, `marketplace.pass.updated`, `realms.plus.snapshot`, `realms.plus.added`, `realms.plus.removed`, `realms.plus.updated`, `sale.snapshot`, `sale.update`, `price.changed`, `creator.trending`, `featured.content.updated`.
+  `item.snapshot`, `item.created`, `item.updated`, `marketplace.pass.snapshot`, `marketplace.pass.added`, `marketplace.pass.removed`, `marketplace.pass.updated`, `realms.plus.snapshot`, `realms.plus.added`, `realms.plus.removed`, `realms.plus.updated`, `sale.snapshot`, `sale.update`, `price.changed`, `creator.trending`, `featured.content.added`, `featured.content.removed`, `featured.content.updated`.
 * Subscription events compare the current `csb` / `realms_plus` tag memberships with the last persisted watcher state. Added/removed events include the current item list, updated events include `before` / `after` entries, and each item includes `subscription.startDate` / `subscription.endDate` from `csbStartDate`, `csbEndDate`, `realmsPlusStartDate`, and `realmsPlusEndDate`.
-* `featured.content.updated` includes changed `/marketplace/featured-content` layout entries in `addedItems`, `removedItems`, and `changedItems`. `addedItemDetails`, `removedItemDetails`, and `changedItemDetails` contain the same endpoint item details plus `featuredContext` (`page`, `row`, `component`, `itemIndex`); `currentItemDetails` and `previousItemDetails` provide the full after/before featured item lists. Same-ID layout or metadata changes set `contentChanged=true` and include `previousContentSignature` / `currentContentSignature`.
+* Featured content changes emit dedicated `featured.content.added`, `featured.content.removed`, and `featured.content.updated` events. Payloads include the matching `addedItems`, `removedItems`, or `changedItems` plus item details with `featuredContext` (`page`, `row`, `component`, `itemIndex`); `currentItemDetails` and `previousItemDetails` provide the full after/before featured item lists. Same-ID layout or metadata changes emit `featured.content.updated`, set `contentChanged=true`, and include `previousContentSignature` / `currentContentSignature`.
 
 #### Admin Webhooks
 
@@ -976,7 +976,7 @@ curl -sS -X POST http://localhost:3000/webhooks \
   -d '{"event":"price.changed","url":"https://example.com/hook","secret":"<optional-256-max>"}'
 ```
 
-**Events**: `sale.update`, `item.snapshot`, `item.created`, `item.updated`, `marketplace.pass.snapshot`, `marketplace.pass.added`, `marketplace.pass.removed`, `marketplace.pass.updated`, `realms.plus.snapshot`, `realms.plus.added`, `realms.plus.removed`, `realms.plus.updated`, `price.changed`, `creator.trending`, `featured.content.updated`
+**Events**: `sale.update`, `item.snapshot`, `item.created`, `item.updated`, `marketplace.pass.snapshot`, `marketplace.pass.added`, `marketplace.pass.removed`, `marketplace.pass.updated`, `realms.plus.snapshot`, `realms.plus.added`, `realms.plus.removed`, `realms.plus.updated`, `price.changed`, `creator.trending`, `featured.content.added`, `featured.content.removed`, `featured.content.updated`
 
 **Delivery**
 

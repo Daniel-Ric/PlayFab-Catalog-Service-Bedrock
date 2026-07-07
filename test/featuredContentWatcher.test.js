@@ -104,6 +104,77 @@ test("buildFeaturedContentChangePayload includes added and removed endpoint item
     assert.deepEqual(payload.previousItemDetails.map(item => item.id), ["old", "stay"]);
 });
 
+test("emitFeaturedContentChangeEvents emits specific added removed and updated events", () => {
+    const previousPayload = featuredPayload([
+        layoutItem("old", "Old"),
+        layoutItem("stay", "Stay"),
+        layoutItem("changed", "Changed")
+    ]);
+    const currentPayload = featuredPayload([
+        layoutItem("stay", "Stay"),
+        layoutItem("changed", "Changed Updated"),
+        layoutItem("new", "New")
+    ]);
+    const previousEntries = _internals.collectFeaturedItemEntries(previousPayload);
+    const currentEntries = _internals.collectFeaturedItemEntries(currentPayload);
+    const previousContentSignature = _internals.featuredContentSignature(previousPayload, previousEntries);
+    const currentContentSignature = _internals.featuredContentSignature(currentPayload, currentEntries);
+    const payload = _internals.buildFeaturedContentChangePayload({
+        titleId: "20CA2",
+        previousEntries,
+        currentEntries,
+        previousContentSignature,
+        currentContentSignature,
+        content: currentPayload,
+        ts: 321
+    });
+    const events = [];
+    const eventBus = {emit: (eventName, data) => events.push({eventName, data})};
+
+    _internals.emitFeaturedContentChangeEvents(eventBus, payload);
+
+    assert.deepEqual(events.map(event => event.eventName), [
+        "featured.content.added",
+        "featured.content.removed",
+        "featured.content.updated"
+    ]);
+    assert.deepEqual(events[0].data.addedItemIds, ["new"]);
+    assert.deepEqual(events[0].data.removedItemIds, []);
+    assert.deepEqual(events[0].data.changedItemIds, []);
+    assert.deepEqual(events[0].data.items.map(item => item.__featuredChangeType), ["added"]);
+    assert.deepEqual(events[1].data.addedItemIds, []);
+    assert.deepEqual(events[1].data.removedItemIds, ["old"]);
+    assert.deepEqual(events[1].data.changedItemIds, []);
+    assert.deepEqual(events[1].data.items.map(item => item.__featuredChangeType), ["removed"]);
+    assert.deepEqual(events[2].data.addedItemIds, []);
+    assert.deepEqual(events[2].data.removedItemIds, []);
+    assert.deepEqual(events[2].data.changedItemIds, ["changed"]);
+    assert.deepEqual(events[2].data.items.map(item => item.__featuredChangeType), ["updated"]);
+});
+
+test("emitFeaturedContentChangeEvents does not emit updated for added-only changes", () => {
+    const previousEntries = _internals.collectFeaturedItemEntries(featuredPayload([layoutItem("stay", "Stay")]));
+    const currentEntries = _internals.collectFeaturedItemEntries(featuredPayload([
+        layoutItem("stay", "Stay"),
+        layoutItem("new", "New")
+    ]));
+    const payload = _internals.buildFeaturedContentChangePayload({
+        titleId: "20CA2",
+        previousEntries,
+        currentEntries,
+        content: {},
+        ts: 654
+    });
+    const events = [];
+    const eventBus = {emit: (eventName, data) => events.push({eventName, data})};
+
+    _internals.emitFeaturedContentChangeEvents(eventBus, payload);
+
+    assert.deepEqual(events.map(event => event.eventName), ["featured.content.added"]);
+    assert.equal(events[0].data.count, 1);
+    assert.deepEqual(events[0].data.addedItemIds, ["new"]);
+});
+
 test("buildFeaturedContentChangePayload returns null when the featured item set is unchanged", () => {
     const previousEntries = _internals.collectFeaturedItemEntries(featuredPayload([layoutItem("one", "One")]));
     const currentEntries = _internals.collectFeaturedItemEntries(featuredPayload([layoutItem("one", "One")]));

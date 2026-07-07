@@ -175,8 +175,14 @@ function signatureEntry(entry) {
     };
 }
 
-function entrySignature(entry) {
-    return stableHash(signatureEntry(entry));
+function entryChangeSignature(entry) {
+    const signature = signatureEntry(entry);
+    return stableHash({
+        ...signature,
+        itemIndex: null,
+        row: signature.row ? {...signature.row, index: null} : null,
+        component: signature.component ? {...signature.component, index: null, totalItems: null} : null
+    });
 }
 
 function featuredContentSignature(payload, entries) {
@@ -187,7 +193,7 @@ function changedIdsFromEntryMaps(previousItemIds, previousMap, currentMap) {
     return (previousItemIds || []).filter(id => {
         const normalizedId = normalizeId(id);
         if (!normalizedId || !currentMap.has(normalizedId)) return false;
-        return entrySignature(previousMap.get(normalizedId)) !== entrySignature(currentMap.get(normalizedId));
+        return entryChangeSignature(previousMap.get(normalizedId)) !== entryChangeSignature(currentMap.get(normalizedId));
     });
 }
 
@@ -205,6 +211,74 @@ function detailsFromEntries(entries) {
 
 function markFeaturedItems(items, type) {
     return (items || []).map(item => ({...item, __featuredChangeType: type}));
+}
+
+function filterFeaturedContentChangePayload(payload, type) {
+    if (!payload || !type) return payload;
+
+    if (type === "added") {
+        const items = markFeaturedItems(payload.addedItemDetails, "added");
+        return {
+            ...payload,
+            removedItemIds: [],
+            changedItemIds: [],
+            removedItems: [],
+            changedItems: [],
+            changedItemChanges: [],
+            removedItemDetails: [],
+            changedItemDetails: [],
+            items,
+            count: items.length,
+            contentChanged: false
+        };
+    }
+
+    if (type === "removed") {
+        const items = markFeaturedItems(payload.removedItemDetails, "removed");
+        return {
+            ...payload,
+            addedItemIds: [],
+            changedItemIds: [],
+            addedItems: [],
+            changedItems: [],
+            changedItemChanges: [],
+            addedItemDetails: [],
+            changedItemDetails: [],
+            items,
+            count: items.length,
+            contentChanged: false
+        };
+    }
+
+    if (type === "updated") {
+        const items = markFeaturedItems(payload.changedItemDetails, "updated");
+        return {
+            ...payload,
+            addedItemIds: [],
+            removedItemIds: [],
+            addedItems: [],
+            removedItems: [],
+            addedItemDetails: [],
+            removedItemDetails: [],
+            items,
+            count: items.length
+        };
+    }
+
+    return payload;
+}
+
+function emitFeaturedContentChangeEvents(eventBus, payload) {
+    if (!payload) return;
+    if (payload.addedItemIds?.length) {
+        eventBus.emit("featured.content.added", filterFeaturedContentChangePayload(payload, "added"));
+    }
+    if (payload.removedItemIds?.length) {
+        eventBus.emit("featured.content.removed", filterFeaturedContentChangePayload(payload, "removed"));
+    }
+    if (payload.changedItemIds?.length) {
+        eventBus.emit("featured.content.updated", filterFeaturedContentChangePayload(payload, "updated"));
+    }
 }
 
 function buildFeaturedContentChangePayload({
@@ -346,7 +420,7 @@ class FeaturedContentWatcher {
                     this.lastContentSignature = currentContentSignature;
 
                     if (eventPayload) {
-                        eventBus.emit("featured.content.updated", eventPayload);
+                        emitFeaturedContentChangeEvents(eventBus, eventPayload);
                     }
                     return;
                 }
@@ -385,6 +459,8 @@ module.exports = {
         uniqueIdsFromItems,
         uniqueIdsFromEntries,
         featuredContentSignature,
+        filterFeaturedContentChangePayload,
+        emitFeaturedContentChangeEvents,
         buildFeaturedContentChangePayload
     }
 };

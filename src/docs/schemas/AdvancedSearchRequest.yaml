@@ -149,6 +149,7 @@ AdvancedSearchRequest:
                   - addon
                   - resourcepack
                   - mashup
+                  - server
         creationDate:
           type: object
           additionalProperties: false

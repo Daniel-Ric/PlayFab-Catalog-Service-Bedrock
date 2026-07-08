@@ -165,11 +165,23 @@ test("buildFilter maps contentKinds to tag filters", () => {
     assert.equal(filter, "(tags/any(t:t eq 'skinpack') or tags/any(t:t eq 'worldtemplate'))");
 });
 
+test("buildFilter maps server contentKinds to server tag filter", () => {
+    const filter = advancedSearchInternals.buildFilter("alias", {filters: {contentKinds: ["server"]}});
+    assert.equal(filter, "tags/any(t:t eq '3PServerContent')");
+});
+
 test("advanced buildPlayFabFilter maps contentType filters", () => {
     const filter = advancedSearchInternals.buildPlayFabFilter({
         contentTypes: ["3PServerContent_V1.2", "shell_3PServerContent_V1.2"]
     });
     assert.equal(filter, "(ContentType eq '3PServerContent_V1.2' or ContentType eq 'shell_3PServerContent_V1.2')");
+});
+
+test("advanced buildPlayFabFilter maps server contentKinds to server content types", () => {
+    const filter = advancedSearchInternals.buildPlayFabFilter({
+        contentKinds: ["server"]
+    });
+    assert.equal(filter, "(ContentType eq '3PServerContent_V1.2' or ContentType eq '3PServerContent_V1.2_pf' or ContentType eq 'shell_3PServerContent_V1.2')");
 });
 
 test("buildFilter maps persona contentKinds to exclude tags", () => {

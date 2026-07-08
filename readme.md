@@ -801,7 +801,7 @@ The following filters are pushed directly to PlayFab OData in `Catalog/Search`:
 * `platforms`
 * `tags`, `tagsAny`, `tagsAll`
 * `contentType`, `contentTypes`
-* `contentKinds` (`skinpack`, `world`, `persona`, `addon`, `resourcepack`, `mashup`)
+* `contentKinds` (`skinpack`, `world`, `persona`, `addon`, `resourcepack`, `mashup`, `server`)
 * `creationDate`, `lastModifiedDate`, `startDate`
 * `priceAmounts.min/max` (via `DisplayProperties/price`)
 * `ratingMin` (via `rating/average`)

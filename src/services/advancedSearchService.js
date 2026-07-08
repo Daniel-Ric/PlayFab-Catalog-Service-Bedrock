@@ -40,7 +40,15 @@ const CONTENT_KIND_ALIASES = {
     texturepack: "resourcepack",
     texturepacks: "resourcepack",
     mashup: "mashup",
-    mashups: "mashup"
+    mashups: "mashup",
+    server: "server",
+    servers: "server",
+    servercontent: "server",
+    servercontents: "server",
+    serveroffer: "server",
+    serveroffers: "server",
+    threepservercontent: "server",
+    "3pservercontent": "server"
 };
 
 const CONTENT_KIND_DEFS = {
@@ -49,7 +57,8 @@ const CONTENT_KIND_DEFS = {
     persona: {contentTypes: ["PersonaDurable"]},
     addon: {contentTypes: ["MarketplaceDurableCatalog_V1.2"], tagsAll: ["addon"]},
     resourcepack: {contentTypes: ["MarketplaceDurableCatalog_V1.2"], tagsAll: ["resourcepack"]},
-    mashup: {contentTypes: ["MarketplaceDurableCatalog_V1.2"], tagsAll: ["mashup"]}
+    mashup: {contentTypes: ["MarketplaceDurableCatalog_V1.2"], tagsAll: ["mashup"]},
+    server: {contentTypes: ["3PServerContent_V1.2", "3PServerContent_V1.2_pf", "shell_3PServerContent_V1.2"]}
 };
 
 function esc(v) {
@@ -221,7 +230,7 @@ function buildContentKindFilter(values) {
     if (unknown.length) {
         const e = new Error("Unknown contentKinds.");
         e.status = 400;
-        e.publicMessage = `Unknown contentKinds: ${unknown.join(", ")}. Supported values: skinpack, world, persona, addon, resourcepack, mashup.`;
+        e.publicMessage = `Unknown contentKinds: ${unknown.join(", ")}. Supported values: skinpack, world, persona, addon, resourcepack, mashup, server.`;
         throw e;
     }
 
@@ -266,7 +275,8 @@ function buildFilter(_alias, body = {}) {
         world: "worldtemplate",
         addon: "addon",
         resourcepack: "resourcepack",
-        mashup: "mashup"
+        mashup: "mashup",
+        server: "3PServerContent"
     };
 
     const clauses = nonPersonaKinds.map(kind => {

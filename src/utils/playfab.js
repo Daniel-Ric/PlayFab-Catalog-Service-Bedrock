@@ -58,6 +58,12 @@ function jitter(base, attempt, max) {
     return Math.floor(Math.random() * exp);
 }
 
+function isRetryableUpstreamStatus(status, includeUnauthorized = false) {
+    const retryable = [408, 409, 425, 429, 500, 502, 503, 504];
+    if (includeUnauthorized) retryable.push(401);
+    return retryable.includes(status);
+}
+
 async function loginWithIOSDeviceID(titleId, os) {
     const deviceId = `ios-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
     const r = await api.post(`https://${titleId}.playfabapi.com/Client/LoginWithIOSDeviceID`, {

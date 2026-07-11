@@ -491,5 +491,8 @@ module.exports = {
     getItemsByIds,
     getStoreItems,
     getItemReviewSummary,
-    getItemReviews
+    getItemReviews,
+    _internals: {
+        isRetryableUpstreamStatus
+    }
 };

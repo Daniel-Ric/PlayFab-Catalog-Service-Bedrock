@@ -170,11 +170,12 @@ async function sendPlayFabRequestWithEntityToken(titleId, endpoint, payload = {}
                 return r.data.data ?? r.data;
             }
             const status = r.status;
-            const shouldRetry = [408, 409, 425, 429, 500, 502, 503, 504].includes(status);
+            const shouldRetry = isRetryableUpstreamStatus(status);
             if (!shouldRetry || attempt >= budget) {
                 const e = new Error(`Upstream error ${status}`);
                 e.status = status;
                 e.response = r;
+                e.retryable = shouldRetry;
                 const upstreamMsg = r?.data?.errorMessage || r?.data?.error?.message || r?.data?.error || null;
                 if (upstreamMsg) e.publicMessage = `Upstream error ${status}: ${String(upstreamMsg)}`;
                 throw e;
@@ -184,6 +185,7 @@ async function sendPlayFabRequestWithEntityToken(titleId, endpoint, payload = {}
             attempt++;
         } catch (err) {
             lastErr = err;
+            if (err?.retryable === false) throw err;
             if (attempt >= budget) throw err;
             await sleep(jitter(200, attempt, 10000));
             attempt++;

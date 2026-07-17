@@ -132,13 +132,32 @@ function buildProxyRequest(payload, cfg, options = {}) {
 }
 
 async function executeProxyPayload(payload, cfg, options = {}) {
-    const upstream = await axios.request(buildProxyRequest(payload, cfg, options));
+    let upstream;
+    try {
+        upstream = await axios.request(buildProxyRequest(payload, cfg, options));
+    } catch (cause) {
+        throw normalizeCatalogUpstreamError(cause, cfg.requestTimeoutMs);
+    }
     const contentType = upstream.headers?.["content-type"] || "application/octet-stream";
     return {
         status: upstream.status,
         contentType,
         body: upstream.data
     };
+}
+
+function normalizeCatalogUpstreamError(cause, timeoutMs) {
+    const timedOut = cause?.code === "ECONNABORTED" || cause?.code === "ETIMEDOUT" || /timeout/i.test(String(cause?.message || ""));
+    const err = new Error(timedOut
+        ? `Catalog upstream timed out after ${timeoutMs}ms.`
+        : "Catalog upstream request failed.");
+    err.status = timedOut ? 504 : 502;
+    err.publicMessage = timedOut
+        ? "Catalog upstream request timed out. Please try again."
+        : "Catalog upstream is currently unavailable. Please try again.";
+    err.code = timedOut ? "CATALOG_UPSTREAM_TIMEOUT" : "CATALOG_UPSTREAM_UNAVAILABLE";
+    err.cause = cause;
+    return err;
 }
 
 class CatalogHandshakeStore {
@@ -249,6 +268,7 @@ module.exports = {
         decryptSecurePayload,
         deriveSecureKey,
         encryptSecurePayload,
+        normalizeCatalogUpstreamError,
         sanitizeHeaders
     }
 };

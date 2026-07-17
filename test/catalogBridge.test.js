@@ -127,6 +127,24 @@ test("catalog bridge proxy strips client authorization and injects configured be
     assert.equal(request.headers["X-Test"], "ok");
 }));
 
+test("catalog bridge maps axios timeouts to a retryable 504 response", () => {
+    const cause = new Error("timeout of 60000ms exceeded");
+    cause.code = "ECONNABORTED";
+    const err = _internals.normalizeCatalogUpstreamError(cause, 60000);
+
+    assert.equal(err.status, 504);
+    assert.equal(err.code, "CATALOG_UPSTREAM_TIMEOUT");
+    assert.match(err.publicMessage, /timed out/i);
+    assert.equal(err.cause, cause);
+});
+
+test("catalog bridge maps other transport failures to 502", () => {
+    const err = _internals.normalizeCatalogUpstreamError(Object.assign(new Error("socket closed"), {code: "ECONNRESET"}), 60000);
+
+    assert.equal(err.status, 502);
+    assert.equal(err.code, "CATALOG_UPSTREAM_UNAVAILABLE");
+});
+
 test("catalog bridge plain proxy forwards allowed catalog requests", () => withServer((req, res) => {
     assert.equal(req.url, "/catalog/items?take=1");
     assert.equal(req.headers.authorization, "Bearer server-token");

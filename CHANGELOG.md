@@ -1,5 +1,166 @@
 # Changelog
 
+## 12.3.6 (2026-07-17)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Add PLAYFAB_DEVICE_ID to .env configuration (c33ecd2)
+- Impact: Repository update with a small change footprint across repository files.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Repository files: 1 file: .env
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +1 / -0
+
+## 12.3.7 (2026-07-17)
+
+### Summary
+
+- Change type: Documentation
+- Main change: PlayFab - Add session expiration skew and fallback TTL handling (999df7e)
+- Impact: Documentation with a small change footprint across repository files, application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Application source: 1 file: src/scripts/setup.js
+- OpenAPI documentation: 1 file: src/docs/paths/session.yml
+- README: 1 file: readme.md
+- Shared utilities: 1 file: src/utils/playfab.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 4
+- Line changes: +39 / -14
+
+## 12.3.8 (2026-07-17)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Enhance device ID stability and setup handling (576c399)
+- Impact: Repository update with a small change footprint across repository files, application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Application source: 1 file: src/scripts/setup.js
+- README: 1 file: readme.md
+- Shared utilities: 1 file: src/utils/playfab.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 3
+- Line changes: +17 / -3
+
+## 12.3.9 (2026-07-17)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add unit tests for session handling and device ID (6fe91a6)
+- Impact: Test coverage with a small change footprint across test coverage.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Tests: 1 file: test/playfabSession.test.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +54 / -0
+
+## 12.3.10 (2026-07-17)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add reusable retry delay helper and 503 test (f93981f)
+- Impact: Test coverage with a small change footprint across application logic, test coverage.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Shared utilities: 1 file: src/utils/playfab.js
+- Tests: 1 file: test/playfabSession.test.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +15 / -7
+
+## 12.3.11 (2026-07-17)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add error normalization and tests for upstream timeouts (35db0a2)
+- Impact: Test coverage with a small change footprint across application logic, test coverage.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/catalogBridgeService.js
+- Tests: 1 file: test/catalogBridge.test.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +39 / -1
+
+## 12.3.12 (2026-07-17)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Handle transient subscription errors (027e3ff)
+- Impact: Test coverage with a small change footprint across application logic, test coverage.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/subscriptionWatcher.js
+- Tests: 1 file: test/subscriptionWatcher.test.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +27 / -3
+
+## 12.3.13 (2026-07-17)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Update bridge timeout default to 60 seconds (57e4108)
+- Impact: Repository update with a small change footprint across repository files, application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- README: 1 file: readme.md
+- Repository files: 1 file: .env
+- Runtime configuration: 1 file: src/config/catalogBridge.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 3
+- Line changes: +3 / -2
 ## 12.3.2 (2026-07-11)
 
 ### Summary
@@ -2269,6 +2430,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

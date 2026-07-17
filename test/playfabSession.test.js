@@ -28,6 +28,11 @@ test("resolvePlayFabDeviceId keeps the process fallback stable", () => {
     assert.equal(second, first);
 });
 
+test("503 retries honor Retry-After and otherwise use a longer delay", () => {
+    assert.equal(_internals.retryDelayForStatus(503, {"retry-after": "2"}, 0), 2000);
+    assert.ok(_internals.retryDelayForStatus(503, {}, 0) >= 500);
+});
+
 test("resolveSessionExpiresAt applies the PlayFab expiration safety window", () => {
     const now = Date.parse("2026-07-16T12:00:00Z");
     const expiresAt = _internals.resolveSessionExpiresAt("2026-07-16T13:00:00Z", now);

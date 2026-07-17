@@ -61,6 +61,13 @@ function jitter(base, attempt, max) {
     return Math.floor(Math.random() * exp);
 }
 
+function retryDelayForStatus(status, headers = {}, attempt = 0) {
+    const retryAfter = parseRetryAfter(headers?.["retry-after"]);
+    if (retryAfter !== null && (status === 429 || status === 503)) return retryAfter;
+    if (status === 503) return 500 + jitter(1000, attempt, 15000);
+    return jitter(200, attempt, 10000);
+}
+
 function resolvePlayFabDeviceId(env = process.env) {
     const configured = typeof env.PLAYFAB_DEVICE_ID === "string" ? env.PLAYFAB_DEVICE_ID.trim() : "";
     return configured || fallbackDeviceId;
@@ -172,12 +179,7 @@ async function sendPlayFabRequestInternal(titleId, endpoint, payload = {}, auth 
                 if (upstreamMsg) e.publicMessage = `Upstream error ${status}: ${String(upstreamMsg)}`;
                 throw e;
             }
-            let waitMs;
-            if (status === 429) {
-                waitMs = parseRetryAfter(r.headers["retry-after"]) ?? jitter(200, attempt, 10000);
-            } else {
-                waitMs = jitter(200, attempt, 10000);
-            }
+            const waitMs = retryDelayForStatus(status, r.headers, attempt);
             await sleep(waitMs);
             attempt++;
 
@@ -214,7 +216,7 @@ async function sendPlayFabRequestWithEntityToken(titleId, endpoint, payload = {}
                 if (upstreamMsg) e.publicMessage = `Upstream error ${status}: ${String(upstreamMsg)}`;
                 throw e;
             }
-            const waitMs = status === 429 ? parseRetryAfter(r.headers["retry-after"]) ?? jitter(200, attempt, 10000) : jitter(200, attempt, 10000);
+            const waitMs = retryDelayForStatus(status, r.headers, attempt);
             await sleep(waitMs);
             attempt++;
         } catch (err) {
@@ -520,6 +522,7 @@ module.exports = {
     getItemReviews,
     _internals: {
         isRetryableUpstreamStatus,
+        retryDelayForStatus,
         resolvePlayFabDeviceId,
         resolveSessionExpiresAt
     }

@@ -176,7 +176,7 @@ The Catalog Bridge is disabled by default and adds no routes, handshakes, CORS r
 | `CATALOG_BRIDGE_CORS_METHODS` | `GET,POST,OPTIONS` | Bridge CORS methods |
 | `CATALOG_BRIDGE_CORS_ALLOWED_HEADERS` | `Content-Type,X-CSRF-Token` | Bridge CORS request headers |
 | `CATALOG_BRIDGE_CORS_CREDENTIALS` | `true` | Add bridge CORS credentials support |
-| `CATALOG_BRIDGE_UPSTREAM_TIMEOUT_MS` | `UPSTREAM_TIMEOUT_MS` | Bridge upstream timeout |
+| `CATALOG_BRIDGE_UPSTREAM_TIMEOUT_MS` | `60000` | Bridge upstream timeout; independent from the PlayFab timeout |
 | `CATALOG_BRIDGE_MAX_BODY_BYTES` | `1048576` | Bridge JSON body limit |
 
 `POST /api/catalog/proxy` accepts only relative `url` values under `/catalog/`, blocks `/catalog/login`, ignores client-supplied `Authorization`, and injects the configured server-side bearer token. `GET /api/security/catalog-handshake` creates short-lived P-256 ECDH handshakes for `POST /api/catalog/secure`; the encrypted payload is the same proxy payload plus the handshake `csrfToken` when CSRF is enabled.

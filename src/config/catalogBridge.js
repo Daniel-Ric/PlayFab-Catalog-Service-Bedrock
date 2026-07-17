@@ -60,7 +60,7 @@ function getCatalogBridgeConfig() {
         handshakeTtlMs: intEnv("CATALOG_BRIDGE_HANDSHAKE_TTL_MS", 2 * 60 * 1000),
         rateLimitWindowMs: intEnv("CATALOG_BRIDGE_RATE_LIMIT_WINDOW_MS", 60 * 1000),
         rateLimitMax: intEnv("CATALOG_BRIDGE_RATE_LIMIT_MAX", 120),
-        requestTimeoutMs: intEnv("CATALOG_BRIDGE_UPSTREAM_TIMEOUT_MS", intEnv("UPSTREAM_TIMEOUT_MS", 20000)),
+        requestTimeoutMs: intEnv("CATALOG_BRIDGE_UPSTREAM_TIMEOUT_MS", 60000),
         maxBodyBytes: intEnv("CATALOG_BRIDGE_MAX_BODY_BYTES", 1024 * 1024)
     };
 }

@@ -204,12 +204,13 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 
 | Variable            | Default   | Description                          |
 | ------------------- | --------- | ------------------------------------ |
-| `SESSION_TTL_MS`    | `1800000` | LRU session TTL (ms)                 |
-| `SESSION_CACHE_MAX` | `1000`    | Max entries in session cache         |
-| `DATA_TTL_MS`       | `300000`  | LRU generic data TTL (ms)            |
-| `DATA_CACHE_MAX`    | `20000`   | Max entries in generic data cache    |
-| `ADV_SEARCH_TTL_MS` | `60000`   | TTL for advanced search cache (ms)   |
-| `PAGE_SIZE`         | `100`     | Default page size for list endpoints |
+| `SESSION_TTL_MS`         | `1800000` | Fallback TTL when PlayFab omits token expiration |
+| `SESSION_EXPIRY_SKEW_MS` | `60000`   | Refresh token this long before expiration        |
+| `SESSION_CACHE_MAX`      | `1000`    | Max entries in session cache                     |
+| `DATA_TTL_MS`            | `300000`  | LRU generic data TTL (ms)                        |
+| `DATA_CACHE_MAX`         | `20000`   | Max entries in generic data cache                |
+| `ADV_SEARCH_TTL_MS`      | `60000`   | TTL for advanced search cache (ms)               |
+| `PAGE_SIZE`              | `100`     | Default page size for list endpoints             |
 
 ### Watchers & SSE
 
@@ -1145,6 +1146,7 @@ UPSTREAM_TIMEOUT_MS=20000
 RETRY_BUDGET=3
 
 SESSION_TTL_MS=1800000
+SESSION_EXPIRY_SKEW_MS=60000
 SESSION_CACHE_MAX=1000
 DATA_CACHE_MAX=20000
 DATA_TTL_MS=300000

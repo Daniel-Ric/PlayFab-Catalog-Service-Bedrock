@@ -460,6 +460,7 @@ function askConfig(baseCfg) {
             UPSTREAM_TIMEOUT_MS: baseCfg.UPSTREAM_TIMEOUT_MS || "20000",
             RETRY_BUDGET: baseCfg.RETRY_BUDGET || "3",
             SESSION_TTL_MS: baseCfg.SESSION_TTL_MS || "1800000",
+            SESSION_EXPIRY_SKEW_MS: baseCfg.SESSION_EXPIRY_SKEW_MS || "60000",
             SESSION_CACHE_MAX: baseCfg.SESSION_CACHE_MAX || "1000",
             DATA_CACHE_MAX: baseCfg.DATA_CACHE_MAX || "20000",
             DATA_TTL_MS: baseCfg.DATA_TTL_MS || "300000",

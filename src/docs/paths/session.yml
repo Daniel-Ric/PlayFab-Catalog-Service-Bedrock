@@ -38,8 +38,11 @@
                 PlayFabId:
                   type: string
                 EntityToken:
-                  type: object
-                  additionalProperties: true
+                  type: string
+                TokenExpiration:
+                  type: string
+                  format: date-time
+                  nullable: true
                 expiresAt:
                   type: integer
       "400":

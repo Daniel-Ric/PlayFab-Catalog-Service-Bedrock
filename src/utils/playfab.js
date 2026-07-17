@@ -35,7 +35,8 @@ const api = axios.create({
 });
 
 const sessionMutexes = new Map();
-const SESSION_SOFT_TTL_MS = 25 * 60 * 1000;
+const SESSION_FALLBACK_TTL_MS = Math.max(1000, Number(process.env.SESSION_TTL_MS || 30 * 60 * 1000));
+const SESSION_EXPIRY_SKEW_MS = Math.max(0, Number(process.env.SESSION_EXPIRY_SKEW_MS || 60 * 1000));
 const UPSTREAM_RESPONSE_CACHE_TTL_MS = Math.max(1000, Number(process.env.UPSTREAM_RESPONSE_CACHE_TTL_MS || 45000));
 const UPSTREAM_CACHEABLE_ENDPOINTS = new Set(["Catalog/Search", "Catalog/SearchItems", "Catalog/GetItems", "Catalog/SearchStores", "Catalog/GetStoreItems"]);
 const ITEM_BY_ID_CACHE_TTL_MS = Math.max(1000, Number(process.env.ITEM_BY_ID_CACHE_TTL_MS || 5 * 60 * 1000));
@@ -58,6 +59,14 @@ function jitter(base, attempt, max) {
     return Math.floor(Math.random() * exp);
 }
 
+function resolveSessionExpiresAt(tokenExpiration, now = Date.now()) {
+    const tokenExpiresAt = Date.parse(tokenExpiration || "");
+    if (!Number.isFinite(tokenExpiresAt) || tokenExpiresAt <= now) return now + SESSION_FALLBACK_TTL_MS;
+    // Refresh shortly before PlayFab rejects the token.
+    const refreshSkew = Math.min(SESSION_EXPIRY_SKEW_MS, Math.floor((tokenExpiresAt - now) / 2));
+    return tokenExpiresAt - refreshSkew;
+}
+
 function isRetryableUpstreamStatus(status, includeUnauthorized = false) {
     const retryable = [408, 409, 425, 429, 500, 502, 503, 504];
     if (includeUnauthorized) retryable.push(401);
@@ -75,16 +84,21 @@ async function loginWithIOSDeviceID(titleId, os) {
     throw e;
 }
 
-async function getEntityToken(titleId, ticket, pfId) {
+async function requestEntityToken(titleId, ticket, pfId) {
     const r = await api.post(`https://${titleId}.playfabapi.com/Authentication/GetEntityToken`, {
         Entity: {Id: pfId, Type: "master_player_account"}
     }, {
         headers: {"X-Authorization": ticket}
     });
-    if (r.status >= 200 && r.status < 300) return r.data.data.EntityToken;
+    if (r.status >= 200 && r.status < 300) return r.data.data;
     const e = new Error("GetEntityToken failed");
     e.status = r.status;
     throw e;
+}
+
+async function getEntityToken(titleId, ticket, pfId) {
+    const data = await requestEntityToken(titleId, ticket, pfId);
+    return data.EntityToken;
 }
 
 async function getSession(titleId, os) {
@@ -100,11 +114,16 @@ async function getSession(titleId, os) {
         const again = sessionCache.get(key);
         if (again && (!again.expiresAt || again.expiresAt > Date.now())) return again;
         const {SessionTicket, PlayFabId} = await loginWithIOSDeviceID(titleId, os);
-        const EntityToken = await getEntityToken(titleId, SessionTicket, PlayFabId);
+        const tokenData = await requestEntityToken(titleId, SessionTicket, PlayFabId);
+        const expiresAt = resolveSessionExpiresAt(tokenData.TokenExpiration);
         const session = {
-            SessionTicket, PlayFabId, EntityToken, expiresAt: Date.now() + SESSION_SOFT_TTL_MS
+            SessionTicket,
+            PlayFabId,
+            EntityToken: tokenData.EntityToken,
+            TokenExpiration: tokenData.TokenExpiration || null,
+            expiresAt
         };
-        sessionCache.set(key, session);
+        sessionCache.set(key, session, {ttl: Math.max(1, expiresAt - Date.now())});
         return session;
     });
 }

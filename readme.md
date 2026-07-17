@@ -197,8 +197,11 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 | `DEFAULT_ALIAS`          | `prod`  | Default alias → TitleId mapping (see `/titles`) |
 | `FEATURED_PRIMARY_ALIAS` | `prod`  | Primary alias for featured/SSE sources          |
 | `OS`                     | `iOS`   | OS label used in upstream requests              |
+| `PLAYFAB_DEVICE_ID`      | generated | Stable anonymous PlayFab device identity      |
 | `PLAYFAB_CONCURRENCY`    | `12`    | Parallel PlayFab requests                       |
 | `PLAYFAB_BATCH`          | `600`   | Max batch size for bulk PlayFab calls           |
+
+`npm run setup` generates `PLAYFAB_DEVICE_ID` once and preserves it on later setup runs. Keep the value stable per installation and outside version control so PlayFab reuses the linked anonymous account. Without it, the service uses a process-local fallback that changes after a restart.
 
 ### Caching / TTLs / Sizes
 
@@ -1136,6 +1139,7 @@ ADMIN_PASS=change-me
 DEFAULT_ALIAS=prod
 TITLE_ID=20CA2
 OS=iOS
+PLAYFAB_DEVICE_ID=vmc-<unique-random-id>
 TRUST_PROXY=1
 LOG_LEVEL=info
 CORS_ORIGINS=http://localhost:5173,https://view-marketplace.net

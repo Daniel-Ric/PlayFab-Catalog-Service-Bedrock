@@ -13,6 +13,7 @@
 // -----------------------------------------------------------------------------
 
 const axios = require("axios");
+const crypto = require("crypto");
 const http = require("http");
 const https = require("https");
 const {Mutex} = require("async-mutex");
@@ -37,6 +38,7 @@ const api = axios.create({
 const sessionMutexes = new Map();
 const SESSION_FALLBACK_TTL_MS = Math.max(1000, Number(process.env.SESSION_TTL_MS || 30 * 60 * 1000));
 const SESSION_EXPIRY_SKEW_MS = Math.max(0, Number(process.env.SESSION_EXPIRY_SKEW_MS || 60 * 1000));
+const fallbackDeviceId = `vmc-${crypto.randomBytes(16).toString("hex")}`;
 const UPSTREAM_RESPONSE_CACHE_TTL_MS = Math.max(1000, Number(process.env.UPSTREAM_RESPONSE_CACHE_TTL_MS || 45000));
 const UPSTREAM_CACHEABLE_ENDPOINTS = new Set(["Catalog/Search", "Catalog/SearchItems", "Catalog/GetItems", "Catalog/SearchStores", "Catalog/GetStoreItems"]);
 const ITEM_BY_ID_CACHE_TTL_MS = Math.max(1000, Number(process.env.ITEM_BY_ID_CACHE_TTL_MS || 5 * 60 * 1000));
@@ -59,6 +61,11 @@ function jitter(base, attempt, max) {
     return Math.floor(Math.random() * exp);
 }
 
+function resolvePlayFabDeviceId(env = process.env) {
+    const configured = typeof env.PLAYFAB_DEVICE_ID === "string" ? env.PLAYFAB_DEVICE_ID.trim() : "";
+    return configured || fallbackDeviceId;
+}
+
 function resolveSessionExpiresAt(tokenExpiration, now = Date.now()) {
     const tokenExpiresAt = Date.parse(tokenExpiration || "");
     if (!Number.isFinite(tokenExpiresAt) || tokenExpiresAt <= now) return now + SESSION_FALLBACK_TTL_MS;
@@ -74,7 +81,7 @@ function isRetryableUpstreamStatus(status, includeUnauthorized = false) {
 }
 
 async function loginWithIOSDeviceID(titleId, os) {
-    const deviceId = `ios-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+    const deviceId = resolvePlayFabDeviceId();
     const r = await api.post(`https://${titleId}.playfabapi.com/Client/LoginWithIOSDeviceID`, {
         CreateAccount: true, TitleId: titleId, DeviceId: deviceId, OS: os
     });
@@ -512,6 +519,8 @@ module.exports = {
     getItemReviewSummary,
     getItemReviews,
     _internals: {
-        isRetryableUpstreamStatus
+        isRetryableUpstreamStatus,
+        resolvePlayFabDeviceId,
+        resolveSessionExpiresAt
     }
 };

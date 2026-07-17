@@ -169,3 +169,9 @@ test("subscription watcher state serializes and restores item maps", () => {
     assert.equal(restored.marketplacePass.get("one").Id, "one");
     assert.equal(restored.realmsPlus.get("two").Id, "two");
 });
+
+test("subscription watcher treats exhausted upstream 503 as transient", () => {
+    assert.equal(_internals.isTransientSubscriptionError({status: 503, retryable: true}), true);
+    assert.equal(_internals.isTransientSubscriptionError({code: "ETIMEDOUT"}), true);
+    assert.equal(_internals.isTransientSubscriptionError({status: 400, retryable: false}), false);
+});

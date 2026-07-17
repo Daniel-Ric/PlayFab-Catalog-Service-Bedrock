@@ -183,6 +183,12 @@ function projectUpdatedSubscriptionItems(items, subscriptionKey) {
     }));
 }
 
+function isTransientSubscriptionError(err) {
+    if (err?.retryable === true) return true;
+    if ([408, 425, 429, 500, 502, 503, 504].includes(Number(err?.status))) return true;
+    return ["ECONNABORTED", "ECONNRESET", "ETIMEDOUT"].includes(err?.code);
+}
+
 class SubscriptionWatcher {
     constructor() {
         this.running = false;
@@ -208,9 +214,17 @@ class SubscriptionWatcher {
                 this.suppressInitialChanges = !persisted.loaded;
             }
 
+            let successfulRefreshes = 0;
             for (const key of Object.keys(SUBSCRIPTION_DEFS)) {
                 const def = SUBSCRIPTION_DEFS[key];
-                const items = await marketplaceService.fetchSubscriptionItems(alias, key, {});
+                let items;
+                try {
+                    items = await marketplaceService.fetchSubscriptionItems(alias, key, {});
+                } catch (err) {
+                    if (!isTransientSubscriptionError(err)) throw err;
+                    logger.warn(`[SubscriptionWatcher] ${key} refresh deferred after upstream ${err.status || err.code || "error"}; keeping previous snapshot`);
+                    continue;
+                }
                 const previous = this.state[key] || new Map();
                 const {currentMap, added, removed, updated} = diffSubscriptionItems(previous, items, key);
                 this.state[key] = currentMap;
@@ -248,10 +262,13 @@ class SubscriptionWatcher {
                         items: projectUpdatedSubscriptionItems(updated, key)
                     });
                 }
+                successfulRefreshes += 1;
             }
 
-            savePersistedState(this.state);
-            this.suppressInitialChanges = false;
+            if (successfulRefreshes > 0) {
+                savePersistedState(this.state);
+                this.suppressInitialChanges = false;
+            }
         };
 
         const runOnce = createNonOverlappingRunner({
@@ -279,6 +296,7 @@ module.exports = {
         deserializeState,
         diffSubscriptionItems,
         hashSubscriptionItem,
+        isTransientSubscriptionError,
         projectRemovedSubscriptionItems,
         projectSubscriptionItems,
         projectUpdatedSubscriptionItems,

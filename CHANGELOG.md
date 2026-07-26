@@ -1,5 +1,53 @@
 # Changelog
 
+## 12.3.18 (2026-07-26)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Bump lru-cache from 11.5.1 to 11.5.2 (b1359bd)
+- Impact: Repository update with a small change footprint across project dependencies.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Dependencies: 2 files: package-lock.json, package.json
+
+### Notable Changes
+
+- Bumps [lru-cache](https://github.com/isaacs/node-lru-cache) from 11.5.1 to 11.5.2.
+- [Changelog](https://github.com/isaacs/node-lru-cache/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/isaacs/node-lru-cache/compare/v11.5.1...v11.5.2)
+- --
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +5 / -5
+
+## 12.3.19 (2026-07-26)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Merge (f3d1ae8)
+- Impact: Repository update with a small change footprint across project dependencies.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Dependencies: 2 files: package-lock.json, package.json
+
+### Notable Changes
+
+- Bump lru-cache from 11.5.1 to 11.5.2
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +5 / -5
 ## 12.3.6 (2026-07-17)
 
 ### Summary
@@ -2430,6 +2478,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

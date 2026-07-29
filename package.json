@@ -24,7 +24,7 @@
     "axios": "^1.18.1",
     "body-parser": "^2.3.0",
     "bottleneck": "^2.19.5",
-    "chalk": "^5.5.0",
+    "chalk": "^6.0.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",

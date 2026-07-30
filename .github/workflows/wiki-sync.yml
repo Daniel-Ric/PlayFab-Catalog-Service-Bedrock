@@ -22,7 +22,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: wiki-sync-${{ github.ref }}
+  group: wiki-sync-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -32,16 +32,16 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
-          cache: "npm"
+          cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install from lockfile
+        run: npm ci --no-audit --no-fund --loglevel=error
 
       - name: Generate wiki pages
         run: npm run wiki:generate
@@ -51,7 +51,10 @@ jobs:
           WIKI_TOKEN: ${{ secrets.WIKI_PUSH_TOKEN || secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
-          git clone "https://x-access-token:${WIKI_TOKEN}@github.com/${{ github.repository }}.wiki.git" wiki-repo
+          if ! git clone "https://x-access-token:${WIKI_TOKEN}@github.com/${{ github.repository }}.wiki.git" wiki-repo; then
+            echo "::error::The GitHub Wiki is disabled or has not been initialized. Enable it and create the first page before syncing."
+            exit 1
+          fi
           test -d wiki-repo/.git
 
       - name: Publish generated wiki
@@ -61,7 +64,7 @@ jobs:
           test -d wiki-repo/.git
           test "$(git -C wiki-repo rev-parse --is-inside-work-tree)" = "true"
           git -C wiki-repo config user.name "github-actions[bot]"
-          git -C wiki-repo config user.email "github-actions[bot]@users.noreply.github.com"
+          git -C wiki-repo config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C wiki-repo add .
           if git -C wiki-repo diff --cached --quiet; then
             echo "Wiki is already up to date."

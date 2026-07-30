@@ -7,11 +7,13 @@ const path = require("path");
 const CHANGELOG_PATH = path.resolve(process.cwd(), "CHANGELOG.md");
 
 function runGit(args, options = {}) {
-  return execFileSync("git", args, {
+  const output = execFileSync("git", args, {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     ...options,
-  }).trim();
+  });
+
+  return typeof output === "string" ? output.trim() : "";
 }
 
 function tryGit(args) {

@@ -1,5 +1,25 @@
 # Changelog
 
+## 12.4.0 (2026-07-30)
+
+### Summary
+
+- Change type: CI and automation
+- Main change: PlayFab - Standardize GitHub workflows (f4e0af0)
+- Impact: CI and automation with a medium change footprint across CI and workflow automation.
+- Bump reason: medium change footprint (7 files, 322 total line changes)
+
+### Changed Areas
+
+- GitHub automation scripts: 1 file: .github/scripts/create-version-release.js
+- GitHub configuration: 1 file: .github/dependabot.yml
+- GitHub workflows: 5 files: .github/workflows/automated-version-tags.yml, .github/workflows/ci.yml, plus 3 more
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 7
+- Line changes: +157 / -165
 ## 12.3.18 (2026-07-26)
 
 ### Summary
@@ -2478,6 +2498,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

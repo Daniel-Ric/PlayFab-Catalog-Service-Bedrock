@@ -125,15 +125,7 @@ async function searchLoop(titleId, {
 async function searchLoopAllItems(titleId, {
     filter = "", orderBy = "creationDate desc", batch = 300, maxBatches = Number(process.env.MAX_SEARCH_BATCHES || 0)
 }) {
-    const out = [];
-    for (let i = 0, skip = 0; i < maxBatches; i += 1, skip += batch) {
-        const payload = buildSearchPayload({filter, search: "", top: batch, skip, orderBy});
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        const itemsRaw = data.Items || [];
-        out.push(...itemsRaw);
-        if (!itemsRaw.length || itemsRaw.length < batch) break;
-    }
-    return out;
+    return fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, batch, FETCH_CONCURRENCY, maxBatches, orderBy);
 }
 
 function getPrimaryTitleIdUnified() {

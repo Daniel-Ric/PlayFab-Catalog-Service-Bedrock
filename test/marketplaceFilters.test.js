@@ -141,6 +141,7 @@ test("list enrichment flags can disable full items and references", () => {
 
 test("readCatalogTotal returns upstream total count variants", () => {
     assert.equal(marketplaceServiceInternals.readCatalogTotal({TotalCount: 12}), 12);
+    assert.equal(marketplaceServiceInternals.readCatalogTotal({Count: 42601}), 42601);
     assert.equal(marketplaceServiceInternals.readCatalogTotal({total: 4}), 4);
     assert.equal(marketplaceServiceInternals.readCatalogTotal({}), null);
 });

@@ -96,7 +96,7 @@ function resolveCatalogPagination(query = {}, fallbackTop, maxTop = PAGE_SIZE) {
 }
 
 function readCatalogTotal(data) {
-    const candidates = [data?.TotalCount, data?.totalCount, data?.Total, data?.total];
+    const candidates = [data?.TotalCount, data?.totalCount, data?.Total, data?.total, data?.Count, data?.count];
     for (const candidate of candidates) {
         const total = Number(candidate);
         if (Number.isFinite(total) && total >= 0) return total;

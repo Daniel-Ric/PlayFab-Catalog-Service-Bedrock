@@ -44,6 +44,10 @@ const UPSTREAM_CACHEABLE_ENDPOINTS = new Set(["Catalog/Search", "Catalog/SearchI
 const ITEM_BY_ID_CACHE_TTL_MS = Math.max(1000, Number(process.env.ITEM_BY_ID_CACHE_TTL_MS || 5 * 60 * 1000));
 const GET_ITEMS_MAX_IDS = 50;
 const CATALOG_SEARCH_MAX_SKIP = 10000;
+const CATALOG_SEARCH_UNKNOWN_TOTAL_MAX_BATCHES = Math.max(
+    1,
+    parseInt(process.env.CATALOG_SEARCH_UNKNOWN_TOTAL_MAX_BATCHES || "1000", 10)
+);
 
 function sleep(ms) {
     return new Promise(r => setTimeout(r, ms));
@@ -339,6 +343,59 @@ async function fetchCatalogSearchBatch(titleId, {
     };
 }
 
+function resolveCatalogBatchLimit(total, batchSize, configuredMaxBatches) {
+    const totalBatches = total === null ? null : Math.max(1, Math.ceil(total / batchSize));
+    const configured = Number(configuredMaxBatches);
+    const hasConfiguredLimit = Number.isFinite(configured) && configured > 0;
+    if (totalBatches !== null) return hasConfiguredLimit ? Math.min(totalBatches, Math.floor(configured)) : totalBatches;
+    return hasConfiguredLimit ? Math.floor(configured) : CATALOG_SEARCH_UNKNOWN_TOTAL_MAX_BATCHES;
+}
+
+function andCatalogFilter(filter, clause) {
+    const base = String(filter || "").trim();
+    return base ? `(${base}) and (${clause})` : clause;
+}
+
+function catalogItemId(item) {
+    return item?.Id || item?.id || null;
+}
+
+function uniqueCatalogItems(items) {
+    const seen = new Set();
+    return (items || []).filter(item => {
+        const id = catalogItemId(item);
+        if (!id) return true;
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+    });
+}
+
+function catalogOrderValue(item, field) {
+    const key = String(field || "").toLowerCase();
+    if (key === "creationdate") return Date.parse(item?.CreationDate || item?.creationDate || "") || 0;
+    if (key === "lastmodifieddate") return Date.parse(item?.LastModifiedDate || item?.lastModifiedDate || "") || 0;
+    if (key === "startdate") return Date.parse(item?.StartDate || item?.startDate || "") || 0;
+    if (key === "rating/totalcount") return Number(item?.Rating?.TotalCount ?? item?.rating?.totalCount ?? 0) || 0;
+    return String(item?.[field] ?? item?.[key] ?? "").toLowerCase();
+}
+
+function sortCatalogItems(items, orderBy) {
+    const clauses = normalizeOrderBy(orderBy).split(",").map(clause => {
+        const match = clause.trim().match(/^([^\s]+)(?:\s+(asc|desc))?$/i);
+        return match ? {field: match[1], direction: String(match[2] || "desc").toLowerCase() === "asc" ? 1 : -1} : null;
+    }).filter(Boolean);
+    return items.slice().sort((a, b) => {
+        for (const clause of clauses) {
+            const av = catalogOrderValue(a, clause.field);
+            const bv = catalogOrderValue(b, clause.field);
+            if (av < bv) return -1 * clause.direction;
+            if (av > bv) return clause.direction;
+        }
+        return String(catalogItemId(a) || "").localeCompare(String(catalogItemId(b) || ""));
+    });
+}
+
 async function fetchCatalogSearchItems(titleId, {
     filter = "",
     search = "",
@@ -349,9 +406,7 @@ async function fetchCatalogSearchItems(titleId, {
     orderBy = "StartDate desc"
 }) {
     const safeBatchSize = Math.max(1, batchSize);
-    const safeMaxBatches = Math.max(1, maxBatches);
     const safeConcurrency = Math.max(1, concurrency);
-    const safeSkipBatches = Math.max(1, Math.floor(CATALOG_SEARCH_MAX_SKIP / safeBatchSize) + 1);
     const batches = new Map();
 
     const first = await fetchCatalogSearchBatch(titleId, {
@@ -368,9 +423,41 @@ async function fetchCatalogSearchItems(titleId, {
         return first.items;
     }
 
-    const totalBatches = first.total === null
-        ? Math.min(safeMaxBatches, safeSkipBatches)
-        : Math.min(safeMaxBatches, safeSkipBatches, Math.ceil(first.total / safeBatchSize));
+    const configuredLimit = Number(maxBatches);
+    const hasConfiguredLimit = Number.isFinite(configuredLimit) && configuredLimit > 0;
+    const maxOffsetBatches = Math.floor(CATALOG_SEARCH_MAX_SKIP / safeBatchSize) + 1;
+
+    if (!hasConfiguredLimit && first.total !== null && first.total > maxOffsetBatches * safeBatchSize) {
+        const [oldest, newest] = await Promise.all([
+            fetchCatalogSearchBatch(titleId, {filter, search, os, batchSize: 1, skip: 0, orderBy: "CreationDate asc"}),
+            fetchCatalogSearchBatch(titleId, {filter, search, os, batchSize: 1, skip: 0, orderBy: "CreationDate desc"})
+        ]);
+        const oldestMs = Date.parse(oldest.items[0]?.CreationDate || oldest.items[0]?.creationDate || "");
+        const newestMs = Date.parse(newest.items[0]?.CreationDate || newest.items[0]?.creationDate || "");
+        if (!Number.isFinite(oldestMs) || !Number.isFinite(newestMs) || oldestMs >= newestMs) {
+            const error = new Error("Catalog result exceeds PlayFab's offset limit and cannot be split by CreationDate.");
+            error.status = 502;
+            throw error;
+        }
+
+        const midpoint = new Date(oldestMs + Math.floor((newestMs - oldestMs) / 2)).toISOString();
+        const [olderItems, newerItems] = await Promise.all([
+            fetchCatalogSearchItems(titleId, {
+                filter: andCatalogFilter(filter, `CreationDate lt ${midpoint}`), search, os,
+                batchSize: safeBatchSize, concurrency: safeConcurrency, maxBatches: 0, orderBy
+            }),
+            fetchCatalogSearchItems(titleId, {
+                filter: andCatalogFilter(filter, `CreationDate ge ${midpoint}`), search, os,
+                batchSize: safeBatchSize, concurrency: safeConcurrency, maxBatches: 0, orderBy
+            })
+        ]);
+        return sortCatalogItems(uniqueCatalogItems([...olderItems, ...newerItems]), orderBy);
+    }
+
+    const totalBatches = Math.min(
+        resolveCatalogBatchLimit(first.total, safeBatchSize, maxBatches),
+        maxOffsetBatches
+    );
 
     if (totalBatches <= 1) {
         return first.items;

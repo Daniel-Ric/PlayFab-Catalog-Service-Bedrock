@@ -15,7 +15,6 @@
 const {
     sendPlayFabRequest,
     sendPlayFabRequestWithEntityToken,
-    isValidItem,
     transformItem,
     buildSearchPayload,
     fetchAllMarketplaceItemsEfficiently,
@@ -478,7 +477,7 @@ async function fetchSearchPageByFilter(titleId, query = {}, filter = "", orderBy
         if (upstreamTotal !== null) total = upstreamTotal;
         else total = skip + raw.length;
 
-        items.push(...raw.filter(isValidItem).map(transformItem));
+        items.push(...raw.filter(Boolean).map(transformItem));
         if (!raw.length || raw.length < top || (upstreamTotal !== null && skip + raw.length >= upstreamTotal)) break;
 
         skip += top;
@@ -719,7 +718,7 @@ module.exports = {
             filter, search: "", top, skip, orderBy
         });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        let items = (data.Items || []).filter(isValidItem);
+        let items = (data.Items || []).filter(Boolean);
         items = await enrichWithFullItems(titleId, items, query);
         items = await maybeEnrichItemsWithResolvedReferences(titleId, items, query);
         const transformed = items.map(transformItem);
@@ -741,7 +740,7 @@ module.exports = {
             filter, search: buildBasicSearchText(keyword), top, skip, orderBy
         });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        let items = (data.Items || []).filter(isValidItem);
+        let items = (data.Items || []).filter(Boolean);
         items = await enrichWithFullItems(titleId, items, query);
         items = await maybeEnrichItemsWithResolvedReferences(titleId, items, query);
         const transformed = items.map(transformItem);
@@ -784,7 +783,7 @@ module.exports = {
             expandFields: typeof payload.expand === "string" ? payload.expand : ""
         });
         const data = await sendPlayFabRequestWithEntityToken(titleId, "Catalog/Search", payloadSearch, entityToken, 2);
-        return (data.Items || []).filter(isValidItem).map(transformItem);
+        return (data.Items || []).filter(Boolean).map(transformItem);
     },
 
     async fetchPopular(alias, query = {}) {
@@ -877,7 +876,7 @@ module.exports = {
         const titleId = resolveTitle(alias);
         const expand = parseExpand(expandParam);
         const raw = await getItemsByIds(titleId, [itemId], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
-        const items = raw.filter(isValidItem).map(transformItem);
+        const items = raw.filter(Boolean).map(transformItem);
         if (!items.length) {
             const e = new Error("Item nicht gefunden.");
             e.status = 404;
@@ -932,7 +931,7 @@ module.exports = {
     async resolveByItemId(alias, itemId) {
         const titleId = resolveTitle(alias);
         const raw = await getItemsByIds(titleId, [itemId], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
-        const items = raw.filter(isValidItem).map(transformItem);
+        const items = raw.filter(Boolean).map(transformItem);
         if (!items.length) {
             const e = new Error("Item nicht gefunden.");
             e.status = 404;
@@ -956,7 +955,7 @@ module.exports = {
         }
         const id = items[0].Id;
         const full = await getItemsByIds(titleId, [id], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
-        const t = full.filter(isValidItem).map(transformItem)[0];
+        const t = full.filter(Boolean).map(transformItem)[0];
         if (!t) {
             const e = new Error(`No item with the FriendlyId ${friendlyId} has been found`);
             e.status = 404;
@@ -979,7 +978,7 @@ module.exports = {
         }
         const id = items[0].Id;
         const full = await getItemsByIds(titleId, [id], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
-        const t = full.filter(isValidItem).map(transformItem)[0];
+        const t = full.filter(Boolean).map(transformItem)[0];
         if (!t) {
             const e = new Error(`No item with the FriendlyId ${friendlyId} has been found`);
             e.status = 404;
@@ -1327,9 +1326,7 @@ module.exports = {
             filter, search: "", top: 200, skip: 0, orderBy: "creationDate desc"
         });
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        const candidates = (data.Items || [])
-            .filter(isValidItem)
-            .map(transformItem);
+        const candidates = (data.Items || []).filter(Boolean).map(transformItem);
 
         const baseType = base.ContentType || base.contentType || "";
         const seen = new Set();

@@ -254,12 +254,8 @@ function catalogTotalCount(data) {
     return null;
 }
 
-function transformValidItems(items) {
-    const transformed = [];
-    for (const item of items || []) {
-        if (isValidItem(item)) transformed.push(transformItem(item));
-    }
-    return transformed;
+function transformCatalogItems(items) {
+    return (items || []).filter(Boolean).map(transformItem);
 }
 
 function normalizeOrderBy(orderBy, fallback = "StartDate desc") {
@@ -303,10 +299,6 @@ function buildSearchPayload({
     return p;
 }
 
-function isValidItem(item) {
-    return (item.DisplayProperties && (item.Title?.NEUTRAL || item.Title?.neutral) && Array.isArray(item.Images) && item.Images.length > 0);
-}
-
 function transformItem(item) {
     const thumbs = [];
     const shots = [];
@@ -339,7 +331,7 @@ async function fetchCatalogSearchBatch(titleId, {
     return {
         rawCount: raw.length,
         total: catalogTotalCount(data),
-        items: transformValidItems(raw)
+        items: transformCatalogItems(raw)
     };
 }
 
@@ -599,8 +591,8 @@ module.exports = {
     sendPlayFabRequest,
     sendPlayFabRequestWithEntityToken,
     fetchCatalogSearchItems,
+    resolveCatalogBatchLimit,
     fetchAllMarketplaceItemsEfficiently,
-    isValidItem,
     transformItem,
     buildSearchPayload,
     getItemsByIds,

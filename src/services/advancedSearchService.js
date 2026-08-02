@@ -697,11 +697,6 @@ exports.advancedSearch = async (alias, body, {page, pageSize}) => {
     let allFromPlayFab = await searchLoop(titleId, filter, q, orderBy);
     let filtered = applyApiLayerFilters(allFromPlayFab, normalized.filters);
 
-    if (!filtered.length && hasLocalOnlyFilters(normalized.filters) && MAX_BATCHES < 400) {
-        allFromPlayFab = await searchLoop(titleId, filter, q, orderBy, Math.min(400, MAX_BATCHES * 4));
-        filtered = applyApiLayerFilters(allFromPlayFab, normalized.filters);
-    }
-
     const sorted = applyLocalSort(filtered, localSort);
 
     const facets = buildFacets(sorted);

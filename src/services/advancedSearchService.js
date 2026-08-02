@@ -18,7 +18,7 @@ const {buildContentTypeFilter} = require("../utils/filter");
 const { _internals: searchInternals } = require("./marketplaceSearchService");
 
 const PAGE_BATCH = Math.max(100, parseInt(process.env.ADV_SEARCH_BATCH || "300", 10));
-const MAX_BATCHES = Math.max(1, parseInt(process.env.ADV_SEARCH_MAX_BATCHES || "120", 10));
+const MAX_BATCHES = Math.max(0, parseInt(process.env.ADV_SEARCH_MAX_BATCHES || "0", 10));
 const SEARCH_CONCURRENCY = Math.max(1, parseInt(process.env.ADV_SEARCH_CONCURRENCY || process.env.FETCH_CONCURRENCY || "5", 10));
 const CURSOR_MAX_PAGES_PER_REQUEST = Math.max(1, Math.min(25, parseInt(process.env.ADV_SEARCH_CURSOR_MAX_PAGES_PER_REQUEST || "10", 10)));
 const OS = process.env.OS || "iOS";

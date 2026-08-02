@@ -402,7 +402,7 @@ async function fetchCatalogSearchItems(titleId, {
     os,
     batchSize = 300,
     concurrency = 5,
-    maxBatches = Number(process.env.MAX_FETCH_BATCHES || 20),
+    maxBatches = Number(process.env.MAX_FETCH_BATCHES || 0),
     orderBy = "StartDate desc"
 }) {
     const safeBatchSize = Math.max(1, batchSize);
@@ -501,7 +501,7 @@ async function fetchCatalogSearchItems(titleId, {
     return all;
 }
 
-async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSize = 300, concurrency = 5, maxBatches = Number(process.env.MAX_FETCH_BATCHES || 20), orderBy = "StartDate desc") {
+async function fetchAllMarketplaceItemsEfficiently(titleId, filter, os, batchSize = 300, concurrency = 5, maxBatches = Number(process.env.MAX_FETCH_BATCHES || 0), orderBy = "StartDate desc") {
     return fetchCatalogSearchItems(titleId, {
         filter,
         search: "",

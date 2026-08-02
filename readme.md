@@ -249,11 +249,11 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 
 | Variable                       | Default | Description                           |
 | ------------------------------ | ------- | ------------------------------------- |
-| `MAX_SEARCH_BATCHES`           | `10`    | Batches for paginated search          |
+| `MAX_SEARCH_BATCHES`           | `0`     | Optional search batch cap (`0` = complete result set) |
 | `FETCH_CONCURRENCY`            | `5`     | Parallel catalog search pages         |
-| `MAX_FETCH_BATCHES`            | `20`    | Batches for “all items” fetch         |
+| `MAX_FETCH_BATCHES`            | `0`     | Optional “all items” batch cap (`0` = complete result set) |
 | `ADV_SEARCH_BATCH`             | `300`   | Batch size advanced search            |
-| `ADV_SEARCH_MAX_BATCHES`       | `10`    | Max batches advanced search           |
+| `ADV_SEARCH_MAX_BATCHES`       | `0`     | Optional advanced-search batch cap (`0` = complete result set) |
 | `ADV_SEARCH_CONCURRENCY`       | `5`     | Parallel advanced search pages        |
 | `MARKETPLACE_SEARCH_ITEMS_TTL_MS` | `30000` | Cache TTL for native SearchItems responses |
 | `MARKETPLACE_SEARCH_SUGGEST_TTL_MS` | `30000` | Cache TTL for suggestions             |
@@ -1203,15 +1203,15 @@ SSE_HEARTBEAT_MS=15000
 
 ADV_SEARCH_TTL_MS=60000
 ADV_SEARCH_BATCH=300
-ADV_SEARCH_MAX_BATCHES=10
+ADV_SEARCH_MAX_BATCHES=0
 ADV_SEARCH_CONCURRENCY=5
 
 WEBHOOK_TIMEOUT_MS=5000
 WEBHOOK_MAX_RETRIES=3
 WEBHOOK_CONCURRENCY=4
 
-MAX_SEARCH_BATCHES=10
-MAX_FETCH_BATCHES=20
+MAX_SEARCH_BATCHES=0
+MAX_FETCH_BATCHES=0
 FETCH_CONCURRENCY=5
 PLAYFAB_CONCURRENCY=12
 PLAYFAB_BATCH=600

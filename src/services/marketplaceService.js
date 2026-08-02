@@ -118,13 +118,13 @@ function buildAllFilter(query = {}) {
 }
 
 async function searchLoop(titleId, {
-    filter = "", orderBy = "creationDate desc", batch = 300, maxBatches = Number(process.env.MAX_SEARCH_BATCHES || 10)
+    filter = "", orderBy = "creationDate desc", batch = 300, maxBatches = Number(process.env.MAX_SEARCH_BATCHES || 0)
 }) {
     return fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, batch, FETCH_CONCURRENCY, maxBatches, orderBy);
 }
 
 async function searchLoopAllItems(titleId, {
-    filter = "", orderBy = "creationDate desc", batch = 300, maxBatches = Number(process.env.MAX_SEARCH_BATCHES || 10)
+    filter = "", orderBy = "creationDate desc", batch = 300, maxBatches = Number(process.env.MAX_SEARCH_BATCHES || 0)
 }) {
     const out = [];
     for (let i = 0, skip = 0; i < maxBatches; i += 1, skip += batch) {
@@ -446,7 +446,7 @@ async function fetchAllSearchItems(titleId, query = {}, orderBy = "startDate des
     const fetched = [];
     for (const q of queries) {
         const filter = buildAllFilter(q);
-        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 0), orderBy);
         fetched.push(...list);
     }
     return sortItemsByOrder(uniqueById(fetched), orderBy);
@@ -828,7 +828,7 @@ module.exports = {
             const withRefs = await maybeEnrichItemsWithResolvedReferences(titleId, enriched, query);
             return {items: withRefs, total: page.total, serverPaginated: true};
         }
-        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 0), orderBy);
         const enriched = await enrichWithFullItems(titleId, list, query);
         const withRefs = await maybeEnrichItemsWithResolvedReferences(titleId, enriched, query);
         return withRefs;
@@ -849,7 +849,7 @@ module.exports = {
             const withRefs = await maybeEnrichItemsWithResolvedReferences(titleId, enriched, query);
             return {items: withRefs, total: page.total, serverPaginated: true};
         }
-        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 0), orderBy);
         const enriched = await enrichWithFullItems(titleId, list, query);
         const withRefs = await maybeEnrichItemsWithResolvedReferences(titleId, enriched, query);
         return withRefs;
@@ -867,7 +867,7 @@ module.exports = {
             const withRefs = await maybeEnrichItemsWithResolvedReferences(titleId, enriched, query);
             return {items: withRefs, total: page.total, serverPaginated: true};
         }
-        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 20), orderBy);
+        const list = await fetchAllMarketplaceItemsEfficiently(titleId, filter, OS, 300, FETCH_CONCURRENCY, Number(process.env.MAX_FETCH_BATCHES || 0), orderBy);
         const enriched = await enrichWithFullItems(titleId, list, query);
         const withRefs = await maybeEnrichItemsWithResolvedReferences(titleId, enriched, query);
         return withRefs;

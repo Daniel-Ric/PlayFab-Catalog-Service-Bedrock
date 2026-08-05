@@ -254,6 +254,36 @@ function catalogTotalCount(data) {
     return null;
 }
 
+function isValidItem(item) {
+    if (!item || typeof item !== "object") return false;
+
+    const displayProperties = item.DisplayProperties;
+    if (!displayProperties || typeof displayProperties !== "object" || Array.isArray(displayProperties)) return false;
+
+    const title = item.Title;
+    if (!title || typeof title !== "object") return false;
+    const neutralTitle = title.NEUTRAL ?? title.neutral;
+    if (typeof neutralTitle !== "string" || neutralTitle.trim().length === 0) return false;
+
+    const images = item.Images;
+    if (!Array.isArray(images)) return false;
+    for (let index = 0; index < images.length; index += 1) {
+        const image = images[index];
+        if (image && typeof image === "object" && typeof image.Url === "string" && image.Url.length > 0) return true;
+    }
+    return false;
+}
+
+function isWatchableMarketplaceItem(item) {
+    if (!isValidItem(item)) return false;
+    if (typeof item.Id !== "string" || item.Id.length === 0) return false;
+
+    const displayProperties = item.DisplayProperties;
+    if (typeof displayProperties.creatorName !== "string" || displayProperties.creatorName.trim().length === 0) return false;
+    if (typeof displayProperties.offerId !== "string" || displayProperties.offerId.trim().length === 0) return false;
+    return typeof displayProperties.purchasable === "boolean";
+}
+
 function transformCatalogItems(items) {
     return (items || []).filter(Boolean).map(transformItem);
 }
@@ -593,6 +623,8 @@ module.exports = {
     fetchCatalogSearchItems,
     resolveCatalogBatchLimit,
     fetchAllMarketplaceItemsEfficiently,
+    isValidItem,
+    isWatchableMarketplaceItem,
     transformItem,
     buildSearchPayload,
     getItemsByIds,

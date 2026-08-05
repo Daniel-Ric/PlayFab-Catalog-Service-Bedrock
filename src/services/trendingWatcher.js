@@ -12,7 +12,7 @@
 //
 // -----------------------------------------------------------------------------
 
-const {sendPlayFabRequest, buildSearchPayload} = require("../utils/playfab");
+const {sendPlayFabRequest, buildSearchPayload, isWatchableMarketplaceItem} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
 const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const logger = require("../config/logger");
@@ -38,7 +38,7 @@ async function fetchWindow(titleId, os, hours, top, pages) {
         const skip = i * top;
         const payload = buildSearchPayload({filter, search, top, skip, orderBy, expandFields: "images"});
         const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 2, os);
-        const items = (data.Items || []).filter(Boolean);
+        const items = (data.Items || []).filter(isWatchableMarketplaceItem);
         if (!items.length) break;
         out.push(...items);
         if (items.length < top) break;

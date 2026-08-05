@@ -15,7 +15,7 @@
 const logger = require("../config/logger");
 const fs = require("fs");
 const path = require("path");
-const {sendPlayFabRequest, getItemsByIds} = require("../utils/playfab");
+const {sendPlayFabRequest, isWatchableMarketplaceItem, getItemsByIds} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
 const {createNonOverlappingRunner} = require("../utils/watcherRun");
@@ -227,7 +227,7 @@ async function requestItems(titleId, os, filter, orderBy, continuationToken, cou
     const ids = hits.map(idOfSearchHit).filter(Boolean);
     const full = await getItemsCompat(titleId, os, ids);
     const fallbackItems = hits.map(itemFromSearchHit).filter(Boolean);
-    const items = ((full && full.length) ? full : fallbackItems).filter(Boolean);
+    const items = ((full && full.length) ? full : fallbackItems).filter(isWatchableMarketplaceItem);
     return {items, continuationToken: nextToken, hitCount: hits.length};
 }
 

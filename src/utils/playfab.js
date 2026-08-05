@@ -285,7 +285,11 @@ function isWatchableMarketplaceItem(item) {
 }
 
 function transformCatalogItems(items) {
-    return (items || []).filter(Boolean).map(transformItem);
+    const transformed = [];
+    for (const item of items || []) {
+        if (isValidItem(item)) transformed.push(transformItem(item));
+    }
+    return transformed;
 }
 
 function normalizeOrderBy(orderBy, fallback = "StartDate desc") {

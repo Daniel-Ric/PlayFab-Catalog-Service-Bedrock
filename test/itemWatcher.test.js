@@ -83,6 +83,23 @@ test("classifyItemChange keeps changed known items as updated", () => {
     assert.equal(result.kind, "updated");
 });
 
+test("classifyItemChange leaves content revisions to the content update watcher", () => {
+    const previousItem = makeItem({DisplayProperties: {
+        creatorName: "Creator",
+        lastUpdated: "1.21.0",
+        packIdentity: [{type: "behaviorpack", uuid: "pack-a", version: "1.0.0"}],
+        totalContentFileSize: 1000
+    }});
+    const currentItem = makeItem({DisplayProperties: {
+        creatorName: "Creator",
+        lastUpdated: "1.26.40",
+        packIdentity: [{type: "behaviorpack", uuid: "pack-a", version: "1.0.6"}],
+        totalContentFileSize: 2000
+    }});
+    const result = _internals.classifyItemChange(currentItem, previousStateFor(previousItem), SINCE_TS);
+    assert.equal(result.kind, null);
+});
+
 test("classifyItemChange prefers created for known items whose created event was suppressed", () => {
     const previousItem = makeItem({Title: {NEUTRAL: "Draft"}, ETag: "etag-draft"});
     const currentItem = makeItem({Title: {NEUTRAL: "Published"}, ETag: "etag-published"});

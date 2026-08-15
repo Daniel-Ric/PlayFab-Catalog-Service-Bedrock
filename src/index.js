@@ -65,6 +65,7 @@ const OpenApiValidator = require("express-openapi-validator");
 const NodeCache = require("node-cache");
 const {salesWatcher} = require("./services/salesWatcher");
 const {itemWatcher} = require("./services/itemWatcher");
+const {contentUpdateWatcher} = require("./services/contentUpdateWatcher");
 const {subscriptionWatcher} = require("./services/subscriptionWatcher");
 const {priceWatcher} = require("./services/priceWatcher");
 const {trendingWatcher} = require("./services/trendingWatcher");
@@ -477,6 +478,13 @@ app.listen(port, async () => {
     if (process.env.ENABLE_ITEM_WATCHER === "true") {
         itemWatcher.start(eventBus);
         logger.info("Item watcher started");
+    }
+    const contentUpdateWatcherEnabled = process.env.ENABLE_CONTENT_UPDATE_WATCHER == null
+        ? process.env.ENABLE_ITEM_WATCHER === "true"
+        : process.env.ENABLE_CONTENT_UPDATE_WATCHER === "true";
+    if (contentUpdateWatcherEnabled) {
+        contentUpdateWatcher.start(eventBus);
+        logger.info("Content update watcher started");
     }
     if (process.env.ENABLE_SUBSCRIPTION_WATCHER === "true") {
         subscriptionWatcher.start(eventBus);

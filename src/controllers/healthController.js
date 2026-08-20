@@ -160,7 +160,7 @@ function watcherDetails(w, envPrefix, enabledBool) {
     const lastRunTs = w.lastRunTs || 0;
     const msSinceLastRun = lastRunTs ? Date.now() - lastRunTs : null;
 
-    let status = "disabled";
+    let status;
     if (!enabledBool) {
         status = "disabled";
     } else if (!running) {

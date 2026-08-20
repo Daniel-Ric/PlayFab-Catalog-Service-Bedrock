@@ -222,7 +222,8 @@ class SubscriptionWatcher {
                     items = await marketplaceService.fetchSubscriptionItems(alias, key, {});
                 } catch (err) {
                     if (!isTransientSubscriptionError(err)) throw err;
-                    logger.warn(`[SubscriptionWatcher] ${key} refresh deferred after upstream ${err.status || err.code || "error"}; keeping previous snapshot`);
+                    const upstreamStatus = String(err.status || err.code || "error").replace(/[\r\n]/g, " ");
+                    logger.warn(`[SubscriptionWatcher] ${key} refresh deferred after upstream ${upstreamStatus}; keeping previous snapshot`);
                     continue;
                 }
                 const previous = this.state[key] || new Map();

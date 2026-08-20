@@ -55,7 +55,7 @@ class SseHub {
             throw error;
         }
 
-        const client = {res, filters, key, heartbeat: null};
+        const client = {res, filters, key, heartbeat: null, lastHeartbeatAt: Date.now()};
         const envHeartbeatMs = Math.max(5000, parseInt(process.env.SSE_HEARTBEAT_MS || "15000", 10));
         const hbMs = filters && typeof filters.heartbeatMs === "number" && filters.heartbeatMs >= 5000 ? filters.heartbeatMs : envHeartbeatMs;
 
@@ -74,16 +74,18 @@ class SseHub {
                 this.removeClient(client);
                 return;
             }
+            if (Date.now() - client.lastHeartbeatAt < hbMs) return;
             try {
                 if (!res.write(": heartbeat\n\n")) {
                     this.terminateClient(client);
                     return;
                 }
+                client.lastHeartbeatAt = Date.now();
                 if (typeof res.flush === "function") res.flush();
             } catch {
                 this.terminateClient(client);
             }
-        }, hbMs);
+        }, 5000);
 
         this.clients.add(client);
         this.clientsByKey.set(key, (this.clientsByKey.get(key) || 0) + 1);

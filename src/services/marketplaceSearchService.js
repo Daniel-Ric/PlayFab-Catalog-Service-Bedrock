@@ -460,7 +460,7 @@ async function suggest(alias, query = {}) {
 async function localizedSearch(alias, body = {}) {
     const languages = normalizeArray(body.languages, MAX_LOCALIZED_LANGUAGES);
     const selected = languages.length ? languages : ["en-US", "de-DE"];
-    const results = {};
+    const results = new Map();
     await Promise.all(selected.map(async language => {
         const data = await searchItems(alias, {
             ...body,
@@ -469,13 +469,13 @@ async function localizedSearch(alias, body = {}) {
             count: body.count || 24,
             includeRaw: body.includeRaw === true
         });
-        results[language] = {
+        results.set(language, {
             items: data.items,
             pagination: data.pagination
-        };
+        });
     }));
     return {
-        languages: results,
+        languages: Object.fromEntries(results),
         meta: {
             alias,
             languages: selected,

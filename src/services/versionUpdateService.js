@@ -591,8 +591,8 @@ function mapTag(tag, repository, rateLimit, etag) {
             publishedAt: null,
             createdAt: null,
             url: repository ? `${repository.htmlUrl}/releases/tag/${encodeURIComponent(tagName || "")}` : null,
-            apiUrl: tag && tag.commit ? tag.commit.url : null,
-            commit: tag && tag.commit && tag.commit.sha ? {
+            apiUrl: tag.commit ? tag.commit.url : null,
+            commit: tag.commit && tag.commit.sha ? {
                 sha: tag.commit.sha,
                 shortSha: shortSha(tag.commit.sha),
                 type: "commit",

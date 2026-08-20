@@ -1,5 +1,48 @@
 # Changelog
 
+## 12.8.1 (2026-08-20)
+
+### Summary
+
+- Change type: CI and automation
+- Main change: PlayFab - Add pull request template to standardize contributions (1830a46)
+- Impact: CI and automation with a small change footprint across CI and workflow automation.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- GitHub configuration: 1 file: .github/pull_request_template.md
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +46 / -0
+
+## 12.9.0 (2026-08-20)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: Merge remote-tracking branch 'origin/main' (ab4e168)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (10 files, 516 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/healthController.js
+- Application source: 1 file: src/index.js
+- Changelog: 1 file: CHANGELOG.md
+- README: 1 file: readme.md
+- Runtime configuration: 1 file: src/config/eventNames.js
+- Service layer: 2 files: src/services/contentUpdateWatcher.js, src/services/itemWatcher.js
+- Other areas: 2 additional groups.
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 10
+- Line changes: +510 / -6
 ## 12.7.0 (2026-08-20)
 
 ### Summary
@@ -3154,6 +3197,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

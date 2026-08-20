@@ -18,6 +18,7 @@ const {sendPlayFabRequest, getStoreItems, getSession} = require("../utils/playfa
 const {resolveTitle} = require("../utils/titles");
 const {salesWatcher} = require("../services/salesWatcher");
 const {itemWatcher} = require("../services/itemWatcher");
+const {contentUpdateWatcher} = require("../services/contentUpdateWatcher");
 const {priceWatcher} = require("../services/priceWatcher");
 const {trendingWatcher} = require("../services/trendingWatcher");
 const {creatorPartnerWatcher} = require("../services/creatorPartnerWatcher");
@@ -329,6 +330,9 @@ function getConfigInfo() {
         }, watchersEnabled: {
             sales: readBoolEnv("ENABLE_SALES_WATCHER"),
             item: readBoolEnv("ENABLE_ITEM_WATCHER"),
+            contentUpdate: process.env.ENABLE_CONTENT_UPDATE_WATCHER == null
+                ? readBoolEnv("ENABLE_ITEM_WATCHER")
+                : readBoolEnv("ENABLE_CONTENT_UPDATE_WATCHER"),
             price: readBoolEnv("ENABLE_PRICE_WATCHER"),
             trending: readBoolEnv("ENABLE_TRENDING_WATCHER"),
             creatorPartner: readBoolEnv("ENABLE_CREATOR_PARTNER_WATCHER"),
@@ -336,6 +340,7 @@ function getConfigInfo() {
         }, watcherIntervals: {
             salesMs: readIntEnv("SALES_WATCH_INTERVAL_MS", 30000),
             itemMs: readIntEnv("ITEM_WATCH_INTERVAL_MS", 30000),
+            contentUpdateMs: readIntEnv("CONTENT_UPDATE_WATCH_INTERVAL_MS", 30000),
             priceMs: readIntEnv("PRICE_WATCH_INTERVAL_MS", 30000),
             trendingMs: readIntEnv("TRENDING_INTERVAL_MS", 60000),
             creatorPartnerMs: readIntEnv("CREATOR_PARTNER_WATCH_INTERVAL_MS", 21600000),
@@ -430,6 +435,7 @@ exports.getHealth = async (_req, res, next) => {
         const watchers = {
             salesWatcher: watcherDetails(salesWatcher, "SALES", configInfo.watchersEnabled.sales),
             itemWatcher: watcherDetails(itemWatcher, "ITEM", configInfo.watchersEnabled.item),
+            contentUpdateWatcher: watcherDetails(contentUpdateWatcher, "CONTENT_UPDATE", configInfo.watchersEnabled.contentUpdate),
             priceWatcher: watcherDetails(priceWatcher, "PRICE", configInfo.watchersEnabled.price),
             trendingWatcher: watcherDetails(trendingWatcher, "TRENDING", configInfo.watchersEnabled.trending),
             creatorPartnerWatcher: watcherDetails(creatorPartnerWatcher, "CREATOR_PARTNER", configInfo.watchersEnabled.creatorPartner)

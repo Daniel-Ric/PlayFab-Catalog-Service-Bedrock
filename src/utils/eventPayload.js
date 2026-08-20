@@ -27,6 +27,7 @@ function creatorNameOf(item) {
 
 function isUpdatedItemListEvent(eventName) {
     return eventName === "item.updated"
+        || eventName === "item.content.updated"
         || eventName === "marketplace.pass.updated"
         || eventName === "realms.plus.updated";
 }

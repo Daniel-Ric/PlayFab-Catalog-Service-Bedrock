@@ -221,6 +221,7 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 | ------------------------- | ------- | ------------------------------------------- |
 | `ENABLE_SALES_WATCHER`    | `true`  | Enable sales watcher                        |
 | `ENABLE_ITEM_WATCHER`     | `true`  | Enable item watcher                         |
+| `ENABLE_CONTENT_UPDATE_WATCHER` | inherits item watcher | Enable playable content revision watcher |
 | `ENABLE_PRICE_WATCHER`    | `true`  | Enable price watcher                        |
 | `ENABLE_TRENDING_WATCHER` | `true`  | Enable trending watcher                     |
 | `ENABLE_CREATOR_PARTNER_WATCHER` | `true` | Enable creator/partner registry watcher |
@@ -232,6 +233,11 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 | `SALES_WATCH_INTERVAL_MS` | `30000` | Sales watcher interval                      |
 | `PRICE_WATCH_INTERVAL_MS` | `30000` | Price watcher interval                      |
 | `ITEM_WATCH_INTERVAL_MS`  | `30000` | Item watcher interval                       |
+| `CONTENT_UPDATE_WATCH_INTERVAL_MS` | `30000` | Content revision watcher interval     |
+| `CONTENT_UPDATE_WATCH_ITEMS_PER_REQUEST` | `200` | Items requested per content watcher batch |
+| `CONTENT_UPDATE_WATCH_MAX_ITEMS` | `10000` | Maximum items scanned per content watcher run |
+| `CONTENT_UPDATE_WATCH_OVERLAP_MS` | `60000` | Content watcher overlap window for reliable polling |
+| `CONTENT_UPDATE_WATCH_STATE_FILE` | `src/data/contentUpdateWatcherState.json` | Optional persistent state file path |
 | `ITEM_WATCH_CREATED_LOOKBACK_MS` | `86400000` | StartDate/CreationDate window for newly visible catalog items |
 | `FEATURED_CONTENT_WATCH_INTERVAL_MS` | `21600000` | Featured content watcher interval |
 | `SUBSCRIPTION_WATCH_INTERVAL_MS` | `300000` | Marketplace Pass / Realms Plus watcher interval |
@@ -845,7 +851,7 @@ Not allowed (returns `400`):
 #### Events (SSE)
 
 * `/events/stream` (optional query `events=<comma-separated-event-names>`):
-  `item.snapshot`, `item.created`, `item.updated`, `marketplace.pass.snapshot`, `marketplace.pass.added`, `marketplace.pass.removed`, `marketplace.pass.updated`, `realms.plus.snapshot`, `realms.plus.added`, `realms.plus.removed`, `realms.plus.updated`, `sale.snapshot`, `sale.update`, `price.changed`, `creator.trending`, `featured.content.added`, `featured.content.removed`, `featured.content.updated`.
+  `item.snapshot`, `item.created`, `item.updated`, `item.content.updated`, `marketplace.pass.snapshot`, `marketplace.pass.added`, `marketplace.pass.removed`, `marketplace.pass.updated`, `realms.plus.snapshot`, `realms.plus.added`, `realms.plus.removed`, `realms.plus.updated`, `sale.snapshot`, `sale.update`, `price.changed`, `creator.trending`, `featured.content.added`, `featured.content.removed`, `featured.content.updated`.
 * Subscription events compare the current `csb` / `realms_plus` tag memberships with the last persisted watcher state. Added/removed events include the current item list, updated events include `before` / `after` entries, and each item includes `subscription.startDate` / `subscription.endDate` from `csbStartDate`, `csbEndDate`, `realmsPlusStartDate`, and `realmsPlusEndDate`.
 * Featured content changes emit dedicated `featured.content.added`, `featured.content.removed`, and `featured.content.updated` events. Payloads include the matching `addedItems`, `removedItems`, or `changedItems` plus item details with `featuredContext` (`page`, `row`, `component`, `itemIndex`); `currentItemDetails` and `previousItemDetails` provide the full after/before featured item lists. Same-ID layout or metadata changes emit `featured.content.updated`, set `contentChanged=true`, and include `previousContentSignature` / `currentContentSignature`.
 
@@ -970,7 +976,7 @@ Rate limiting is controlled via the `RATE_LIMIT_*` environment variables.
 * **Backpressure**: events are small JSON payloads; consumers should be idempotent.
 * Watchers are toggled with:
 
-  * `ENABLE_ITEM_WATCHER`, `ENABLE_PRICE_WATCHER`, `ENABLE_SALES_WATCHER`, `ENABLE_TRENDING_WATCHER`, `ENABLE_CREATOR_PARTNER_WATCHER`, `ENABLE_FEATURED_CONTENT_WATCHER`, `ENABLE_SUBSCRIPTION_WATCHER`.
+  * `ENABLE_ITEM_WATCHER`, `ENABLE_CONTENT_UPDATE_WATCHER`, `ENABLE_PRICE_WATCHER`, `ENABLE_SALES_WATCHER`, `ENABLE_TRENDING_WATCHER`, `ENABLE_CREATOR_PARTNER_WATCHER`, `ENABLE_FEATURED_CONTENT_WATCHER`, `ENABLE_SUBSCRIPTION_WATCHER`.
 
 ---
 
@@ -984,7 +990,7 @@ curl -sS -X POST http://localhost:3000/webhooks \
   -d '{"event":"price.changed","url":"https://example.com/hook","secret":"<optional-256-max>"}'
 ```
 
-**Events**: `sale.update`, `item.snapshot`, `item.created`, `item.updated`, `marketplace.pass.snapshot`, `marketplace.pass.added`, `marketplace.pass.removed`, `marketplace.pass.updated`, `realms.plus.snapshot`, `realms.plus.added`, `realms.plus.removed`, `realms.plus.updated`, `price.changed`, `creator.trending`, `featured.content.added`, `featured.content.removed`, `featured.content.updated`
+**Events**: `sale.update`, `item.snapshot`, `item.created`, `item.updated`, `item.content.updated`, `marketplace.pass.snapshot`, `marketplace.pass.added`, `marketplace.pass.removed`, `marketplace.pass.updated`, `realms.plus.snapshot`, `realms.plus.added`, `realms.plus.removed`, `realms.plus.updated`, `price.changed`, `creator.trending`, `featured.content.added`, `featured.content.removed`, `featured.content.updated`
 
 **Delivery**
 
@@ -1185,6 +1191,8 @@ ENABLE_SALES_WATCHER=true
 SALES_WATCH_INTERVAL_MS=30000
 ENABLE_ITEM_WATCHER=true
 ITEM_WATCH_INTERVAL_MS=30000
+ENABLE_CONTENT_UPDATE_WATCHER=true
+CONTENT_UPDATE_WATCH_INTERVAL_MS=30000
 ITEM_WATCH_TOP=150
 ITEM_WATCH_PAGES=3
 ENABLE_PRICE_WATCHER=true

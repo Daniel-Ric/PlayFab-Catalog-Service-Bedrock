@@ -1,5 +1,131 @@
 # Changelog
 
+## 12.7.0 (2026-08-20)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Add content update watcher (9a51d08)
+- Impact: Repository update with a medium change footprint across application logic.
+- Bump reason: medium change footprint (6 files, 289 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/healthController.js
+- Application source: 1 file: src/index.js
+- Runtime configuration: 1 file: src/config/eventNames.js
+- Service layer: 2 files: src/services/contentUpdateWatcher.js, src/services/itemWatcher.js
+- Shared utilities: 1 file: src/utils/eventPayload.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 6
+- Line changes: +286 / -3
+
+## 12.7.1 (2026-08-20)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Add content update watcher tests (1e7b98b)
+- Impact: Test coverage with a small change footprint across test coverage.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Tests: 2 files: test/contentUpdateWatcher.test.js, test/itemWatcher.test.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +85 / -0
+
+## 12.7.2 (2026-08-20)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Document content update watcher (7fe37b9)
+- Impact: Repository update with a small change footprint across repository files.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- README: 1 file: readme.md
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +11 / -3
+
+## 12.8.0 (2026-08-20)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: Merge (01db8f2)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (9 files, 388 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/healthController.js
+- Application source: 1 file: src/index.js
+- README: 1 file: readme.md
+- Runtime configuration: 1 file: src/config/eventNames.js
+- Service layer: 2 files: src/services/contentUpdateWatcher.js, src/services/itemWatcher.js
+- Shared utilities: 1 file: src/utils/eventPayload.js
+- Other areas: 1 additional group.
+
+### Notable Changes
+
+- Add content update watcher
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 9
+- Line changes: +382 / -6
+## 12.6.6 (2026-08-20)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Simplify request logging CRLF sanitization logic (HOTFIX for CodeQL) (d7ba31a)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Application source: 1 file: src/middleware/requestLogger.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +2 / -2
+
+## 12.6.7 (2026-08-20)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Merge remote-tracking branch 'origin/main' (139d6f2)
+- Impact: Repository update with a small change footprint across repository files.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Changelog: 1 file: CHANGELOG.md
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +76 / -0
 ## 12.6.2 (2026-08-20)
 
 ### Summary
@@ -3028,6 +3154,8 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
+
 
 
 

@@ -22,10 +22,12 @@ let titlesCache = null;
 let mtimeMs = 0;
 
 function readTitlesFromDisk() {
+    let descriptor;
     try {
-        const stat = fs.statSync(file);
+        descriptor = fs.openSync(file, "r");
+        const stat = fs.fstatSync(descriptor);
         if (!titlesCache || stat.mtimeMs !== mtimeMs) {
-            titlesCache = JSON.parse(fs.readFileSync(file, "utf8"));
+            titlesCache = JSON.parse(fs.readFileSync(descriptor, "utf8"));
             mtimeMs = stat.mtimeMs;
         }
     } catch {
@@ -33,6 +35,8 @@ function readTitlesFromDisk() {
             logger.warn("titles.json not found → starting with an empty mapping table.");
             titlesCache = {};
         }
+    } finally {
+        if (typeof descriptor === "number") fs.closeSync(descriptor);
     }
     return titlesCache;
 }
@@ -49,12 +53,18 @@ function normalizeAlias(alias) {
 function resolveTitle(alias) {
     const titles = readTitlesFromDisk();
     const normalized = normalizeAlias(alias);
-    if (!normalized || !titles[normalized]) {
+    if (!normalized || !Object.hasOwn(titles, normalized)) {
         const e = new Error(`Alias '${alias}' not found.`);
         e.status = 404;
         throw e;
     }
-    return titles[normalized].id;
+    const titleId = String(titles[normalized].id || "").trim();
+    if (!/^[A-Za-z0-9]+$/.test(titleId)) {
+        const e = new Error(`Alias '${alias}' has an invalid title id.`);
+        e.status = 500;
+        throw e;
+    }
+    return titleId;
 }
 
 function saveTitles(titles) {

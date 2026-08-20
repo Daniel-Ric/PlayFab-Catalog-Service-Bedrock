@@ -140,7 +140,19 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
     process.exit(1);
 }
 
-app.use(helmet({contentSecurityPolicy: false, crossOriginResourcePolicy: {policy: "cross-origin"}}));
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            fontSrc: ["'self'", "https:", "data:"],
+            imgSrc: ["'self'", "data:", "https:"],
+            scriptSrc: ["'self'", "'unsafe-inline'"],
+            styleSrc: ["'self'", "https:", "'unsafe-inline'"],
+            upgradeInsecureRequests: null
+        }
+    },
+    crossOriginResourcePolicy: {policy: "cross-origin"}
+}));
 
 const allowed = new Set(getConfiguredCorsOrigins());
 

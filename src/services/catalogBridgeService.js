@@ -29,13 +29,13 @@ function ensureEnabled(enabled, message = "Catalog bridge feature is disabled.")
 }
 
 function parseCookies(header) {
-    const out = {};
+    const out = new Map();
     for (const part of String(header || "").split(";")) {
         const index = part.indexOf("=");
         if (index < 0) continue;
         const key = part.slice(0, index).trim();
         const value = part.slice(index + 1).trim();
-        if (key) out[key] = decodeURIComponent(value);
+        if (key) out.set(key, decodeURIComponent(value));
     }
     return out;
 }
@@ -58,7 +58,7 @@ function makeCookie(name, value, cfg) {
 
 function validateCsrf(req, cfg, tokenOverride) {
     if (!cfg.csrfEnabled) return;
-    const expected = tokenOverride || parseCookies(req.headers.cookie)[cfg.csrfCookieName];
+    const expected = tokenOverride || parseCookies(req.headers.cookie).get(cfg.csrfCookieName);
     const actual = req.headers["x-csrf-token"];
     const expectedBuffer = Buffer.from(String(expected || ""));
     const actualBuffer = Buffer.from(String(actual || ""));
@@ -91,15 +91,15 @@ function normalizeMethod(method) {
 }
 
 function sanitizeHeaders(headers = {}) {
-    const out = {};
+    const out = new Map();
     for (const [key, value] of Object.entries(headers || {})) {
         const name = String(key || "").trim();
         if (!name) continue;
         const lower = name.toLowerCase();
         if (["authorization", "host", "cookie", "content-length", "connection", "transfer-encoding"].includes(lower)) continue;
-        out[name] = value;
+        out.set(name, value);
     }
-    return out;
+    return Object.fromEntries(out);
 }
 
 function buildProxyRequest(payload, cfg, options = {}) {

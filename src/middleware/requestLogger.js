@@ -16,8 +16,8 @@ const logger = require("../config/logger");
 
 module.exports = (req, res, next) => {
     req.startTime = Date.now();
-    const method = String(req.method || "").replace(/\n|\r/g, " ");
-    const originalUrl = String(req.originalUrl || "").replace(/\n|\r/g, " ");
+    const method = String(req.method || "").replace(/\n|\r/g, "");
+    const originalUrl = String(req.originalUrl || "").replace(/\n|\r/g, "");
     logger.debug(`→ ${method} ${originalUrl}`);
     res.on("finish", () => {
         const ms = Date.now() - req.startTime;

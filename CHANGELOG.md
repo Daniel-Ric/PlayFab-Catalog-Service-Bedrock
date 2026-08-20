@@ -1,5 +1,144 @@
 # Changelog
 
+## 12.5.15 (2026-08-20)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Improve security headers and migrate cookies/headers to Map usage (580c1dc)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Application source: 1 file: src/index.js
+- Service layer: 1 file: src/services/catalogBridgeService.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +19 / -7
+
+## 12.5.16 (2026-08-20)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Improve title validation and enhance file handling safety (5b8541a)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/titlesController.js
+- Shared utilities: 1 file: src/utils/titles.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +19 / -8
+
+## 12.5.17 (2026-08-20)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Refactor release URL handling and migrate results to Map usage (b6d14ad)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 2 files: src/services/marketplaceSearchService.js, src/services/versionUpdateService.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +6 / -6
+
+## 12.5.18 (2026-08-20)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Sanitize request logging to prevent CRLF injection (60ca007)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Application source: 1 file: src/middleware/requestLogger.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +4 / -2
+
+## 12.5.19 (2026-08-20)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Improve SSE client heartbeat handling and sanitize log messages (7d73c5a)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 2 files: src/services/sseHub.js, src/services/subscriptionWatcher.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +6 / -3
+
+## 12.6.0 (2026-08-20)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Remove unused code and improve input sanitization (0e2134a)
+- Impact: Test coverage with a medium change footprint across CI and workflow automation, application logic, test coverage.
+- Bump reason: medium change footprint (8 files, 92 total line changes)
+
+### Changed Areas
+
+- API controllers: 2 files: src/controllers/healthController.js, src/controllers/marketplace/searchAdvancedController.js
+- Application source: 1 file: src/index.js
+- GitHub automation scripts: 2 files: .github/scripts/create-version-release.js, .github/scripts/generate-wiki.js
+- Runtime configuration: 1 file: src/config/catalogBridge.js
+- Service layer: 1 file: src/services/marketplaceService.js
+- Tests: 1 file: test/catalogBridge.test.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 8
+- Line changes: +15 / -77
+
+## 12.6.1 (2026-08-20)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Merge remote-tracking branch 'origin/main' (c970f46)
+- Impact: Repository update with a small change footprint across repository files.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Changelog: 1 file: CHANGELOG.md
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +38 / -0
 ## 12.5.13 (2026-08-20)
 
 ### Summary
@@ -2814,6 +2953,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

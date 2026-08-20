@@ -40,8 +40,8 @@ class SseHub {
         }
     }
 
-    addClient(res, filters) {
-        const client = {res, filters, heartbeat: null};
+    addClient(res, filters, clientKey = "unknown") {
+        const key = String(clientKey || "unknown");
         if (this.clients.size >= this.maxClients) {
             const error = new Error("SSE connection capacity reached.");
             error.status = 503;
@@ -54,10 +54,18 @@ class SseHub {
             error.publicMessage = error.message;
             throw error;
         }
+
+        const client = {res, filters, key, heartbeat: null};
         const envHeartbeatMs = Math.max(5000, parseInt(process.env.SSE_HEARTBEAT_MS || "15000", 10));
         const hbMs = filters && typeof filters.heartbeatMs === "number" && filters.heartbeatMs >= 5000 ? filters.heartbeatMs : envHeartbeatMs;
 
         res.on("close", () => this.removeClient(client));
+
+        res.status(200);
+        res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+        res.setHeader("Cache-Control", "no-cache, no-transform");
+        res.setHeader("Connection", "keep-alive");
+        res.setHeader("X-Accel-Buffering", "no");
 
         if (typeof res.flushHeaders === "function") res.flushHeaders();
 
@@ -67,21 +75,40 @@ class SseHub {
                 return;
             }
             try {
-                res.write(": heartbeat\n\n");
+                if (!res.write(": heartbeat\n\n")) {
+                    this.terminateClient(client);
+                    return;
+                }
                 if (typeof res.flush === "function") res.flush();
             } catch {
-                this.removeClient(client);
+                this.terminateClient(client);
             }
         }, hbMs);
 
         this.clients.add(client);
-        res.write("event: ready\ndata: {}\n\n");
+        this.clientsByKey.set(key, (this.clientsByKey.get(key) || 0) + 1);
+        if (!res.write("event: ready\ndata: {}\n\n")) {
+            this.terminateClient(client);
+            return null;
+        }
         if (typeof res.flush === "function") res.flush();
+        return client;
     }
 
     removeClient(client) {
         if (client.heartbeat) clearInterval(client.heartbeat);
-        this.clients.delete(client);
+        client.heartbeat = null;
+        if (!this.clients.delete(client)) return;
+        const count = this.clientsByKey.get(client.key) || 0;
+        if (count <= 1) this.clientsByKey.delete(client.key);
+        else this.clientsByKey.set(client.key, count - 1);
+    }
+
+    terminateClient(client) {
+        this.removeClient(client);
+        const res = client.res;
+        if (typeof res.destroy === "function") res.destroy();
+        else if (!res.writableEnded && typeof res.end === "function") res.end();
     }
 
     matchesFilter(filters, eventName, payload) {
@@ -115,11 +142,14 @@ class SseHub {
             }
             if (!this.matchesFilter(client.filters, eventName, payload)) continue;
             try {
-                res.write(line);
+                if (!res.write(line)) {
+                    this.terminateClient(client);
+                    continue;
+                }
                 if (typeof res.flush === "function") res.flush();
             } catch {
                 logger.debug(`[SSE] write error event=${eventName}`);
-                this.removeClient(client);
+                this.terminateClient(client);
             }
         }
     }
@@ -131,4 +161,4 @@ function initSseHub(eventBus) {
     sseHub.init(eventBus);
 }
 
-module.exports = {sseHub, initSseHub};
+module.exports = {SseHub, sseHub, initSseHub};

@@ -30,14 +30,6 @@ function parseCreatorNamesParam(raw) {
 }
 
 exports.stream = (req, res) => {
-    res.status(200);
-    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
-    res.setHeader("Cache-Control", "no-cache, no-transform");
-    res.setHeader("Connection", "keep-alive");
-    res.setHeader("X-Accel-Buffering", "no");
-
-    if (typeof res.flushHeaders === "function") res.flushHeaders();
-
     const eventsSet = parseEventsParam(req.query.events);
 
     const creatorNames = new Set();
@@ -53,5 +45,6 @@ exports.stream = (req, res) => {
         heartbeatMs: Number.isFinite(heartbeatMsRaw) ? heartbeatMsRaw : undefined
     };
 
-    sseHub.addClient(res, filters);
+    const clientKey = req.user && req.user.sub ? `user:${req.user.sub}` : `ip:${req.ip || req.socket?.remoteAddress || "unknown"}`;
+    sseHub.addClient(res, filters, clientKey);
 };

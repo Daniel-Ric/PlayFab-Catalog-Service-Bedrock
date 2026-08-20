@@ -73,7 +73,7 @@ const {featuredContentWatcher} = require("./services/featuredContentWatcher");
 const {initSseHub} = require("./services/sseHub");
 const {initWebhookDispatcher} = require("./services/webhookDispatcher");
 const {eventBus} = require("./services/eventBus");
-const {createRateLimiter, createOptionalRateLimiter} = require("./config/rateLimiter");
+const {createAbuseLimiter, createRateLimiter, createOptionalRateLimiter} = require("./config/rateLimiter");
 const {createCatalogBridgeRouter} = require("./routes/catalogBridge");
 const {versionUpdateService} = require("./services/versionUpdateService");
 
@@ -163,6 +163,8 @@ app.use((req, _res, next) => {
 if ((process.env.LOG_LEVEL || "info").toLowerCase() === "debug" || (logger.level || "") === "debug" || winston.level === "debug") {
     app.use(requestLogger);
 }
+
+app.use(createAbuseLimiter({windowMs: 60 * 1000, max: 5000}));
 
 const openapi = getOpenApiSpec();
 app.get("/openapi.json", (_, res) => res.json(openapi));

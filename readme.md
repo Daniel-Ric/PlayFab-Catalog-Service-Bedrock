@@ -285,7 +285,9 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 
 | Variable                           | Default  | Description                            |
 | ---------------------------------- | -------- | -------------------------------------- |
-| `RATE_LIMIT_ENABLED`               | `true`   | Toggle rate limiting globally          |
+| `RATE_LIMIT_ENABLED`               | `true`   | Toggle configurable route limiting      |
+| `RATE_LIMIT_ABUSE_WINDOW_MS`       | `60000`  | Always-on pre-authentication abuse window |
+| `RATE_LIMIT_ABUSE_MAX`             | `5000`   | Always-on requests per IP and abuse window |
 | `RATE_LIMIT_DEFAULT_WINDOW_MS`     | `60000`  | Default window for generic routes      |
 | `RATE_LIMIT_DEFAULT_MAX`           | `60`     | Default max requests per window        |
 | `RATE_LIMIT_LOGIN_WINDOW_MS`       | `900000` | `/login` window (15 minutes)           |

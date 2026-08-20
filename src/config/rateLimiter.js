@@ -89,6 +89,18 @@ function createRateLimiter(nameOrDefaults, maybeDefaults) {
     });
 }
 
+function createAbuseLimiter(defaults = {}) {
+    const windowMs = readIntEnv("RATE_LIMIT_ABUSE_WINDOW_MS", defaults.windowMs || 60 * 1000);
+    const max = readIntEnv("RATE_LIMIT_ABUSE_MAX", defaults.max || 5000);
+    return rateLimit({
+        windowMs,
+        max,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: "Too many requests - please try again later."
+    });
+}
+
 function createOptionalRateLimiter(name, defaults = {}) {
     if (!rateLimitEnabled) {
         return (_req, _res, next) => next();
@@ -103,4 +115,4 @@ function createOptionalRateLimiter(name, defaults = {}) {
     });
 }
 
-module.exports = {createRateLimiter, createOptionalRateLimiter, rateLimitEnabled};
+module.exports = {createAbuseLimiter, createRateLimiter, createOptionalRateLimiter, rateLimitEnabled};

@@ -1,5 +1,65 @@
 # Changelog
 
+## 12.5.10 (2026-08-20)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Add SSE client limits as well as connection error handling (5df49b2)
+- Impact: Repository update with a small change footprint across repository files, application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- README: 1 file: readme.md
+- Service layer: 1 file: src/services/sseHub.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +24 / -1
+
+## 12.5.11 (2026-08-20)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Add client key handling and improve SSE connection management (5681bee)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/eventsController.js
+- Service layer: 1 file: src/services/sseHub.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +41 / -18
+
+## 12.5.12 (2026-08-20)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Add abuse rate limiter with configurable defaults (669519f)
+- Impact: Repository update with a small change footprint across repository files, application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Application source: 1 file: src/index.js
+- README: 1 file: readme.md
+- Runtime configuration: 1 file: src/config/rateLimiter.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 3
+- Line changes: +19 / -3
 ## 12.5.9 (2026-08-10)
 
 ### Summary
@@ -2717,6 +2777,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

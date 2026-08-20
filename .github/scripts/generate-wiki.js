@@ -53,25 +53,17 @@ function relative(file) {
 }
 
 function code(value) {
-    return `\`${String(value).replace(/`/g, "\\`")}\``;
+    return `\`${String(value).replace(/\\/g, "\\\\").replace(/`/g, "\\`")}\``;
 }
 
 function linkPage(title, page) {
     return `[${title}](${wikiUrl}/${encodeURIComponent(page).replace(/%20/g, "-")})`;
 }
 
-function headingAnchor(text) {
-    return String(text)
-        .toLowerCase()
-        .replace(/`/g, "")
-        .replace(/[^a-z0-9 -]/g, "")
-        .trim()
-        .replace(/\s+/g, "-");
-}
-
 function table(headers, rows) {
     if (!rows.length) return "";
     const escapeCell = (value) => String(value ?? "")
+        .replace(/\\/g, "\\\\")
         .replace(/\|/g, "\\|")
         .replace(/\r?\n/g, "<br>");
     return [

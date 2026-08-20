@@ -292,7 +292,6 @@ if (catalogBridgeRouter) {
 
 const loginLimiter = createRateLimiter("LOGIN", {windowMs: 15 * 60 * 1000, max: 20});
 const marketplaceLimiter = createOptionalRateLimiter("MARKETPLACE", {windowMs: 60 * 60 * 1000, max: 2000});
-const playerMarketplaceLimiter = createRateLimiter("MARKETPLACE_PLAYER", {windowMs: 60 * 60 * 1000, max: 2000});
 const adminLimiter = createOptionalRateLimiter("ADMIN", {windowMs: 60 * 60 * 1000, max: 1000});
 const healthLimiter = createOptionalRateLimiter("HEALTH", {windowMs: 5 * 60 * 1000, max: 500});
 const versionLimiter = createOptionalRateLimiter("VERSION", {windowMs: 5 * 60 * 1000, max: 200});

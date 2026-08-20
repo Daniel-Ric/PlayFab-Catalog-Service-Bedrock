@@ -259,25 +259,6 @@ function groupFiles(files) {
     .map(([label, groupedFiles]) => [label, groupedFiles.sort()]);
 }
 
-function formatGroupedFiles(files, maxPerGroup = 6, maxGroups = 8) {
-  const groups = groupFiles(files);
-  if (!groups.length) {
-    return ["- No file-level changes were reported by git."];
-  }
-
-  const lines = [];
-  for (const [label, groupedFiles] of groups.slice(0, maxGroups)) {
-    const shown = groupedFiles.slice(0, maxPerGroup);
-    lines.push(`- ${label}: ${shown.join(", ")}${groupedFiles.length > shown.length ? `, and ${groupedFiles.length - shown.length} more` : ""}`);
-  }
-
-  if (groups.length > maxGroups) {
-    lines.push(`- Additional areas: ${groups.length - maxGroups} more groups changed.`);
-  }
-
-  return lines;
-}
-
 function formatChangedAreas(files, maxExamples = 2, maxGroups = 6) {
   const groups = groupFiles(files);
   if (!groups.length) {
@@ -474,9 +455,12 @@ function updateChangelog(entries) {
     return false;
   }
 
-  const existing = fs.existsSync(CHANGELOG_PATH)
-    ? fs.readFileSync(CHANGELOG_PATH, "utf8")
-    : "# Changelog\n\n";
+  let existing = "# Changelog\n\n";
+  try {
+    existing = fs.readFileSync(CHANGELOG_PATH, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
 
   const normalizedExisting = existing.trimStart().startsWith("# Changelog")
     ? existing

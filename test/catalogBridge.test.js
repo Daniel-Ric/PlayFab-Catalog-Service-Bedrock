@@ -61,7 +61,6 @@ function encryptForHandshake(handshake, payload, client) {
 }
 
 function decryptSecureResponse(encrypted, handshake, client) {
-    const key = _internals.deriveSecureKey(client.getPrivateKey(), handshake.publicKey, handshake.keyId);
     return _internals.decryptSecurePayload({
         keyId: handshake.keyId,
         clientPublicKey: handshake.publicKey,

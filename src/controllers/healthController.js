@@ -163,9 +163,9 @@ function watcherDetails(w, envPrefix, enabledBool) {
     let status = "disabled";
     if (!enabledBool) {
         status = "disabled";
-    } else if (enabledBool && !running) {
+    } else if (!running) {
         status = "not_running";
-    } else if (enabledBool && running) {
+    } else {
         if (!intervalMs || msSinceLastRun == null) {
             status = "unknown";
         } else {

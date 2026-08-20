@@ -14,7 +14,6 @@
 
 const withETag = require("../../middleware/etag");
 const {dataCache} = require("../../config/cache");
-const cacheKey = require("../../utils/cacheKey");
 const {stableHash} = require("../../utils/hash");
 const service = require("../../services/advancedSearchService");
 

@@ -17,10 +17,19 @@ const {getCreatorNamesFromPayload} = require("../utils/eventPayload");
 const {EVENT_NAMES} = require("../config/eventNames");
 
 class SseHub {
-    constructor() {
+    constructor(options = {}) {
         this.clients = new Set();
+        this.clientsByKey = new Map();
         this.initialized = false;
         this.seq = 0;
+        this.maxClients = this.readPositiveInt(options.maxClients, process.env.SSE_MAX_CLIENTS, 1000);
+        this.maxClientsPerKey = this.readPositiveInt(options.maxClientsPerKey, process.env.SSE_MAX_CLIENTS_PER_IDENTITY, 100);
+    }
+
+    readPositiveInt(optionValue, envValue, fallback) {
+        const value = typeof optionValue === "undefined" ? envValue : optionValue;
+        const parsed = parseInt(value, 10);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
     }
 
     init(eventBus) {
@@ -33,6 +42,18 @@ class SseHub {
 
     addClient(res, filters) {
         const client = {res, filters, heartbeat: null};
+        if (this.clients.size >= this.maxClients) {
+            const error = new Error("SSE connection capacity reached.");
+            error.status = 503;
+            error.publicMessage = error.message;
+            throw error;
+        }
+        if ((this.clientsByKey.get(key) || 0) >= this.maxClientsPerKey) {
+            const error = new Error("Too many SSE connections.");
+            error.status = 429;
+            error.publicMessage = error.message;
+            throw error;
+        }
         const envHeartbeatMs = Math.max(5000, parseInt(process.env.SSE_HEARTBEAT_MS || "15000", 10));
         const hbMs = filters && typeof filters.heartbeatMs === "number" && filters.heartbeatMs >= 5000 ? filters.heartbeatMs : envHeartbeatMs;
 

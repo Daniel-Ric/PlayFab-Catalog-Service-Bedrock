@@ -227,6 +227,8 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 | `ENABLE_FEATURED_CONTENT_WATCHER` | `true` | Enable featured content watcher      |
 | `ENABLE_SUBSCRIPTION_WATCHER` | `false` | Enable Marketplace Pass / Realms Plus membership watcher |
 | `SSE_HEARTBEAT_MS`        | `15000` | SSE heartbeat interval (min 5000)           |
+| `SSE_MAX_CLIENTS`         | `1000`  | Maximum concurrent SSE connections          |
+| `SSE_MAX_CLIENTS_PER_IDENTITY` | `100` | Maximum concurrent SSE connections per authenticated identity |
 | `SALES_WATCH_INTERVAL_MS` | `30000` | Sales watcher interval                      |
 | `PRICE_WATCH_INTERVAL_MS` | `30000` | Price watcher interval                      |
 | `ITEM_WATCH_INTERVAL_MS`  | `30000` | Item watcher interval                       |

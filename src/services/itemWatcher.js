@@ -61,6 +61,16 @@ function toFilterDateLiteral(iso) {
 }
 
 function hashItemCore(it) {
+    const displayProperties = it.DisplayProperties && typeof it.DisplayProperties === "object"
+        ? {...it.DisplayProperties}
+        : it.DisplayProperties;
+    if (displayProperties && typeof displayProperties === "object") {
+        delete displayProperties.packIdentity;
+        delete displayProperties.lastUpdated;
+        delete displayProperties.minClientVersion;
+        delete displayProperties.maxClientVersion;
+        delete displayProperties.totalContentFileSize;
+    }
     const core = {
         Id: it.Id || it.id,
         Title: it.Title,
@@ -69,7 +79,7 @@ function hashItemCore(it) {
         ContentType: it.ContentType || it.contentType,
         Platforms: it.Platforms,
         Images: Array.isArray(it.Images) ? it.Images.map(i => [i.Tag || i.tag, i.Url || i.url]) : [],
-        DisplayProperties: it.DisplayProperties,
+        DisplayProperties: displayProperties,
         ETag: it.ETag,
         LastModifiedDate: lastModifiedDateOf(it),
         StartDate: startDateOf(it),
@@ -281,7 +291,7 @@ function deserializeState(entries) {
         const hash = entry?.hash;
         if (!id || !hash) continue;
         state.set(id, {
-            hash,
+            hash: entry.raw ? hashItemCore(entry.raw) : hash,
             raw: entry.raw || null,
             createdNotified: entry.createdNotified === false ? false : true
         });
@@ -553,6 +563,11 @@ module.exports = {
         buildChangedItemRequests,
         classifyBootstrapItemChange,
         serializeState,
-        deserializeState
+        deserializeState,
+        fetchBootstrapItems,
+        requestChangedItems,
+        lastModifiedDateOf,
+        tsOf,
+        getTitleId
     }
 };

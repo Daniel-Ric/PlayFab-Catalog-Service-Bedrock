@@ -16,6 +16,7 @@ const EVENT_NAMES = Object.freeze([
     "item.snapshot",
     "item.created",
     "item.updated",
+    "item.content.updated",
     "marketplace.pass.snapshot",
     "marketplace.pass.added",
     "marketplace.pass.removed",

@@ -19,6 +19,6 @@ const service = require("../../services/availabilityService");
 
 exports.getAvailability = withETag(async (req) => {
     const key = cacheKey(req);
-    const ttl = Math.max(1000, Number(process.env.AVAILABILITY_TTL_MS || 60 * 1000));
+    const ttl = Math.max(1000, Number(process.env.DATA_TTL_MS || 5 * 60 * 1000));
     return dataCache.getOrSetAsync(key, () => service.getAvailability(req.params.alias, req.params.itemId), ttl);
 });

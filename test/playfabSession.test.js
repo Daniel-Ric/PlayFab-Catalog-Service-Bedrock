@@ -35,10 +35,10 @@ test("production persists and reuses an automatically generated device id", t =>
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), "playfab-device-"));
     const filePath = path.join(directory, "device.json");
     t.after(() => fs.rmSync(directory, {recursive: true, force: true}));
-    const env = {NODE_ENV: "production", PLAYFAB_DEVICE_ID_FILE: filePath};
+    const env = {NODE_ENV: "production"};
 
-    const first = _internals.resolvePlayFabDeviceId(env);
-    const second = _internals.resolvePlayFabDeviceId(env);
+    const first = _internals.resolvePlayFabDeviceId(env, {deviceIdFile: filePath});
+    const second = _internals.resolvePlayFabDeviceId(env, {deviceIdFile: filePath});
 
     assert.match(first, /^vmc-[a-f0-9]{32}$/);
     assert.equal(second, first);

@@ -130,7 +130,7 @@ NODE_ENV=production LOG_LEVEL=info node src/index.js
 | `HTTP_MAX_SOCKETS`    | `512`        | Keep-alive sockets (HTTP)                 |
 | `HTTPS_MAX_SOCKETS`   | `512`        | Keep-alive sockets (HTTPS)                |
 
-PlayFab traffic is scheduled per title and endpoint. Interactive calls have priority over watchers. `SearchItems` defaults to one request every 600 ms, while `GetItem`/`GetItems` default to four concurrent calls with a 50 ms minimum interval. Configure this with `PLAYFAB_SEARCH_ITEMS_MAX_CONCURRENT`, `PLAYFAB_SEARCH_ITEMS_MIN_TIME_MS`, `PLAYFAB_GET_ITEMS_MAX_CONCURRENT`, `PLAYFAB_GET_ITEMS_MIN_TIME_MS`, `PLAYFAB_UPSTREAM_MAX_CONCURRENT`, and `PLAYFAB_UPSTREAM_MIN_TIME_MS`. Repeated 429/503 responses open a short circuit controlled by `PLAYFAB_CIRCUIT_FAILURE_THRESHOLD` and `PLAYFAB_CIRCUIT_OPEN_MS`.
+PlayFab traffic is scheduled per title and endpoint. Interactive calls have priority over watchers. `SearchItems` uses one request every 600 ms, `GetItem`/`GetItems` use four concurrent calls with a 50 ms minimum interval, and other calls use up to eight concurrent requests. Three consecutive 429/503 responses open the circuit for 15 seconds. These safe upstream limits are intentionally fixed to keep deployment configuration small.
 
 ### GitHub Version Updates
 
@@ -200,11 +200,10 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 | `FEATURED_PRIMARY_ALIAS` | `prod`  | Primary alias for featured/SSE sources          |
 | `OS`                     | `iOS`   | OS label used in upstream requests              |
 | `PLAYFAB_DEVICE_ID`      | generated | Stable anonymous PlayFab device identity      |
-| `PLAYFAB_DEVICE_ID_FILE` | `src/data/playfabDeviceId.json` | Persistent fallback identity file when the variable is omitted |
 | `PLAYFAB_CONCURRENCY`    | `12`    | Parallel PlayFab requests                       |
 | `PLAYFAB_BATCH`          | `600`   | Max batch size for bulk PlayFab calls           |
 
-`npm run setup` generates `PLAYFAB_DEVICE_ID` once and preserves it on later setup runs. Keep the value stable per installation and outside version control so PlayFab reuses the linked anonymous account. If production starts without the variable, the service generates the ID once in `PLAYFAB_DEVICE_ID_FILE` (default `src/data/playfabDeviceId.json`) and reuses it after restarts. Development and tests retain the process-local fallback.
+`npm run setup` generates `PLAYFAB_DEVICE_ID` once and preserves it on later setup runs. Keep the value stable per installation and outside version control so PlayFab reuses the linked anonymous account. If production starts without the variable, the service generates the ID once in the fixed, Git-ignored `src/data/playfabDeviceId.json` file and reuses it after restarts. Development and tests retain the process-local fallback.
 
 ### Caching / TTLs / Sizes
 
@@ -591,7 +590,7 @@ Items with `displayProperties/price = 0`.
 
 #### `GET /marketplace/availability/:alias/:itemId`
 
-Returns platform and language availability, client-version constraints, Marketplace Pass and Realms Plus windows, catalog and store prices, sale windows, and upstream catalog deep links. The response intentionally excludes binary content URLs and keys. Store membership is indexed and cached per title to avoid rescanning every store for each item request.
+Returns platform and language availability, client-version constraints, Marketplace Pass and Realms Plus windows, catalog and store prices, sale windows, and upstream catalog deep links. The response intentionally excludes binary content URLs and keys. Store membership is indexed with `DATA_TTL_MS` and processed with `STORE_CONCURRENCY`, avoiding extra Availability-specific configuration.
 
 #### `GET /marketplace/marketplace-pass/:alias`
 
@@ -1166,7 +1165,6 @@ DEFAULT_ALIAS=prod
 TITLE_ID=20CA2
 OS=iOS
 PLAYFAB_DEVICE_ID=vmc-<unique-random-id>
-PLAYFAB_DEVICE_ID_FILE=src/data/playfabDeviceId.json
 EXPOSE_SENSITIVE_CATALOG_FIELDS=false
 EXPOSE_SENSITIVE_EVENT_FIELDS=false
 TRUST_PROXY=1

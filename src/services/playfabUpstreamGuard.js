@@ -15,11 +15,11 @@
 const Bottleneck = require("bottleneck");
 
 const PRIORITIES = Object.freeze({interactive: 3, default: 5, background: 8});
-
-function readInt(env, key, fallback, min = 0) {
-    const value = Number(env[key]);
-    return Number.isFinite(value) ? Math.max(min, Math.floor(value)) : fallback;
-}
+const DEFAULT_POLICY = Object.freeze({maxConcurrent: 8, minTime: 0});
+const SEARCH_ITEMS_POLICY = Object.freeze({maxConcurrent: 1, minTime: 600});
+const GET_ITEMS_POLICY = Object.freeze({maxConcurrent: 4, minTime: 50});
+const CIRCUIT_FAILURE_THRESHOLD = 3;
+const CIRCUIT_OPEN_MS = 15000;
 
 function resolvePriority(value) {
     if (typeof value === "string" && Object.hasOwn(PRIORITIES, value)) return PRIORITIES[value];
@@ -27,23 +27,11 @@ function resolvePriority(value) {
     return Number.isFinite(numeric) ? Math.max(0, Math.min(9, Math.floor(numeric))) : PRIORITIES.default;
 }
 
-function endpointPolicy(endpoint, env = process.env) {
+function endpointPolicy(endpoint) {
     const name = String(endpoint || "").toLowerCase();
-    const defaultMax = readInt(env, "PLAYFAB_UPSTREAM_MAX_CONCURRENT", 8, 1);
-    const defaultMinTime = readInt(env, "PLAYFAB_UPSTREAM_MIN_TIME_MS", 0, 0);
-    if (name === "catalog/searchitems") {
-        return {
-            maxConcurrent: readInt(env, "PLAYFAB_SEARCH_ITEMS_MAX_CONCURRENT", 1, 1),
-            minTime: readInt(env, "PLAYFAB_SEARCH_ITEMS_MIN_TIME_MS", 600, 0)
-        };
-    }
-    if (name === "catalog/getitem" || name === "catalog/getitems") {
-        return {
-            maxConcurrent: readInt(env, "PLAYFAB_GET_ITEMS_MAX_CONCURRENT", 4, 1),
-            minTime: readInt(env, "PLAYFAB_GET_ITEMS_MIN_TIME_MS", 50, 0)
-        };
-    }
-    return {maxConcurrent: defaultMax, minTime: defaultMinTime};
+    if (name === "catalog/searchitems") return {...SEARCH_ITEMS_POLICY};
+    if (name === "catalog/getitem" || name === "catalog/getitems") return {...GET_ITEMS_POLICY};
+    return {...DEFAULT_POLICY};
 }
 
 function circuitOpenError(openUntil) {
@@ -59,9 +47,9 @@ function circuitOpenError(openUntil) {
 function createUpstreamGuard(options = {}) {
     const entries = new Map();
     const clock = options.now || Date.now;
-    const policyResolver = options.policyResolver || (endpoint => endpointPolicy(endpoint, options.env || process.env));
-    const threshold = options.threshold || readInt(options.env || process.env, "PLAYFAB_CIRCUIT_FAILURE_THRESHOLD", 3, 1);
-    const openMs = options.openMs || readInt(options.env || process.env, "PLAYFAB_CIRCUIT_OPEN_MS", 15000, 1000);
+    const policyResolver = options.policyResolver || endpointPolicy;
+    const threshold = Math.max(1, Number(options.threshold ?? CIRCUIT_FAILURE_THRESHOLD));
+    const openMs = Math.max(1000, Number(options.openMs ?? CIRCUIT_OPEN_MS));
     const BottleneckClass = options.BottleneckClass || Bottleneck;
 
     function getEntry(titleId, endpoint) {

@@ -1,5 +1,382 @@
 # Changelog
 
+## 12.10.0 (2026-09-04)
+
+### Summary
+
+- Change type: Feature
+- Main change: prefer v2 item access (dbb9b32)
+- Impact: Feature with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: feature commit marker
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/marketplace/detailsController.js
+- API routes: 2 files: src/routes/marketplace/details.js, src/routes/marketplace/search.js
+- Application source: 1 file: src/middleware/pagination.js
+- OpenAPI documentation: 2 files: src/docs/paths/marketplace.details.yaml, src/docs/schemas/MarketplaceSearchNative.yaml
+- README: 1 file: readme.md
+- Service layer: 2 files: src/services/marketplaceSearchService.js, src/services/marketplaceService.js
+- Other areas: 2 additional groups.
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 12
+- Line changes: +78 / -15
+
+## 12.11.0 (2026-09-04)
+
+### Summary
+
+- Change type: Feature
+- Main change: add availability matrix (27035a1)
+- Impact: Feature with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: feature commit marker
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/marketplace/availabilityController.js
+- API routes: 1 file: src/routes/marketplace/availability.js
+- Application source: 1 file: src/index.js
+- OpenAPI documentation: 1 file: src/docs/paths/marketplace.availability.yaml
+- README: 1 file: readme.md
+- Service layer: 1 file: src/services/availabilityService.js
+- Other areas: 1 additional group.
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 7
+- Line changes: +365 / -0
+
+## 12.12.0 (2026-09-04)
+
+### Summary
+
+- Change type: Feature
+- Main change: guard upstream traffic (e94d9d9)
+- Impact: Feature with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: feature commit marker
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/healthController.js
+- README: 1 file: readme.md
+- Runtime configuration: 1 file: src/config/cache.js
+- Service layer: 5 files: src/services/itemWatcher.js, src/services/playfabUpstreamGuard.js, plus 3 more
+- Shared utilities: 1 file: src/utils/playfab.js
+- Tests: 2 files: test/cacheMetrics.test.js, test/playfabUpstreamGuard.test.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 11
+- Line changes: +325 / -41
+
+## 13.0.0 (2026-09-04)
+
+### Summary
+
+- Change type: Bug fix
+- Main change: harden catalog data boundaries (f05b5bf)
+- Impact: Bug fix with a large change footprint across repository files, application logic, test coverage.
+- Bump reason: large change footprint (33 files, 1202 total line changes)
+
+### Changed Areas
+
+- API controllers: 2 files: src/controllers/marketplace/playerSearchController.js, src/controllers/sessionController.js
+- API routes: 1 file: src/routes/marketplace/player-search.js
+- Application source: 2 files: src/index.js, src/scripts/setup.js
+- OpenAPI documentation: 4 files: src/docs/openapi-base.yaml, src/docs/paths/marketplace.player-search.yaml, plus 2 more
+- Postman collection: 1 file: PlayFab Service - VMC.postman_collection.json
+- README: 1 file: readme.md
+- Other areas: 5 additional groups.
+
+### Release Metrics
+
+- Version bump: major
+- Files changed: 33
+- Line changes: +482 / -720
+
+## 13.1.0 (2026-09-04)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: catalog v2 (40f331c)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (12 files, 93 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/marketplace/detailsController.js
+- API routes: 2 files: src/routes/marketplace/details.js, src/routes/marketplace/search.js
+- Application source: 1 file: src/middleware/pagination.js
+- OpenAPI documentation: 2 files: src/docs/paths/marketplace.details.yaml, src/docs/schemas/MarketplaceSearchNative.yaml
+- README: 1 file: readme.md
+- Service layer: 2 files: src/services/marketplaceSearchService.js, src/services/marketplaceService.js
+- Other areas: 2 additional groups.
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 12
+- Line changes: +78 / -15
+
+## 13.2.0 (2026-09-04)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: availability matrix (6c61078)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (7 files, 365 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/marketplace/availabilityController.js
+- API routes: 1 file: src/routes/marketplace/availability.js
+- Application source: 1 file: src/index.js
+- OpenAPI documentation: 1 file: src/docs/paths/marketplace.availability.yaml
+- README: 1 file: readme.md
+- Service layer: 1 file: src/services/availabilityService.js
+- Other areas: 1 additional group.
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 7
+- Line changes: +365 / -0
+
+## 13.3.0 (2026-09-04)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: upstream guard (0119373)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (11 files, 370 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/healthController.js
+- README: 1 file: readme.md
+- Runtime configuration: 1 file: src/config/cache.js
+- Service layer: 5 files: src/services/itemWatcher.js, src/services/playfabUpstreamGuard.js, plus 3 more
+- Shared utilities: 1 file: src/utils/playfab.js
+- Tests: 2 files: test/cacheMetrics.test.js, test/playfabUpstreamGuard.test.js
+
+### Notable Changes
+
+- # Conflicts:
+- #	src/utils/playfab.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 11
+- Line changes: +327 / -43
+
+## 14.0.0 (2026-09-04)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: api hardening (5608d12)
+- Impact: Test coverage with a large change footprint across repository files, application logic, test coverage.
+- Bump reason: large change footprint (32 files, 1199 total line changes)
+
+### Changed Areas
+
+- API controllers: 2 files: src/controllers/marketplace/playerSearchController.js, src/controllers/sessionController.js
+- API routes: 1 file: src/routes/marketplace/player-search.js
+- Application source: 2 files: src/index.js, src/scripts/setup.js
+- OpenAPI documentation: 4 files: src/docs/openapi-base.yaml, src/docs/paths/marketplace.player-search.yaml, plus 2 more
+- Postman collection: 1 file: PlayFab Service - VMC.postman_collection.json
+- README: 1 file: readme.md
+- Other areas: 5 additional groups.
+
+### Notable Changes
+
+- # Conflicts:
+- #	src/services/marketplaceSearchService.js
+- #	src/utils/playfab.js
+
+### Release Metrics
+
+- Version bump: major
+- Files changed: 32
+- Line changes: +480 / -719
+
+## 14.1.0 (2026-09-04)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: complete project disclaimers (6789e9f)
+- Impact: Test coverage with a medium change footprint across application logic, test coverage.
+- Bump reason: medium change footprint (14 files, 106 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/marketplace/availabilityController.js
+- API routes: 1 file: src/routes/marketplace/availability.js
+- OpenAPI documentation: 1 file: src/docs/paths/marketplace.availability.yaml
+- Runtime configuration: 1 file: src/config/runtimeValidation.js
+- Service layer: 2 files: src/services/availabilityService.js, src/services/playfabUpstreamGuard.js
+- Shared utilities: 1 file: src/utils/catalogSanitizer.js
+- Other areas: 1 additional group.
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 14
+- Line changes: +106 / -0
+
+## 15.0.0 (2026-09-04)
+
+### Summary
+
+- Change type: Feature
+- Main change: add secure legacy field mode (46c88a5)
+- Impact: Feature with a large change footprint across repository files, application logic, test coverage.
+- Bump reason: large change footprint (25 files, 430 total line changes)
+
+### Changed Areas
+
+- API routes: 1 file: src/routes/marketplace/search.js
+- Application source: 2 files: src/index.js, src/scripts/setup.js
+- OpenAPI documentation: 3 files: src/docs/openapi-base.yaml, src/docs/schemas/MarketplaceSearchNative.yaml, plus 1 more
+- README: 1 file: readme.md
+- Repository files: 3 files: .dockerignore, .env.example, plus 1 more
+- Runtime configuration: 1 file: src/config/runtimeValidation.js
+- Other areas: 3 additional groups.
+
+### Release Metrics
+
+- Version bump: major
+- Files changed: 25
+- Line changes: +343 / -87
+
+## 16.0.0 (2026-09-04)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: secure compatibility mode (17a9d6e)
+- Impact: Test coverage with a large change footprint across repository files, application logic, test coverage.
+- Bump reason: large change footprint (25 files, 430 total line changes)
+
+### Changed Areas
+
+- API routes: 1 file: src/routes/marketplace/search.js
+- Application source: 2 files: src/index.js, src/scripts/setup.js
+- OpenAPI documentation: 3 files: src/docs/openapi-base.yaml, src/docs/schemas/MarketplaceSearchNative.yaml, plus 1 more
+- README: 1 file: readme.md
+- Repository files: 3 files: .dockerignore, .env.example, plus 1 more
+- Runtime configuration: 1 file: src/config/runtimeValidation.js
+- Other areas: 3 additional groups.
+
+### Release Metrics
+
+- Version bump: major
+- Files changed: 25
+- Line changes: +343 / -87
+
+## 16.1.0 (2026-09-04)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: reduce environment options (90a34ef)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (9 files, 78 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/marketplace/availabilityController.js
+- Application source: 1 file: src/scripts/setup.js
+- README: 1 file: readme.md
+- Repository files: 1 file: .env.example
+- Service layer: 2 files: src/services/availabilityService.js, src/services/playfabUpstreamGuard.js
+- Shared utilities: 1 file: src/utils/playfab.js
+- Other areas: 1 additional group.
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 9
+- Line changes: +28 / -50
+
+## 16.2.0 (2026-09-04)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: reduce environment configuration (cd2ea8d)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (9 files, 78 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/marketplace/availabilityController.js
+- Application source: 1 file: src/scripts/setup.js
+- README: 1 file: readme.md
+- Repository files: 1 file: .env.example
+- Service layer: 2 files: src/services/availabilityService.js, src/services/playfabUpstreamGuard.js
+- Shared utilities: 1 file: src/utils/playfab.js
+- Other areas: 1 additional group.
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 9
+- Line changes: +28 / -50
+
+## 16.3.0 (2026-09-04)
+
+### Summary
+
+- Change type: Bug fix
+- Main change: recover from offset and upstream failures (82d095e)
+- Impact: Bug fix with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (7 files, 298 total line changes)
+
+### Changed Areas
+
+- README: 1 file: readme.md
+- Service layer: 2 files: src/services/marketplaceService.js, src/services/playfabUpstreamGuard.js
+- Shared utilities: 1 file: src/utils/playfab.js
+- Tests: 3 files: test/catalogPagination.test.js, test/marketplaceFilters.test.js, plus 1 more
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 7
+- Line changes: +263 / -35
+
+## 16.4.0 (2026-09-04)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: recover catalog fetches (9e7f39c)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (7 files, 298 total line changes)
+
+### Changed Areas
+
+- README: 1 file: readme.md
+- Service layer: 2 files: src/services/marketplaceService.js, src/services/playfabUpstreamGuard.js
+- Shared utilities: 1 file: src/utils/playfab.js
+- Tests: 3 files: test/catalogPagination.test.js, test/marketplaceFilters.test.js, plus 1 more
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 7
+- Line changes: +263 / -35
 ## 12.9.1 (2026-09-03)
 
 ### Summary
@@ -3215,6 +3592,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

@@ -30,7 +30,7 @@ function getTitleId() {
 }
 
 async function fetchStores(titleId, os) {
-    const data = await sendPlayFabRequest(titleId, "Catalog/SearchStores", {}, "X-EntityToken", 2, os);
+    const data = await sendPlayFabRequest(titleId, "Catalog/SearchStores", {}, "X-EntityToken", 2, os, {priority: "background"});
     const raw = data?.Stores || data?.data?.Stores || [];
     return (raw || []).map(x => x?.Store || x).filter(Boolean);
 }
@@ -48,7 +48,7 @@ async function fetchStoreItemsBatched(titleId, stores, os, concurrency) {
         const chunk = stores.slice(i, i + concurrency);
         const res = await Promise.all(chunk.map(async s => {
             try {
-                const r = await getStoreItems(titleId, s.Id || s.id, os);
+                const r = await getStoreItems(titleId, s.Id || s.id, os, {priority: "background"});
                 const items = r?.Items || r?.items || [];
                 return {storeId: s.Id || s.id, items};
             } catch {

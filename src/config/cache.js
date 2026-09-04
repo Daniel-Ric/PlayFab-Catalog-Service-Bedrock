@@ -18,6 +18,7 @@ const SESSION_TTL_MS = Number(process.env.SESSION_TTL_MS || 30 * 60 * 1000);
 const DATA_TTL_MS = Number(process.env.DATA_TTL_MS || 5 * 60 * 1000);
 
 function createCache({max, ttl}) {
+    const metrics = {hits: 0, misses: 0, inflightHits: 0, sets: 0};
     const cache = new LRUCache({
         max,
         ttl,
@@ -29,10 +30,18 @@ function createCache({max, ttl}) {
     const inflight = new Map();
 
     async function getOrSetAsync(key, fn, ttlOverride) {
-        if (cache.has(key)) return cache.get(key);
-        if (inflight.has(key)) return inflight.get(key);
+        if (cache.has(key)) {
+            metrics.hits += 1;
+            return cache.get(key);
+        }
+        metrics.misses += 1;
+        if (inflight.has(key)) {
+            metrics.inflightHits += 1;
+            return inflight.get(key);
+        }
         const p = Promise.resolve().then(fn).then(val => {
             cache.set(key, val, {ttl: ttlOverride ?? ttl});
+            metrics.sets += 1;
             inflight.delete(key);
             return val;
         }).catch(err => {
@@ -44,8 +53,15 @@ function createCache({max, ttl}) {
     }
 
     return {
-        get: k => cache.get(k),
-        set: (k, v, opts = {}) => cache.set(k, v, {ttl: opts.ttl ?? ttl}),
+        get: k => {
+            const value = cache.get(k);
+            if (typeof value === "undefined") metrics.misses += 1; else metrics.hits += 1;
+            return value;
+        },
+        set: (k, v, opts = {}) => {
+            metrics.sets += 1;
+            return cache.set(k, v, {ttl: opts.ttl ?? ttl});
+        },
         has: k => cache.has(k),
         delete: k => cache.delete(k),
         clear: () => cache.clear(),
@@ -55,6 +71,14 @@ function createCache({max, ttl}) {
         get inflightSize() {
             return inflight.size;
         },
+        get metrics() {
+            const lookups = metrics.hits + metrics.misses;
+            return {
+                ...metrics,
+                lookups,
+                hitRate: lookups > 0 ? Number((metrics.hits / lookups).toFixed(4)) : 0
+            };
+        },
         getOrSetAsync
     };
 }
@@ -63,3 +87,4 @@ const sessionCache = createCache({max: Number(process.env.SESSION_CACHE_MAX || 1
 const dataCache = createCache({max: Number(process.env.DATA_CACHE_MAX || 20000), ttl: DATA_TTL_MS});
 
 module.exports = {sessionCache, dataCache};
+module.exports._internals = {createCache};

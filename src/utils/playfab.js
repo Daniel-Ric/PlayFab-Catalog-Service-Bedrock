@@ -20,6 +20,7 @@ const {Mutex} = require("async-mutex");
 const stringify = require("fast-json-stable-stringify");
 const {sessionCache, dataCache} = require("../config/cache");
 const logger = require("../config/logger");
+const {upstreamGuard} = require("../services/playfabUpstreamGuard");
 
 const httpAgent = new http.Agent({
     keepAlive: true, maxSockets: Number(process.env.HTTP_MAX_SOCKETS || 512), keepAliveMsecs: 60000, scheduling: "lifo"
@@ -91,35 +92,35 @@ function isRetryableUpstreamStatus(status, includeUnauthorized = false) {
     return retryable.includes(status);
 }
 
-async function loginWithIOSDeviceID(titleId, os) {
+async function loginWithIOSDeviceID(titleId, os, requestOptions = {}) {
     const deviceId = resolvePlayFabDeviceId();
-    const r = await api.post(`https://${titleId}.playfabapi.com/Client/LoginWithIOSDeviceID`, {
+    const r = await upstreamGuard.schedule(titleId, "Client/LoginWithIOSDeviceID", () => api.post(`https://${titleId}.playfabapi.com/Client/LoginWithIOSDeviceID`, {
         CreateAccount: true, TitleId: titleId, DeviceId: deviceId, OS: os
-    });
+    }), requestOptions);
     if (r.status >= 200 && r.status < 300) return r.data.data;
     const e = new Error("Login failed");
     e.status = r.status;
     throw e;
 }
 
-async function requestEntityToken(titleId, ticket, pfId) {
-    const r = await api.post(`https://${titleId}.playfabapi.com/Authentication/GetEntityToken`, {
+async function requestEntityToken(titleId, ticket, pfId, requestOptions = {}) {
+    const r = await upstreamGuard.schedule(titleId, "Authentication/GetEntityToken", () => api.post(`https://${titleId}.playfabapi.com/Authentication/GetEntityToken`, {
         Entity: {Id: pfId, Type: "master_player_account"}
     }, {
         headers: {"X-Authorization": ticket}
-    });
+    }), requestOptions);
     if (r.status >= 200 && r.status < 300) return r.data.data;
     const e = new Error("GetEntityToken failed");
     e.status = r.status;
     throw e;
 }
 
-async function getEntityToken(titleId, ticket, pfId) {
-    const data = await requestEntityToken(titleId, ticket, pfId);
+async function getEntityToken(titleId, ticket, pfId, requestOptions = {}) {
+    const data = await requestEntityToken(titleId, ticket, pfId, requestOptions);
     return data.EntityToken;
 }
 
-async function getSession(titleId, os) {
+async function getSession(titleId, os, requestOptions = {}) {
     const key = `session_${titleId}`;
     const cached = sessionCache.get(key);
     if (cached && (!cached.expiresAt || cached.expiresAt > Date.now())) return cached;
@@ -131,8 +132,8 @@ async function getSession(titleId, os) {
     return mutex.runExclusive(async () => {
         const again = sessionCache.get(key);
         if (again && (!again.expiresAt || again.expiresAt > Date.now())) return again;
-        const {SessionTicket, PlayFabId} = await loginWithIOSDeviceID(titleId, os);
-        const tokenData = await requestEntityToken(titleId, SessionTicket, PlayFabId);
+        const {SessionTicket, PlayFabId} = await loginWithIOSDeviceID(titleId, os, requestOptions);
+        const tokenData = await requestEntityToken(titleId, SessionTicket, PlayFabId, requestOptions);
         const expiresAt = resolveSessionExpiresAt(tokenData.TokenExpiration);
         const session = {
             SessionTicket,
@@ -146,26 +147,26 @@ async function getSession(titleId, os) {
     });
 }
 
-async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-EntityToken", maxRetries = 3, os) {
+async function sendPlayFabRequest(titleId, endpoint, payload = {}, auth = "X-EntityToken", maxRetries = 3, os, requestOptions = {}) {
     const cacheable = UPSTREAM_CACHEABLE_ENDPOINTS.has(endpoint);
     const cacheKey = cacheable ? `pf:${titleId}:${endpoint}:${auth}:${stringify(payload || {})}` : null;
     if (cacheKey) {
-        return dataCache.getOrSetAsync(cacheKey, async () => sendPlayFabRequestInternal(titleId, endpoint, payload, auth, maxRetries, os), UPSTREAM_RESPONSE_CACHE_TTL_MS);
+        return dataCache.getOrSetAsync(cacheKey, async () => sendPlayFabRequestInternal(titleId, endpoint, payload, auth, maxRetries, os, requestOptions), UPSTREAM_RESPONSE_CACHE_TTL_MS);
     }
-    return sendPlayFabRequestInternal(titleId, endpoint, payload, auth, maxRetries, os);
+    return sendPlayFabRequestInternal(titleId, endpoint, payload, auth, maxRetries, os, requestOptions);
 }
 
-async function sendPlayFabRequestInternal(titleId, endpoint, payload = {}, auth = "X-EntityToken", maxRetries = 3, os) {
+async function sendPlayFabRequestInternal(titleId, endpoint, payload = {}, auth = "X-EntityToken", maxRetries = 3, os, requestOptions = {}) {
     let attempt = 0;
     let lastErr;
     const budget = Number(process.env.RETRY_BUDGET || maxRetries);
     while (attempt <= budget) {
         try {
-            const ses = await getSession(titleId, os);
+            const ses = await getSession(titleId, os, requestOptions);
             const headers = {
                 [auth]: auth === "X-EntityToken" ? ses.EntityToken : ses.SessionTicket
             };
-            const r = await api.post(`https://${titleId}.playfabapi.com/${endpoint}`, payload, {headers});
+            const r = await upstreamGuard.schedule(titleId, endpoint, () => api.post(`https://${titleId}.playfabapi.com/${endpoint}`, payload, {headers}), requestOptions);
             if (r.status >= 200 && r.status < 300) {
                 return r.data.data ?? r.data;
             }
@@ -198,14 +199,14 @@ async function sendPlayFabRequestInternal(titleId, endpoint, payload = {}, auth 
     throw lastErr || new Error("sendPlayFabRequest failed");
 }
 
-async function sendPlayFabRequestWithEntityToken(titleId, endpoint, payload = {}, entityToken, maxRetries = 2) {
+async function sendPlayFabRequestWithEntityToken(titleId, endpoint, payload = {}, entityToken, maxRetries = 2, requestOptions = {}) {
     let attempt = 0;
     let lastErr;
     const budget = Number(process.env.RETRY_BUDGET || maxRetries);
     while (attempt <= budget) {
         try {
             const headers = {"X-EntityToken": entityToken};
-            const r = await api.post(`https://${titleId}.playfabapi.com/${endpoint}`, payload, {headers});
+            const r = await upstreamGuard.schedule(titleId, endpoint, () => api.post(`https://${titleId}.playfabapi.com/${endpoint}`, payload, {headers}), requestOptions);
             if (r.status >= 200 && r.status < 300) {
                 return r.data.data ?? r.data;
             }
@@ -587,17 +588,17 @@ async function getItemsByIds(titleId, ids, os, batchSize = 100, concurrency = 5)
     return list.map(id => byId.get(id)).filter(Boolean);
 }
 
-async function getItemById(titleId, id, os) {
+async function getItemById(titleId, id, os, requestOptions = {}) {
     const itemId = String(id || "").trim();
     if (!itemId) return null;
-    const data = await sendPlayFabRequest(titleId, "Catalog/GetItem", {Id: itemId}, "X-EntityToken", 3, os);
+    const data = await sendPlayFabRequest(titleId, "Catalog/GetItem", {Id: itemId}, "X-EntityToken", 3, os, requestOptions);
     return data?.Item || data?.item || null;
 }
 
-async function getStoreItems(titleId, storeId, os) {
+async function getStoreItems(titleId, storeId, os, requestOptions = {}) {
     logger.debug(`[PF] GetStoreItems titleId=${titleId} storeId=${storeId}`);
     try {
-        const r = await sendPlayFabRequest(titleId, "Catalog/GetStoreItems", {StoreId: storeId}, "X-EntityToken", 3, os);
+        const r = await sendPlayFabRequest(titleId, "Catalog/GetStoreItems", {StoreId: storeId}, "X-EntityToken", 3, os, requestOptions);
         const items = r?.Items || r?.items || [];
         logger.debug(`[PF] GetStoreItems result storeId=${storeId} items=${items.length}`);
         return r;

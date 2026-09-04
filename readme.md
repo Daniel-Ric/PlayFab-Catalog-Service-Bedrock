@@ -469,6 +469,7 @@ Response:
 | GET    | `/marketplace/latest/:alias`                       | Latest items (`?count<=50`)            |
 | GET    | `/marketplace/popular/:alias`                      | Popular by `rating/totalcount`         |
 | GET    | `/marketplace/free/:alias`                         | Free items                             |
+| GET    | `/marketplace/availability/:alias/:itemId`         | Availability, stores, and compatibility |
 | GET    | `/marketplace/marketplace-pass/:alias`             | Marketplace Pass items (`csb`)         |
 | GET    | `/marketplace/realms-plus/:alias`                  | Realms Plus items (`realms_plus`)      |
 | GET    | `/marketplace/tag/:alias/:tag`                     | Filter by tag                          |
@@ -581,6 +582,10 @@ Sorted by `rating/totalcount desc`.
 #### `GET /marketplace/free/:alias`
 
 Items with `displayProperties/price = 0`.
+
+#### `GET /marketplace/availability/:alias/:itemId`
+
+Returns platform and language availability, client-version constraints, Marketplace Pass and Realms Plus windows, catalog and store prices, sale windows, and upstream catalog deep links. The response intentionally excludes binary content URLs and keys. Store membership is indexed and cached per title to avoid rescanning every store for each item request.
 
 #### `GET /marketplace/marketplace-pass/:alias`
 

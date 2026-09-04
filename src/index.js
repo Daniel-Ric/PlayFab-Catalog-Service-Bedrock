@@ -39,6 +39,7 @@ const mpSearch = require("./routes/marketplace/search");
 const mpPopular = require("./routes/marketplace/popular");
 const mpTag = require("./routes/marketplace/tag");
 const mpFree = require("./routes/marketplace/free");
+const mpAvailability = require("./routes/marketplace/availability");
 const mpDetails = require("./routes/marketplace/details");
 const mpFriendly = require("./routes/marketplace/friendly");
 const mpResolve = require("./routes/marketplace/resolve");
@@ -431,6 +432,7 @@ app.use("/marketplace/popular", enforceAuth, authLimiter, marketplaceLimiter, ca
 app.use("/marketplace/tag", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpTag);
 app.use("/marketplace", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpSubscriptions);
 app.use("/marketplace/free", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpFree);
+app.use("/marketplace/availability", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpAvailability);
 app.use("/marketplace/details", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(120, 600), mpDetails);
 app.use("/marketplace/friendly", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(120, 600), mpFriendly);
 app.use("/marketplace/summary", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(120, 600), mpSummary);

@@ -16,6 +16,7 @@ const Bottleneck = require("bottleneck");
 
 const PRIORITIES = Object.freeze({interactive: 3, default: 5, background: 8});
 const DEFAULT_POLICY = Object.freeze({maxConcurrent: 8, minTime: 0});
+const CATALOG_SEARCH_POLICY = Object.freeze({maxConcurrent: 1, minTime: 600});
 const SEARCH_ITEMS_POLICY = Object.freeze({maxConcurrent: 1, minTime: 600});
 const GET_ITEMS_POLICY = Object.freeze({maxConcurrent: 4, minTime: 50});
 const CIRCUIT_FAILURE_THRESHOLD = 3;
@@ -29,6 +30,7 @@ function resolvePriority(value) {
 
 function endpointPolicy(endpoint) {
     const name = String(endpoint || "").toLowerCase();
+    if (name === "catalog/search") return {...CATALOG_SEARCH_POLICY};
     if (name === "catalog/searchitems") return {...SEARCH_ITEMS_POLICY};
     if (name === "catalog/getitem" || name === "catalog/getitems") return {...GET_ITEMS_POLICY};
     return {...DEFAULT_POLICY};
@@ -86,10 +88,11 @@ function createUpstreamGuard(options = {}) {
         return false;
     }
 
-    function record(entry, status) {
+    function record(entry, status, trackFailure = true) {
         const code = Number(status) || 0;
         if (code === 429 || code === 503) {
             entry.metrics.throttled += 1;
+            if (!trackFailure) return;
             entry.circuit.failures += 1;
             entry.circuit.halfOpen = false;
             if (entry.circuit.failures >= threshold) entry.circuit.openUntil = clock() + openMs;
@@ -113,12 +116,12 @@ function createUpstreamGuard(options = {}) {
                 try {
                     const result = await task();
                     const status = Number(result?.status) || 0;
-                    record(entry, status);
+                    record(entry, status, scheduleOptions.trackFailure !== false || halfOpenProbe);
                     if (status >= 400) entry.metrics.failed += 1; else entry.metrics.succeeded += 1;
                     return result;
                 } catch (error) {
                     if (error?.code !== "PLAYFAB_CIRCUIT_OPEN") {
-                        record(entry, error?.status || error?.response?.status);
+                        record(entry, error?.status || error?.response?.status, scheduleOptions.trackFailure !== false || halfOpenProbe);
                         entry.metrics.failed += 1;
                     }
                     throw error;

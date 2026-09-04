@@ -130,7 +130,7 @@ NODE_ENV=production LOG_LEVEL=info node src/index.js
 | `HTTP_MAX_SOCKETS`    | `512`        | Keep-alive sockets (HTTP)                 |
 | `HTTPS_MAX_SOCKETS`   | `512`        | Keep-alive sockets (HTTPS)                |
 
-PlayFab traffic is scheduled per title and endpoint. Interactive calls have priority over watchers. `SearchItems` uses one request every 600 ms, `GetItem`/`GetItems` use four concurrent calls with a 50 ms minimum interval, and other calls use up to eight concurrent requests. Three consecutive 429/503 responses open the circuit for 15 seconds. These safe upstream limits are intentionally fixed to keep deployment configuration small.
+PlayFab traffic is scheduled per title and endpoint. Interactive calls have priority over watchers. `SearchItems` and legacy `Search` use one request every 600 ms, `GetItem`/`GetItems` use four concurrent calls with a 50 ms minimum interval, and other calls use up to eight concurrent requests. Only exhausted logical requests count toward the circuit breaker; three consecutive 429/503 failures open it for 15 seconds. These safe upstream limits are intentionally fixed to keep deployment configuration small.
 
 ### GitHub Version Updates
 
@@ -703,6 +703,8 @@ Date filters are pushed into PlayFab search where possible and can be combined w
 * `fresh=true`: bypass application caches and retrieve the current item with Catalog V2 `GetItem`.
 
 Catalog V2 `SearchItems` cursor pagination is the default for new search integrations. Legacy `page`, `pageSize`, `skip`, and `limit` pagination remains compatible, but responses using it include `Deprecation: true`; migrate clients to `/marketplace/search/items/:alias` and `continuationToken`. Raw upstream items remain disabled by default. An administrator can explicitly restore the legacy `includeRaw=true` response by enabling `EXPOSE_SENSITIVE_CATALOG_FIELDS=true`; this also restricts marketplace access to admin JWTs while enabled.
+
+Large legacy catalog scans are divided by raw catalog date boundaries before PlayFab's offset ceiling is reached. If the catalog cannot be divided safely by creation, start, or modification date, or if legacy `Catalog/Search` remains transiently unavailable after its retries, the request continues through Catalog V2 continuation tokens instead of failing.
 
 #### `GET /marketplace/friendly/:alias/:friendlyId`
 

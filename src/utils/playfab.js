@@ -203,7 +203,12 @@ async function sendPlayFabRequestInternal(titleId, endpoint, payload = {}, auth 
             const headers = {
                 [auth]: auth === "X-EntityToken" ? ses.EntityToken : ses.SessionTicket
             };
-            const r = await upstreamGuard.schedule(titleId, endpoint, () => api.post(`https://${titleId}.playfabapi.com/${endpoint}`, payload, {headers}), requestOptions);
+            const r = await upstreamGuard.schedule(
+                titleId,
+                endpoint,
+                () => api.post(`https://${titleId}.playfabapi.com/${endpoint}`, payload, {headers}),
+                {...requestOptions, trackFailure: attempt >= budget}
+            );
             if (r.status >= 200 && r.status < 300) {
                 return r.data.data ?? r.data;
             }
@@ -370,6 +375,7 @@ async function fetchCatalogSearchBatch(titleId, {
     return {
         rawCount: raw.length,
         total: catalogTotalCount(data),
+        rawItems: raw,
         items: transformCatalogItems(raw)
     };
 }
@@ -427,14 +433,135 @@ function sortCatalogItems(items, orderBy) {
     });
 }
 
-async function fetchCatalogSearchItems(titleId, {
+function catalogDateMs(item, field) {
+    const aliases = {
+        CreationDate: ["CreationDate", "creationDate"],
+        StartDate: ["StartDate", "startDate"],
+        LastModifiedDate: ["LastModifiedDate", "lastModifiedDate"]
+    };
+    for (const key of aliases[field] || [field]) {
+        const value = Date.parse(item?.[key] || "");
+        if (Number.isFinite(value)) return value;
+    }
+    return null;
+}
+
+function catalogDateBounds(oldestItems, newestItems, field) {
+    const oldestDates = (oldestItems || []).map(item => catalogDateMs(item, field)).filter(Number.isFinite);
+    const newestDates = (newestItems || []).map(item => catalogDateMs(item, field)).filter(Number.isFinite);
+    if (!oldestDates.length || !newestDates.length) return null;
+    const oldestMs = Math.min(...oldestDates);
+    const newestMs = Math.max(...newestDates);
+    if (oldestMs >= newestMs || newestMs - oldestMs < 2) return null;
+    return {oldestMs, newestMs};
+}
+
+async function findCatalogDateSplit(titleId, {filter, search, os}) {
+    for (const field of ["CreationDate", "StartDate", "LastModifiedDate"]) {
+        const [oldest, newest] = await Promise.all([
+            fetchCatalogSearchBatch(titleId, {filter, search, os, batchSize: 50, skip: 0, orderBy: `${field} asc`}),
+            fetchCatalogSearchBatch(titleId, {filter, search, os, batchSize: 50, skip: 0, orderBy: `${field} desc`})
+        ]);
+        const bounds = catalogDateBounds(oldest.rawItems, newest.rawItems, field);
+        if (!bounds) continue;
+        const midpointMs = bounds.oldestMs + Math.floor((bounds.newestMs - bounds.oldestMs) / 2);
+        if (midpointMs <= bounds.oldestMs || midpointMs >= bounds.newestMs) continue;
+        return {field, midpoint: new Date(midpointMs).toISOString()};
+    }
+    return null;
+}
+
+function catalogV2Expression(value) {
+    return String(value || "")
+        .replace(/\bCreationDate\b/g, "creationDate")
+        .replace(/\bStartDate\b/g, "startDate")
+        .replace(/\bLastModifiedDate\b/g, "lastModifiedDate")
+        .replace(/rating\/totalcount/gi, "rating/totalCount");
+}
+
+function catalogSearchHitItem(hit) {
+    return hit?.Item || hit?.item || hit;
+}
+
+function catalogSearchHitId(hit) {
+    const item = catalogSearchHitItem(hit);
+    return catalogItemId(hit) || catalogItemId(item) || hit?.ItemId || hit?.itemId || null;
+}
+
+async function fetchCatalogSearchItemsV2(titleId, {
+    filter = "",
+    search = "",
+    os,
+    batchSize = 300,
+    concurrency = 5,
+    maxBatches = 0,
+    orderBy = "StartDate desc"
+}) {
+    const configuredLimit = Number(maxBatches);
+    const safeBatchSize = Math.max(1, Number(batchSize) || 300);
+    const maxItems = Number.isFinite(configuredLimit) && configuredLimit > 0
+        ? Math.floor(configuredLimit) * safeBatchSize
+        : CATALOG_SEARCH_UNKNOWN_TOTAL_MAX_BATCHES * safeBatchSize;
+    const items = [];
+    const seenTokens = new Set();
+    let continuationToken = "";
+    let scannedHits = 0;
+
+    while (scannedHits < maxItems) {
+        const payload = {
+            Search: String(search || ""),
+            Count: Math.min(GET_ITEMS_MAX_IDS, maxItems - scannedHits),
+            Filter: catalogV2Expression(filter),
+            OrderBy: catalogV2Expression(orderBy)
+        };
+        if (!payload.Filter) delete payload.Filter;
+        if (!payload.OrderBy) delete payload.OrderBy;
+        if (continuationToken) payload.ContinuationToken = continuationToken;
+
+        const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, os);
+        const hits = data?.Items || data?.items || [];
+        if (!hits.length) break;
+        scannedHits += hits.length;
+
+        const hitEntries = hits.map(hit => ({id: catalogSearchHitId(hit), item: catalogSearchHitItem(hit)})).filter(entry => entry.item);
+        const ids = hitEntries.map(entry => entry.id).filter(Boolean);
+        const fullItems = await getItemsByIds(titleId, ids, os, GET_ITEMS_MAX_IDS, Math.min(4, Math.max(1, concurrency)));
+        const fullById = new Map(fullItems.map(item => [catalogItemId(item), item]));
+        items.push(...hitEntries.map(entry => fullById.get(entry.id) || entry.item));
+
+        const nextToken = data?.ContinuationToken || data?.continuationToken || "";
+        if (!nextToken || nextToken === continuationToken || seenTokens.has(nextToken)) break;
+        seenTokens.add(nextToken);
+        continuationToken = nextToken;
+    }
+
+    return sortCatalogItems(uniqueCatalogItems(transformCatalogItems(items)), orderBy);
+}
+
+function isTransientCatalogSearchError(error) {
+    const status = Number(error?.status || error?.response?.status) || 0;
+    return error?.code === "PLAYFAB_CIRCUIT_OPEN" || [429, 500, 502, 503, 504].includes(status);
+}
+
+async function fetchCatalogSearchItems(titleId, options = {}) {
+    try {
+        return await fetchCatalogSearchItemsLegacy(titleId, options);
+    } catch (error) {
+        if (!isTransientCatalogSearchError(error)) throw error;
+        logger.warn(`[PF] Catalog/Search failed with ${error.status || error.code || "a transient error"}; continuing with Catalog/SearchItems cursor pagination`);
+        return fetchCatalogSearchItemsV2(titleId, options);
+    }
+}
+
+async function fetchCatalogSearchItemsLegacy(titleId, {
     filter = "",
     search = "",
     os,
     batchSize = 300,
     concurrency = 5,
     maxBatches = Number(process.env.MAX_FETCH_BATCHES || 0),
-    orderBy = "StartDate desc"
+    orderBy = "StartDate desc",
+    splitDepth = 0
 }) {
     const safeBatchSize = Math.max(1, batchSize);
     const safeConcurrency = Math.max(1, concurrency);
@@ -459,27 +586,26 @@ async function fetchCatalogSearchItems(titleId, {
     const maxOffsetBatches = Math.floor(CATALOG_SEARCH_MAX_SKIP / safeBatchSize) + 1;
 
     if (!hasConfiguredLimit && first.total !== null && first.total > maxOffsetBatches * safeBatchSize) {
-        const [oldest, newest] = await Promise.all([
-            fetchCatalogSearchBatch(titleId, {filter, search, os, batchSize: 1, skip: 0, orderBy: "CreationDate asc"}),
-            fetchCatalogSearchBatch(titleId, {filter, search, os, batchSize: 1, skip: 0, orderBy: "CreationDate desc"})
-        ]);
-        const oldestMs = Date.parse(oldest.items[0]?.CreationDate || oldest.items[0]?.creationDate || "");
-        const newestMs = Date.parse(newest.items[0]?.CreationDate || newest.items[0]?.creationDate || "");
-        if (!Number.isFinite(oldestMs) || !Number.isFinite(newestMs) || oldestMs >= newestMs) {
-            const error = new Error("Catalog result exceeds PlayFab's offset limit and cannot be split by CreationDate.");
-            error.status = 502;
-            throw error;
+        const split = splitDepth < 32
+            ? await findCatalogDateSplit(titleId, {filter, search, os})
+            : null;
+        if (!split) {
+            logger.warn("[PF] Catalog/Search offset limit reached; continuing with Catalog/SearchItems cursor pagination");
+            return fetchCatalogSearchItemsV2(titleId, {
+                filter, search, os, batchSize: safeBatchSize, concurrency: safeConcurrency, maxBatches, orderBy
+            });
         }
 
-        const midpoint = new Date(oldestMs + Math.floor((newestMs - oldestMs) / 2)).toISOString();
         const [olderItems, newerItems] = await Promise.all([
             fetchCatalogSearchItems(titleId, {
-                filter: andCatalogFilter(filter, `CreationDate lt ${midpoint}`), search, os,
-                batchSize: safeBatchSize, concurrency: safeConcurrency, maxBatches: 0, orderBy
+                filter: andCatalogFilter(filter, `${split.field} lt ${split.midpoint}`), search, os,
+                batchSize: safeBatchSize, concurrency: safeConcurrency, maxBatches: 0, orderBy,
+                splitDepth: splitDepth + 1
             }),
             fetchCatalogSearchItems(titleId, {
-                filter: andCatalogFilter(filter, `CreationDate ge ${midpoint}`), search, os,
-                batchSize: safeBatchSize, concurrency: safeConcurrency, maxBatches: 0, orderBy
+                filter: andCatalogFilter(filter, `${split.field} ge ${split.midpoint}`), search, os,
+                batchSize: safeBatchSize, concurrency: safeConcurrency, maxBatches: 0, orderBy,
+                splitDepth: splitDepth + 1
             })
         ]);
         return sortCatalogItems(uniqueCatalogItems([...olderItems, ...newerItems]), orderBy);
@@ -636,6 +762,8 @@ module.exports = {
     getSession,
     sendPlayFabRequest,
     fetchCatalogSearchItems,
+    fetchCatalogSearchItemsV2,
+    isTransientCatalogSearchError,
     resolveCatalogBatchLimit,
     fetchAllMarketplaceItemsEfficiently,
     isValidItem,
@@ -650,6 +778,9 @@ module.exports = {
     _internals: {
         isRetryableUpstreamStatus,
         retryDelayForStatus,
+        catalogDateBounds,
+        catalogV2Expression,
+        isTransientCatalogSearchError,
         readPersistentPlayFabDeviceId,
         resolvePersistentPlayFabDeviceId,
         resolvePlayFabDeviceId,

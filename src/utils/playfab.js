@@ -77,19 +77,13 @@ function retryDelayForStatus(status, headers = {}, attempt = 0) {
     return jitter(200, attempt, 10000);
 }
 
-function playFabDeviceIdFile(env = process.env) {
-    const configured = typeof env.PLAYFAB_DEVICE_ID_FILE === "string" ? env.PLAYFAB_DEVICE_ID_FILE.trim() : "";
-    return configured ? path.resolve(configured) : DEFAULT_DEVICE_ID_FILE;
-}
-
 function readPersistentPlayFabDeviceId(filePath) {
     if (!fs.existsSync(filePath)) return "";
     const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
     return typeof parsed?.deviceId === "string" ? parsed.deviceId.trim() : "";
 }
 
-function resolvePersistentPlayFabDeviceId(env = process.env) {
-    const filePath = playFabDeviceIdFile(env);
+function resolvePersistentPlayFabDeviceId(filePath = DEFAULT_DEVICE_ID_FILE) {
     const existing = readPersistentPlayFabDeviceId(filePath);
     if (existing) return existing;
 
@@ -109,12 +103,12 @@ function resolvePersistentPlayFabDeviceId(env = process.env) {
     }
 }
 
-function resolvePlayFabDeviceId(env = process.env) {
+function resolvePlayFabDeviceId(env = process.env, options = {}) {
     const configured = typeof env.PLAYFAB_DEVICE_ID === "string" ? env.PLAYFAB_DEVICE_ID.trim() : "";
     if (configured) return configured;
     if (String(env.NODE_ENV || "").trim().toLowerCase() !== "production") return fallbackDeviceId;
     try {
-        return resolvePersistentPlayFabDeviceId(env);
+        return resolvePersistentPlayFabDeviceId(options.deviceIdFile);
     } catch (error) {
         logger.warn(`[PF] could not persist PLAYFAB_DEVICE_ID: ${error.message}; using process-local fallback`);
         return fallbackDeviceId;
@@ -656,7 +650,6 @@ module.exports = {
     _internals: {
         isRetryableUpstreamStatus,
         retryDelayForStatus,
-        playFabDeviceIdFile,
         readPersistentPlayFabDeviceId,
         resolvePersistentPlayFabDeviceId,
         resolvePlayFabDeviceId,

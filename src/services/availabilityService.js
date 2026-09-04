@@ -18,8 +18,8 @@ const {getItemsByIds, getStoreItems, sendPlayFabRequest} = require("../utils/pla
 const {SUBSCRIPTION_DEFS, getItemSubscriptionInfo} = require("../utils/marketplaceSubscriptions");
 
 const OS = process.env.OS || "iOS";
-const STORE_INDEX_TTL_MS = Math.max(1000, Number(process.env.AVAILABILITY_STORE_INDEX_TTL_MS || 60 * 1000));
-const STORE_CONCURRENCY = Math.max(1, Number(process.env.AVAILABILITY_STORE_CONCURRENCY || 5));
+const STORE_INDEX_TTL_MS = Math.max(1000, Number(process.env.DATA_TTL_MS || 5 * 60 * 1000));
+const STORE_CONCURRENCY = Math.max(1, Number(process.env.STORE_CONCURRENCY || 6));
 
 function pickLocale(value) {
     if (!value || typeof value !== "object") return null;

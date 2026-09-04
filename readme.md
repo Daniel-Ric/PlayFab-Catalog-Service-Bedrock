@@ -130,6 +130,8 @@ NODE_ENV=production LOG_LEVEL=info node src/index.js
 | `HTTP_MAX_SOCKETS`    | `512`        | Keep-alive sockets (HTTP)                 |
 | `HTTPS_MAX_SOCKETS`   | `512`        | Keep-alive sockets (HTTPS)                |
 
+PlayFab traffic is scheduled per title and endpoint. Interactive calls have priority over watchers. `SearchItems` defaults to one request every 600 ms, while `GetItem`/`GetItems` default to four concurrent calls with a 50 ms minimum interval. Configure this with `PLAYFAB_SEARCH_ITEMS_MAX_CONCURRENT`, `PLAYFAB_SEARCH_ITEMS_MIN_TIME_MS`, `PLAYFAB_GET_ITEMS_MAX_CONCURRENT`, `PLAYFAB_GET_ITEMS_MIN_TIME_MS`, `PLAYFAB_UPSTREAM_MAX_CONCURRENT`, and `PLAYFAB_UPSTREAM_MIN_TIME_MS`. Repeated 429/503 responses open a short circuit controlled by `PLAYFAB_CIRCUIT_FAILURE_THRESHOLD` and `PLAYFAB_CIRCUIT_OPEN_MS`.
+
 ### GitHub Version Updates
 
 | Variable                    | Default                                      | Description |
@@ -1067,6 +1069,7 @@ def verify(sig, body, secret):
 * **LRU (dataCache)** — Generic results via `getOrSetAsync(key, fn, ttlOverride?)` to deduplicate in-flight calls.
 * **ETag** — Response entity tagging on controllers using `withETag(handler)`.
 * **Cache headers** — Per-route `Cache-Control` hints via `cacheHeaders(seconds, smax)` in `index.js`.
+* **Metrics** — `/health` reports cache hits, misses, in-flight de-duplication, upstream queue depth, endpoint quotas, throttling, and circuit state.
 
 ---
 

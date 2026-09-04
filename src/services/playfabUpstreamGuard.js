@@ -1,0 +1,179 @@
+// -----------------------------------------------------------------------------
+//
+// File: src/services/playfabUpstreamGuard.js
+// Disclaimer: "PlayFab Catalog Service Bedrock" by SpindexGFX is an independent project.
+// It is not affiliated with, endorsed by, sponsored by, or otherwise connected to Mojang AB,
+// Microsoft Corporation, or any of their subsidiaries or affiliates.
+//
+// -----------------------------------------------------------------------------
+
+const Bottleneck = require("bottleneck");
+
+const PRIORITIES = Object.freeze({interactive: 3, default: 5, background: 8});
+
+function readInt(env, key, fallback, min = 0) {
+    const value = Number(env[key]);
+    return Number.isFinite(value) ? Math.max(min, Math.floor(value)) : fallback;
+}
+
+function resolvePriority(value) {
+    if (typeof value === "string" && Object.hasOwn(PRIORITIES, value)) return PRIORITIES[value];
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? Math.max(0, Math.min(9, Math.floor(numeric))) : PRIORITIES.default;
+}
+
+function endpointPolicy(endpoint, env = process.env) {
+    const name = String(endpoint || "").toLowerCase();
+    const defaultMax = readInt(env, "PLAYFAB_UPSTREAM_MAX_CONCURRENT", 8, 1);
+    const defaultMinTime = readInt(env, "PLAYFAB_UPSTREAM_MIN_TIME_MS", 0, 0);
+    if (name === "catalog/searchitems") {
+        return {
+            maxConcurrent: readInt(env, "PLAYFAB_SEARCH_ITEMS_MAX_CONCURRENT", 1, 1),
+            minTime: readInt(env, "PLAYFAB_SEARCH_ITEMS_MIN_TIME_MS", 600, 0)
+        };
+    }
+    if (name === "catalog/getitem" || name === "catalog/getitems") {
+        return {
+            maxConcurrent: readInt(env, "PLAYFAB_GET_ITEMS_MAX_CONCURRENT", 4, 1),
+            minTime: readInt(env, "PLAYFAB_GET_ITEMS_MIN_TIME_MS", 50, 0)
+        };
+    }
+    return {maxConcurrent: defaultMax, minTime: defaultMinTime};
+}
+
+function circuitOpenError(openUntil) {
+    const error = new Error("PlayFab upstream circuit is open.");
+    error.status = 503;
+    error.code = "PLAYFAB_CIRCUIT_OPEN";
+    error.retryable = false;
+    error.publicMessage = "PlayFab upstream is temporarily unavailable.";
+    error.openUntil = openUntil;
+    return error;
+}
+
+function createUpstreamGuard(options = {}) {
+    const entries = new Map();
+    const clock = options.now || Date.now;
+    const policyResolver = options.policyResolver || (endpoint => endpointPolicy(endpoint, options.env || process.env));
+    const threshold = options.threshold || readInt(options.env || process.env, "PLAYFAB_CIRCUIT_FAILURE_THRESHOLD", 3, 1);
+    const openMs = options.openMs || readInt(options.env || process.env, "PLAYFAB_CIRCUIT_OPEN_MS", 15000, 1000);
+    const BottleneckClass = options.BottleneckClass || Bottleneck;
+
+    function getEntry(titleId, endpoint) {
+        const key = `${titleId}:${endpoint}`;
+        let entry = entries.get(key);
+        if (entry) return entry;
+        const policy = policyResolver(endpoint);
+        entry = {
+            key,
+            titleId,
+            endpoint,
+            policy,
+            limiter: new BottleneckClass(policy),
+            circuit: {failures: 0, openUntil: 0, halfOpen: false},
+            metrics: {scheduled: 0, started: 0, succeeded: 0, failed: 0, throttled: 0, circuitRejected: 0}
+        };
+        entries.set(key, entry);
+        return entry;
+    }
+
+    function rejectCircuit(entry) {
+        entry.metrics.circuitRejected += 1;
+        throw circuitOpenError(entry.circuit.openUntil);
+    }
+
+    function reserve(entry) {
+        const now = clock();
+        if (entry.circuit.openUntil > now) rejectCircuit(entry);
+        if (entry.circuit.openUntil > 0) {
+            if (entry.circuit.halfOpen) rejectCircuit(entry);
+            entry.circuit.halfOpen = true;
+            return true;
+        }
+        return false;
+    }
+
+    function record(entry, status) {
+        const code = Number(status) || 0;
+        if (code === 429 || code === 503) {
+            entry.metrics.throttled += 1;
+            entry.circuit.failures += 1;
+            entry.circuit.halfOpen = false;
+            if (entry.circuit.failures >= threshold) entry.circuit.openUntil = clock() + openMs;
+            return;
+        }
+        entry.circuit.failures = 0;
+        entry.circuit.openUntil = 0;
+        entry.circuit.halfOpen = false;
+    }
+
+    async function schedule(titleId, endpoint, task, scheduleOptions = {}) {
+        const entry = getEntry(String(titleId || "unknown"), String(endpoint || "unknown"));
+        entry.metrics.scheduled += 1;
+        const halfOpenProbe = reserve(entry);
+        let started = false;
+        try {
+            return await entry.limiter.schedule({priority: resolvePriority(scheduleOptions.priority)}, async () => {
+                started = true;
+                if (!halfOpenProbe && entry.circuit.openUntil > clock()) rejectCircuit(entry);
+                entry.metrics.started += 1;
+                try {
+                    const result = await task();
+                    const status = Number(result?.status) || 0;
+                    record(entry, status);
+                    if (status >= 400) entry.metrics.failed += 1; else entry.metrics.succeeded += 1;
+                    return result;
+                } catch (error) {
+                    if (error?.code !== "PLAYFAB_CIRCUIT_OPEN") {
+                        record(entry, error?.status || error?.response?.status);
+                        entry.metrics.failed += 1;
+                    }
+                    throw error;
+                }
+            });
+        } catch (error) {
+            if (halfOpenProbe && !started) entry.circuit.halfOpen = false;
+            throw error;
+        }
+    }
+
+    function snapshot() {
+        const endpoints = Array.from(entries.values()).map(entry => {
+            const counts = typeof entry.limiter.counts === "function" ? entry.limiter.counts() : {};
+            return {
+                titleId: entry.titleId,
+                endpoint: entry.endpoint,
+                quota: {
+                    ...entry.policy,
+                    estimatedRequestsPerMinute: entry.policy.minTime > 0 ? Math.floor(60000 / entry.policy.minTime) : null
+                },
+                queue: {
+                    queued: counts.QUEUED || 0,
+                    running: (counts.RUNNING || 0) + (counts.EXECUTING || 0)
+                },
+                circuit: {
+                    state: entry.circuit.openUntil > clock() ? "open" : entry.circuit.openUntil > 0 ? "half_open" : "closed",
+                    consecutiveFailures: entry.circuit.failures,
+                    openUntil: entry.circuit.openUntil || null
+                },
+                ...entry.metrics
+            };
+        });
+        const totals = endpoints.reduce((out, entry) => {
+            for (const key of ["scheduled", "started", "succeeded", "failed", "throttled", "circuitRejected"]) {
+                out[key] += entry[key];
+            }
+            out.queued += entry.queue.queued;
+            out.running += entry.queue.running;
+            if (entry.circuit.state !== "closed") out.openCircuits += 1;
+            return out;
+        }, {scheduled: 0, started: 0, succeeded: 0, failed: 0, throttled: 0, circuitRejected: 0, queued: 0, running: 0, openCircuits: 0});
+        return {totals, endpoints};
+    }
+
+    return {schedule, snapshot};
+}
+
+const upstreamGuard = createUpstreamGuard();
+
+module.exports = {upstreamGuard, createUpstreamGuard, endpointPolicy, resolvePriority};

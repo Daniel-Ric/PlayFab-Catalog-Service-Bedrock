@@ -22,6 +22,7 @@ const {contentUpdateWatcher} = require("../services/contentUpdateWatcher");
 const {priceWatcher} = require("../services/priceWatcher");
 const {trendingWatcher} = require("../services/trendingWatcher");
 const {creatorPartnerWatcher} = require("../services/creatorPartnerWatcher");
+const {upstreamGuard} = require("../services/playfabUpstreamGuard");
 const {getConfiguredCorsOrigins} = require("../utils/corsOrigins");
 
 function nowTs() {
@@ -53,7 +54,7 @@ async function checkUpstream() {
     let sampleStoreItemCount = 0;
 
     try {
-        const storesResp = await sendPlayFabRequest(titleId, "Catalog/SearchStores", {}, "X-EntityToken", 2, osName);
+        const storesResp = await sendPlayFabRequest(titleId, "Catalog/SearchStores", {}, "X-EntityToken", 2, osName, {priority: "background"});
 
         const rawStores = storesResp?.Stores || (storesResp?.data ? storesResp.data.Stores : []) || [];
         const stores = rawStores.map(s => s.Store || s).filter(Boolean);
@@ -66,7 +67,7 @@ async function checkUpstream() {
 
             if (sampleStoreId) {
                 try {
-                    const st = await getStoreItems(titleId, sampleStoreId, osName);
+                    const st = await getStoreItems(titleId, sampleStoreId, osName, {priority: "background"});
                     const itemsArr = st?.Items || st?.items || [];
                     sampleStoreItemCount = itemsArr.length;
                     if (itemsArr && itemsArr.length >= 0) {
@@ -236,11 +237,13 @@ function getCacheInfo() {
         sessionCache: {
             max: readIntEnv("SESSION_CACHE_MAX", 1000),
             ttlMsDefault: SESSION_TTL_MS,
-            size: sessionCache ? sessionCache.size : undefined
+            size: sessionCache ? sessionCache.size : undefined,
+            metrics: sessionCache ? sessionCache.metrics : undefined
         }, dataCache: {
             max: readIntEnv("DATA_CACHE_MAX", 20000),
             ttlMsDefault: DATA_TTL_MS,
-            size: dataCache ? dataCache.size : undefined
+            size: dataCache ? dataCache.size : undefined,
+            metrics: dataCache ? dataCache.metrics : undefined
         }
     };
 }
@@ -422,11 +425,11 @@ function buildStatusFlags({upstream, session}) {
 
 exports.getHealth = async (_req, res, next) => {
     try {
-        const upstream = await dataCache.getOrSetAsync("health-upstream-v4", async () => {
+        const upstream = await dataCache.getOrSetAsync("health-upstream-v5", async () => {
             return checkUpstream();
         }, 5000);
 
-        const sessionInfo = await dataCache.getOrSetAsync("health-session-v4", async () => {
+        const sessionInfo = await dataCache.getOrSetAsync("health-session-v5", async () => {
             return checkSession();
         }, 5000);
 
@@ -449,7 +452,7 @@ exports.getHealth = async (_req, res, next) => {
         const flags = buildStatusFlags({upstream, session: sessionInfo});
 
         const response = {
-            healthVersion: "v4",
+            healthVersion: "v5",
             ok: flags.overall === "green" || flags.overall === "yellow",
             timestamp: nowTs(),
             flags,
@@ -461,7 +464,8 @@ exports.getHealth = async (_req, res, next) => {
                     storeCount: upstream.storeCount,
                     sampleStoreId: upstream.sampleStoreId,
                     sampleStoreItemCount: upstream.sampleStoreItemCount
-                }
+                },
+                guard: upstreamGuard.snapshot()
             },
             watchers,
             watcherOverview,

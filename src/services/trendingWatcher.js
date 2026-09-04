@@ -37,7 +37,7 @@ async function fetchWindow(titleId, os, hours, top, pages) {
     for (let i = 0; i < pages; i++) {
         const skip = i * top;
         const payload = buildSearchPayload({filter, search, top, skip, orderBy, expandFields: "images"});
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 2, os);
+        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 2, os, {priority: "background"});
         const items = (data.Items || []).filter(isWatchableMarketplaceItem);
         if (!items.length) break;
         out.push(...items);

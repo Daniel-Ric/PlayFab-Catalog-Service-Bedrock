@@ -178,7 +178,7 @@ async function searchItemsPage(titleId, os, filter, orderBy, continuationToken, 
     }
 
     try {
-        const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, os);
+        const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, os, {priority: "background"});
         return data || {};
     } catch (err) {
         searchItemsUnavailable = true;
@@ -195,7 +195,7 @@ async function searchItemsPageFallback(titleId, os, filter, orderBy, continuatio
         Top: safeCount,
         Skip: offset,
         Expand: "Images"
-    }, "X-EntityToken", 3, os);
+    }, "X-EntityToken", 3, os, {priority: "background"});
 
     const items = data?.Items || data?.items || [];
     return {
@@ -220,7 +220,7 @@ async function getItemsCompat(titleId, os, ids) {
     if (!list.length) return [];
     const payload = {Ids: list, Expand: "Images"};
     try {
-        const r = await sendPlayFabRequest(titleId, "Catalog/GetItems", payload, "X-EntityToken", 3, os);
+        const r = await sendPlayFabRequest(titleId, "Catalog/GetItems", payload, "X-EntityToken", 3, os, {priority: "background"});
         const items = r?.Items || r?.items || [];
         if (items && items.length) return items;
     } catch {

@@ -177,7 +177,7 @@ function normalizeDeepLinks(item) {
     })).filter(link => link.platform || link.url);
 }
 
-function normalizeSearchItem(item, language, includeRaw = false) {
+function normalizeSearchItem(item, language) {
     const images = normalizeImages(item);
     const id = item?.Id || item?.id || "";
     const out = {
@@ -202,7 +202,6 @@ function normalizeSearchItem(item, language, includeRaw = false) {
         lastModifiedDate: item?.LastModifiedDate || item?.lastModifiedDate || null,
         clientUrl: id ? `https://open.view-marketplace.net/StoreOffer/${id}` : null
     };
-    if (includeRaw) out.rawItem = item;
     return out;
 }
 
@@ -291,7 +290,7 @@ async function searchItems(alias, body = {}, defaults = {}) {
     const titleId = resolveTitle(alias);
     const payload = buildSearchItemsPayload(body, defaults);
     const data = await runSearchItems(titleId, payload);
-    const items = data.rawItems.map(item => normalizeSearchItem(item, payload.Language, body.includeRaw === true));
+    const items = data.rawItems.map(item => normalizeSearchItem(item, payload.Language));
     return {
         items,
         pagination: {
@@ -467,7 +466,7 @@ async function localizedSearch(alias, body = {}) {
             language,
             select: body.select || LOCALIZED_SELECT,
             count: body.count || 24,
-            includeRaw: body.includeRaw === true
+            includeRaw: false
         });
         results.set(language, {
             items: data.items,

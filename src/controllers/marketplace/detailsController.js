@@ -17,11 +17,13 @@ const { dataCache } = require("../../config/cache");
 const service = require("../../services/marketplaceService");
 const cacheKey = require("../../utils/cacheKey");
 
-exports.getDetails = withETag(async (req) => {
+exports.getDetails = withETag(async (req, res) => {
+    const fresh = req.query.fresh === true;
+    const load = () => service.fetchDetails(req.params.alias, req.params.itemId, req.query.expand || "", {fresh});
+    if (fresh) {
+        res.setHeader("Cache-Control", "no-store");
+        return load();
+    }
     const key = cacheKey(req);
-    return dataCache.getOrSetAsync(key, async () => {
-        const expand = req.query.expand || "";
-        const item = await service.fetchDetails(req.params.alias, req.params.itemId, expand);
-        return item;
-    }, Number(process.env.DETAILS_TTL_MS || 2 * 60 * 1000));
+    return dataCache.getOrSetAsync(key, load, Number(process.env.DETAILS_TTL_MS || 2 * 60 * 1000));
 });

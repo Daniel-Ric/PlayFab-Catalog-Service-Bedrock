@@ -84,6 +84,9 @@ MarketplaceSearchItemsRequest:
       type: string
     includeRaw:
       type: boolean
+      enum:
+        - false
+      description: Raw PlayFab items are not exposed by the public API.
 MarketplaceSearchItemSummary:
   type: object
   properties:

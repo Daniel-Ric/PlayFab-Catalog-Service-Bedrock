@@ -92,6 +92,20 @@ test("normalizeSearchItem extracts marketplace summary fields", () => {
     assert.equal(result.thumbnail, "https://cdn.example/thumb.png");
     assert.deepEqual(result.price, {amount: 660, currencyId: "Minecoins"});
     assert.deepEqual(result.rating, {average: 4.5, totalCount: 12});
+    assert.equal(Object.hasOwn(result, "rawItem"), false);
+});
+
+test("normalizeSearchItem never exposes raw catalog contents", () => {
+    const raw = {
+        Id: "item-1",
+        Title: {NEUTRAL: "Title"},
+        Contents: [{Url: "https://cdn.example/private-content.zip"}]
+    };
+
+    const result = _internals.normalizeSearchItem(raw, "en-US", true);
+
+    assert.equal(Object.hasOwn(result, "rawItem"), false);
+    assert.equal(JSON.stringify(result).includes("private-content.zip"), false);
 });
 
 test("auditOne returns health issues for incomplete catalog content", () => {
@@ -157,4 +171,6 @@ test("openapi exposes marketplace search additions", () => {
     assert.ok(spec.paths["/marketplace/search/localized/{alias}"]);
     assert.ok(spec.paths["/marketplace/search/audit/{alias}"]);
     assert.ok(spec.paths["/marketplace/resolve/batch/{alias}"]);
+    const details = spec.paths["/marketplace/details/{alias}/{itemId}"].get;
+    assert.ok(details.parameters.some(parameter => parameter.name === "fresh"));
 });

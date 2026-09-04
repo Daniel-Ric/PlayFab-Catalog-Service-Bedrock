@@ -587,6 +587,13 @@ async function getItemsByIds(titleId, ids, os, batchSize = 100, concurrency = 5)
     return list.map(id => byId.get(id)).filter(Boolean);
 }
 
+async function getItemById(titleId, id, os) {
+    const itemId = String(id || "").trim();
+    if (!itemId) return null;
+    const data = await sendPlayFabRequest(titleId, "Catalog/GetItem", {Id: itemId}, "X-EntityToken", 3, os);
+    return data?.Item || data?.item || null;
+}
+
 async function getStoreItems(titleId, storeId, os) {
     logger.debug(`[PF] GetStoreItems titleId=${titleId} storeId=${storeId}`);
     try {
@@ -631,6 +638,7 @@ module.exports = {
     isWatchableMarketplaceItem,
     transformItem,
     buildSearchPayload,
+    getItemById,
     getItemsByIds,
     getStoreItems,
     getItemReviewSummary,

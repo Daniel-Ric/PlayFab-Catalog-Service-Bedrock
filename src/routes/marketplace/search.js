@@ -44,7 +44,10 @@ const searchBodyValidators = [
     body("StoreAlternateId").optional().custom(v => typeof v === "string" || (v && typeof v === "object" && !Array.isArray(v))),
     body("storeAlternateIdType").optional().isString().isLength({max: 80}),
     body("StoreAlternateIdType").optional().isString().isLength({max: 80}),
-    body("includeRaw").optional().isBoolean()
+    body("includeRaw").optional().isBoolean().custom(value => {
+        if (value === false || value === "false" || value === 0 || value === "0") return true;
+        throw new Error("includeRaw is disabled for public responses.");
+    })
 ];
 
 router.post(

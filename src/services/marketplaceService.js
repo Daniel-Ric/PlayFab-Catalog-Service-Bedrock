@@ -19,6 +19,7 @@ const {
     transformItem,
     buildSearchPayload,
     fetchAllMarketplaceItemsEfficiently,
+    getItemById,
     getItemsByIds,
     getStoreItems,
     getItemReviewSummary,
@@ -827,10 +828,12 @@ module.exports = {
         return withRefs;
     },
 
-    async fetchDetails(alias, itemId, expandParam) {
+    async fetchDetails(alias, itemId, expandParam, options = {}) {
         const titleId = resolveTitle(alias);
         const expand = parseExpand(expandParam);
-        const raw = await getItemsByIds(titleId, [itemId], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
+        const raw = options.fresh
+            ? [await getItemById(titleId, itemId, OS)].filter(Boolean)
+            : await getItemsByIds(titleId, [itemId], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
         const items = raw.filter(isValidItem).map(transformItem);
         if (!items.length) {
             const e = new Error("Item nicht gefunden.");

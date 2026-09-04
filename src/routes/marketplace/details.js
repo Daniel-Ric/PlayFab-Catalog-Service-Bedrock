@@ -13,7 +13,7 @@
 // -----------------------------------------------------------------------------
 
 const router = require("express").Router();
-const {check} = require("express-validator");
+const {check, query} = require("express-validator");
 const validate = require("../../middleware/validate");
 const ctrl = require("../../controllers/marketplace/detailsController");
 
@@ -23,7 +23,8 @@ router.get(
         check("alias")
             .notEmpty().withMessage("Alias is required."),
         check("itemId")
-            .notEmpty().withMessage("ItemId is required.")
+            .notEmpty().withMessage("ItemId is required."),
+        query("fresh").optional().isBoolean().withMessage("fresh must be a boolean.").toBoolean()
     ],
     validate,
     ctrl.getDetails

@@ -27,3 +27,15 @@ test("withPagination propagates handler errors instead of returning undefined", 
         error => error === err
     );
 });
+
+test("offset pagination emits migration headers", () => {
+    const headers = {};
+    withPagination._internals.setOffsetDeprecationHeaders({
+        setHeader(name, value) {
+            headers[name] = value;
+        }
+    });
+
+    assert.equal(headers.Deprecation, "true");
+    assert.match(headers.Warning, /continuationToken/);
+});

@@ -14,10 +14,16 @@
 
 const {normalizeParams, buildPaginatedResult, sliceArray, setPaginationHeaders} = require("../utils/pagination");
 
+function setOffsetDeprecationHeaders(res) {
+    res.setHeader("Deprecation", "true");
+    res.setHeader("Warning", '299 - "Offset pagination is deprecated; use SearchItems continuationToken pagination."');
+}
+
 function withPagination(handler, opts = {}) {
     return async (req, res, next) => {
         const params = normalizeParams(req.query, opts);
         const shouldPaginate = params.apply;
+        if (shouldPaginate) setOffsetDeprecationHeaders(res);
         const result = await handler(req, res, next);
 
         if (!shouldPaginate) {
@@ -45,3 +51,4 @@ function withPagination(handler, opts = {}) {
 }
 
 module.exports = withPagination;
+module.exports._internals = {setOffsetDeprecationHeaders};

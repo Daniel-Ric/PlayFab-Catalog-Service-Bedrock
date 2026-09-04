@@ -29,6 +29,12 @@
         required: true
         schema:
           type: string
+      - in: query
+        name: fresh
+        description: Bypass application caches and retrieve the current item with Catalog/GetItem.
+        schema:
+          type: boolean
+          default: false
     responses:
       "200":
         description: OK

@@ -690,6 +690,9 @@ Date filters are pushed into PlayFab search where possible and can be combined w
 * `prices`: fetch store prices for the item (bounded by `STORE_MAX_FOR_PRICE_ENRICH`).
 * `reviews`: include `GetItemReviewSummary` + `GetItemReviews` sample (`REVIEWS_FETCH_COUNT`).
 * `refs`: resolve `ItemReferences` to full items and return under `ResolvedReferences`.
+* `fresh=true`: bypass application caches and retrieve the current item with Catalog V2 `GetItem`.
+
+Catalog V2 `SearchItems` cursor pagination is the default for new search integrations. Legacy `page`, `pageSize`, `skip`, and `limit` pagination remains compatible, but responses using it include `Deprecation: true`; migrate clients to `/marketplace/search/items/:alias` and `continuationToken`. Public SearchItems responses never include raw upstream items, even when an older client sends `includeRaw`.
 
 #### `GET /marketplace/friendly/:alias/:friendlyId`
 

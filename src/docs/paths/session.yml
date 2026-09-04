@@ -15,8 +15,8 @@
   get:
     tags:
       - Session
-    summary: Get a PlayFab session for a title alias
-    description: Requires an admin JWT. Returns session credentials used for upstream requests.
+    summary: Get PlayFab authentication status for a title alias
+    description: Requires an admin JWT. Returns non-sensitive session status; upstream credentials are never exposed.
     security:
       - BearerAuth: [ ]
     parameters:
@@ -33,18 +33,15 @@
             schema:
               type: object
               properties:
-                SessionTicket:
+                authenticated:
+                  type: boolean
+                playFabId:
                   type: string
-                PlayFabId:
-                  type: string
-                EntityToken:
-                  type: string
-                TokenExpiration:
+                  nullable: true
+                expiresAt:
                   type: string
                   format: date-time
                   nullable: true
-                expiresAt:
-                  type: integer
       "400":
         description: Bad request
         content:

@@ -17,6 +17,7 @@ const {
     sendPlayFabRequest,
     transformItem
 } = require("../utils/playfab");
+const {sanitizeCatalogItem} = require("../utils/catalogSanitizer");
 
 const OS = process.env.OS || "iOS";
 const MAX_SEARCH_COUNT = 50;
@@ -202,7 +203,7 @@ function normalizeSearchItem(item, language, includeRaw = false) {
         lastModifiedDate: item?.LastModifiedDate || item?.lastModifiedDate || null,
         clientUrl: id ? `https://open.view-marketplace.net/StoreOffer/${id}` : null
     };
-    if (includeRaw) out.rawItem = item;
+    if (includeRaw) out.rawItem = sanitizeCatalogItem(item);
     return out;
 }
 

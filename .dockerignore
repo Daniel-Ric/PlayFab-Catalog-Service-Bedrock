@@ -1,0 +1,15 @@
+.git
+.gitignore
+.env
+node_modules
+npm-debug.log*
+test
+wiki-repo
+src/data/contentUpdateWatcherState.json
+src/data/contentUpdateWatcherState.json.*.tmp
+src/data/itemWatcherState.json
+src/data/itemWatcherState.json.*.tmp
+src/data/subscriptionWatcherState.json
+src/data/subscriptionWatcherState.json.*.tmp
+src/data/webhooks.json
+src/data/webhooks.json.*.tmp

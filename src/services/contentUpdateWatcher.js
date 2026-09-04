@@ -18,6 +18,7 @@ const logger = require("../config/logger");
 const {stableHash} = require("../utils/hash");
 const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const {projectCatalogItem} = require("../utils/projectors");
+const {sanitizeCatalogItem} = require("../utils/catalogSanitizer");
 const {readJson, writeJsonAtomic} = require("../utils/storage");
 const {_internals: itemWatcherInternals} = require("./itemWatcher");
 
@@ -43,16 +44,32 @@ function normalizePackIdentities(item) {
     })).filter(entry => entry.type || entry.uuid || entry.version).sort((a, b) => `${a.type}|${a.uuid}`.localeCompare(`${b.type}|${b.uuid}`));
 }
 
+function contentUrlIdentity(value) {
+    const raw = compactText(value);
+    if (!raw) return {urlHost: "", urlFingerprint: ""};
+    try {
+        const parsed = new URL(raw);
+        const canonical = `${parsed.protocol.toLowerCase()}//${parsed.host.toLowerCase()}${parsed.pathname}`;
+        return {urlHost: parsed.hostname.toLowerCase(), urlFingerprint: stableHash(canonical)};
+    } catch {
+        const canonical = raw.split(/[?#]/, 1)[0];
+        return {urlHost: "", urlFingerprint: stableHash(canonical)};
+    }
+}
+
 function normalizeContentVariants(item) {
-    const contents = Array.isArray(item?.Contents) ? item.Contents : [];
-    return contents.map(entry => ({
-        id: compactText(entry?.Id || entry?.id).toLowerCase(),
-        url: compactText(entry?.Url || entry?.url),
-        type: compactText(entry?.Type || entry?.type).toLowerCase(),
-        minClientVersion: normalizeVersion(entry?.MinClientVersion || entry?.minClientVersion),
-        maxClientVersion: normalizeVersion(entry?.MaxClientVersion || entry?.maxClientVersion),
-        tags: (Array.isArray(entry?.Tags) ? entry.Tags : []).map(compactText).filter(Boolean).sort((a, b) => a.localeCompare(b))
-    })).filter(entry => entry.id || entry.type || entry.minClientVersion || entry.maxClientVersion || entry.tags.length)
+    const contents = Array.isArray(item?.Contents) ? item.Contents : Array.isArray(item?.contents) ? item.contents : [];
+    return contents.map(entry => {
+        const urlIdentity = contentUrlIdentity(entry?.Url || entry?.url);
+        return {
+            id: compactText(entry?.Id || entry?.id).toLowerCase(),
+            ...urlIdentity,
+            type: compactText(entry?.Type || entry?.type).toLowerCase(),
+            minClientVersion: normalizeVersion(entry?.MinClientVersion || entry?.minClientVersion),
+            maxClientVersion: normalizeVersion(entry?.MaxClientVersion || entry?.maxClientVersion),
+            tags: (Array.isArray(entry?.Tags) ? entry.Tags : []).map(compactText).filter(Boolean).sort((a, b) => a.localeCompare(b))
+        };
+    }).filter(entry => entry.id || entry.urlFingerprint || entry.type || entry.minClientVersion || entry.maxClientVersion || entry.tags.length)
         .sort((a, b) => `${a.id}|${a.type}`.localeCompare(`${b.id}|${b.type}`));
 }
 
@@ -76,9 +93,7 @@ function indexBy(values, keyOf) {
     return new Map((values || []).map(value => [keyOf(value), value]));
 }
 
-function diffRevision(beforeItem, afterItem) {
-    const before = contentRevisionOf(beforeItem);
-    const after = contentRevisionOf(afterItem);
+function diffContentRevisions(before, after) {
     const changes = [];
     const compareList = (kind, previous, current, keyOf) => {
         const previousByKey = indexBy(previous, keyOf);
@@ -100,23 +115,47 @@ function diffRevision(beforeItem, afterItem) {
     return changes;
 }
 
+function diffRevision(beforeItem, afterItem) {
+    return diffContentRevisions(contentRevisionOf(beforeItem), contentRevisionOf(afterItem));
+}
+
 function stateFilePath() {
     return process.env.CONTENT_UPDATE_WATCH_STATE_FILE || DEFAULT_STATE_FILE;
 }
 
 function serializeState(state) {
-    return Array.from(state.entries()).map(([id, entry]) => ({id, hash: entry.hash, raw: entry.raw || null})).filter(entry => entry.id && entry.hash);
+    return Array.from(state.entries()).map(([id, entry]) => ({
+        id,
+        hash: entry.hash,
+        revision: entry.revision || null,
+        item: sanitizeCatalogItem(entry.item || entry.raw || null)
+    })).filter(entry => entry.id && entry.hash);
 }
 
 function deserializeState(entries) {
     const state = new Map();
     if (!Array.isArray(entries)) return state;
     for (const entry of entries) {
-        const id = entry?.id || entry?.raw?.Id || entry?.raw?.id;
-        if (!id || !entry?.hash) continue;
-        state.set(id, {hash: entry.hash, raw: entry.raw || null});
+        const sourceItem = entry?.item || entry?.raw || null;
+        const id = entry?.id || sourceItem?.Id || sourceItem?.id;
+        const revision = entry?.revision || (sourceItem ? contentRevisionOf(sourceItem) : null);
+        if (!id || !revision) continue;
+        state.set(id, {
+            hash: stableHash(revision),
+            revision,
+            item: sanitizeCatalogItem(sourceItem)
+        });
     }
     return state;
+}
+
+function snapshotContentItem(item) {
+    const revision = contentRevisionOf(item);
+    return {
+        hash: stableHash(revision),
+        revision,
+        item: sanitizeCatalogItem(item)
+    };
 }
 
 function loadPersistedState() {
@@ -139,12 +178,20 @@ function savePersistedState(state) {
 }
 
 function buildContentUpdate(previous, current) {
-    if (!previous?.raw || !current) return null;
-    const hash = contentRevisionHash(current);
+    if (!previous || !current) return null;
+    const currentSnapshot = snapshotContentItem(current);
+    const hash = currentSnapshot.hash;
     if (previous.hash === hash) return null;
-    const changes = diffRevision(previous.raw, current);
+    const previousRevision = previous.revision || contentRevisionOf(previous.item || previous.raw);
+    const changes = diffContentRevisions(previousRevision, currentSnapshot.revision);
     if (!changes.length) return null;
-    return {id: current.Id || current.id, before: previous.raw, after: current, changes, hash};
+    return {
+        id: current.Id || current.id,
+        before: sanitizeCatalogItem(previous.item || previous.raw),
+        after: currentSnapshot.item,
+        changes,
+        hash
+    };
 }
 
 class ContentUpdateWatcher {
@@ -178,7 +225,7 @@ class ContentUpdateWatcher {
                     const previous = persisted.state.get(id) || null;
                     const update = persisted.loaded ? buildContentUpdate(previous, item) : null;
                     if (update) updates.push(update);
-                    nextState.set(id, {hash: contentRevisionHash(item), raw: item});
+                    nextState.set(id, snapshotContentItem(item));
                 }
                 this.state = nextState;
                 this.lastRunTs = Date.now();
@@ -198,7 +245,7 @@ class ContentUpdateWatcher {
                 const previous = this.state.get(id) || null;
                 const update = buildContentUpdate(previous, item);
                 if (update) updates.push(update);
-                this.state.set(id, {hash: contentRevisionHash(item), raw: item});
+                this.state.set(id, snapshotContentItem(item));
             }
             this.emitUpdates(eventBus, updates);
             savePersistedState(this.state);
@@ -242,10 +289,13 @@ module.exports = {
     _internals: {
         normalizePackIdentities,
         normalizeContentVariants,
+        contentUrlIdentity,
         contentRevisionOf,
         contentRevisionHash,
+        diffContentRevisions,
         diffRevision,
         buildContentUpdate,
+        snapshotContentItem,
         serializeState,
         deserializeState
     }

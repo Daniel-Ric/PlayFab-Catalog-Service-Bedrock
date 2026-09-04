@@ -139,6 +139,26 @@ test("list enrichment flags can disable full items and references", () => {
     assert.equal(marketplaceServiceInternals.shouldResolveReferences({}, false), false);
 });
 
+test("full item enrichment cannot restore private content fields", () => {
+    const summary = {Id: "item-1", Title: {NEUTRAL: "Summary"}};
+    const full = {
+        Id: "item-1",
+        Title: {NEUTRAL: "Full"},
+        Images: [{Url: "https://images.example/thumb.png"}],
+        Contents: [{Url: "https://downloads.example/private.zip", Key: "content-key"}],
+        nested: {EntityToken: "entity-secret"}
+    };
+
+    const [result] = marketplaceServiceInternals.mergeFullItems([summary], [full]);
+    const encoded = JSON.stringify(result);
+
+    assert.equal(result.Title.NEUTRAL, "Full");
+    assert.equal(result.Images[0].Url, "https://images.example/thumb.png");
+    assert.equal(encoded.includes("private.zip"), false);
+    assert.equal(encoded.includes("content-key"), false);
+    assert.equal(encoded.includes("entity-secret"), false);
+});
+
 test("readCatalogTotal returns upstream total count variants", () => {
     assert.equal(marketplaceServiceInternals.readCatalogTotal({TotalCount: 12}), 12);
     assert.equal(marketplaceServiceInternals.readCatalogTotal({Count: 42601}), 42601);

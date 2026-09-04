@@ -539,7 +539,17 @@ async function run() {
     ensureDirForFile(envPath);
     writeEnvFile(envPath, cfg);
     ensureDataFiles(rootDir, cfg);
-    ensureGitignoreEntries(gitignorePath, [".env"]);
+    ensureGitignoreEntries(gitignorePath, [
+        ".env",
+        "/src/data/contentUpdateWatcherState.json",
+        "/src/data/contentUpdateWatcherState.json.*.tmp",
+        "/src/data/itemWatcherState.json",
+        "/src/data/itemWatcherState.json.*.tmp",
+        "/src/data/subscriptionWatcherState.json",
+        "/src/data/subscriptionWatcherState.json.*.tmp",
+        "/src/data/webhooks.json",
+        "/src/data/webhooks.json.*.tmp"
+    ]);
 
     console.clear();
     frameBox(BRAND_NAME + " Setup", ["Done", "Your instance is ready."]);

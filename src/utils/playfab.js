@@ -20,6 +20,7 @@ const {Mutex} = require("async-mutex");
 const stringify = require("fast-json-stable-stringify");
 const {sessionCache, dataCache} = require("../config/cache");
 const logger = require("../config/logger");
+const {sanitizeCatalogItem} = require("./catalogSanitizer");
 
 const httpAgent = new http.Agent({
     keepAlive: true, maxSockets: Number(process.env.HTTP_MAX_SOCKETS || 512), keepAliveMsecs: 60000, scheduling: "lifo"
@@ -198,42 +199,6 @@ async function sendPlayFabRequestInternal(titleId, endpoint, payload = {}, auth 
     throw lastErr || new Error("sendPlayFabRequest failed");
 }
 
-async function sendPlayFabRequestWithEntityToken(titleId, endpoint, payload = {}, entityToken, maxRetries = 2) {
-    let attempt = 0;
-    let lastErr;
-    const budget = Number(process.env.RETRY_BUDGET || maxRetries);
-    while (attempt <= budget) {
-        try {
-            const headers = {"X-EntityToken": entityToken};
-            const r = await api.post(`https://${titleId}.playfabapi.com/${endpoint}`, payload, {headers});
-            if (r.status >= 200 && r.status < 300) {
-                return r.data.data ?? r.data;
-            }
-            const status = r.status;
-            const shouldRetry = isRetryableUpstreamStatus(status);
-            if (!shouldRetry || attempt >= budget) {
-                const e = new Error(`Upstream error ${status}`);
-                e.status = status;
-                e.response = r;
-                e.retryable = shouldRetry;
-                const upstreamMsg = r?.data?.errorMessage || r?.data?.error?.message || r?.data?.error || null;
-                if (upstreamMsg) e.publicMessage = `Upstream error ${status}: ${String(upstreamMsg)}`;
-                throw e;
-            }
-            const waitMs = retryDelayForStatus(status, r.headers, attempt);
-            await sleep(waitMs);
-            attempt++;
-        } catch (err) {
-            lastErr = err;
-            if (err?.retryable === false) throw err;
-            if (attempt >= budget) throw err;
-            await sleep(jitter(200, attempt, 10000));
-            attempt++;
-        }
-    }
-    throw lastErr || new Error("sendPlayFabRequestWithEntityToken failed");
-}
-
 const ORDER_BY_ALIASES = new Map([
     ["creationdate", "CreationDate"],
     ["lastmodifieddate", "LastModifiedDate"],
@@ -334,9 +299,10 @@ function buildSearchPayload({
 }
 
 function transformItem(item) {
+    const safeItem = sanitizeCatalogItem(item);
     const thumbs = [];
     const shots = [];
-    for (const img of (item.Images || [])) {
+    for (const img of (safeItem.Images || [])) {
         const tag = img.Tag || "";
         const transformed = {
             Id: img.Id,
@@ -347,7 +313,9 @@ function transformItem(item) {
         if (transformed.Type === "Thumbnail") thumbs.push(transformed); else shots.push(transformed);
     }
     return {
-        ...item, StartDate: item.startDate || item.StartDate || item.CreationDate, Images: [...thumbs, ...shots]
+        ...safeItem,
+        StartDate: safeItem.startDate || safeItem.StartDate || safeItem.CreationDate,
+        Images: [...thumbs, ...shots]
     };
 }
 
@@ -623,7 +591,6 @@ module.exports = {
     getEntityToken,
     getSession,
     sendPlayFabRequest,
-    sendPlayFabRequestWithEntityToken,
     fetchCatalogSearchItems,
     resolveCatalogBatchLimit,
     fetchAllMarketplaceItemsEfficiently,

@@ -15,12 +15,26 @@
 const {resolveTitle} = require("../utils/titles");
 const {getSession} = require("../utils/playfab");
 
+function projectSessionStatus(session = {}) {
+    const numericExpiry = Number(session.expiresAt);
+    const expiresAt = session.TokenExpiration
+        || (Number.isFinite(numericExpiry) && numericExpiry > 0 ? new Date(numericExpiry).toISOString() : null);
+    return {
+        authenticated: Boolean(session.SessionTicket && session.EntityToken),
+        playFabId: session.PlayFabId || null,
+        expiresAt
+    };
+}
+
 exports.getSession = async (req, res, next) => {
     try {
         const titleId = resolveTitle(req.params.alias);
         const session = await getSession(titleId, process.env.OS);
-        res.json(session);
+        res.setHeader("Cache-Control", "private, no-store");
+        res.json(projectSessionStatus(session));
     } catch (err) {
         next(err);
     }
 };
+
+exports._internals = {projectSessionStatus};

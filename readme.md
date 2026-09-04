@@ -201,7 +201,7 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 | `PLAYFAB_CONCURRENCY`    | `12`    | Parallel PlayFab requests                       |
 | `PLAYFAB_BATCH`          | `600`   | Max batch size for bulk PlayFab calls           |
 
-`npm run setup` generates `PLAYFAB_DEVICE_ID` once and preserves it on later setup runs. Keep the value stable per installation and outside version control so PlayFab reuses the linked anonymous account. Without it, the service uses a process-local fallback that changes after a restart.
+`npm run setup` generates `PLAYFAB_DEVICE_ID` once and preserves it on later setup runs. Keep the value stable per installation and outside version control so PlayFab reuses the linked anonymous account. Production startup fails when it is missing; development and tests retain the process-local fallback.
 
 ### Caching / TTLs / Sizes
 
@@ -449,7 +449,7 @@ Response:
 | Method | Path              | Description          | Role      |
 | ------ | ----------------- | -------------------- | --------- |
 | POST   | `/login`          | Issue JWT            | —         |
-| GET    | `/session/:alias` | Show PlayFab session | **admin** |
+| GET    | `/session/:alias` | Show safe PlayFab authentication status | **admin** |
 | POST   | `/webhooks` | Register webhooks    | **admin** |
 
 #### Titles & Creators
@@ -683,7 +683,7 @@ Resolves up to 50 item IDs or alternate IDs with `Catalog/GetItems` in one reque
 
 Search endpoints accept `contentType=<PlayFab ContentType>` for exact PlayFab `ContentType` matches, for example `contentType=3PServerContent_V1.2`.
 Item list/search endpoints also accept ISO date ranges for PlayFab catalog timestamps: `creationDateFrom`/`creationDateTo`, `lastModifiedDateFrom`/`lastModifiedDateTo`, and `startDateFrom`/`startDateTo`.
-Date filters are pushed into PlayFab search where possible and can be combined with pagination, creator, tag, free, popular, latest, summary, compare, player marketplace search, recommendations, and sales item queries.
+Date filters are pushed into PlayFab search where possible and can be combined with pagination, creator, tag, free, popular, latest, summary, compare, recommendations, and sales item queries.
 
 #### `GET /marketplace/details/:alias/:itemId?expand=prices,reviews,refs`
 
@@ -742,7 +742,7 @@ Aggregate store sales (from `SearchStores` + `GetStoreItems`) with items resolve
       "discountPercent": 30,
       "startDate": "2024-10-01T00:00:00Z",
       "endDate": "2024-10-08T00:00:00Z",
-      "items": [ { "id": "...", "rawItem": { /* full item */ } } ]
+      "items": [ { "id": "...", "rawItem": { /* sanitized public item */ } } ]
     }
   }
 }

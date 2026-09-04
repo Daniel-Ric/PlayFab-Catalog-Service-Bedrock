@@ -459,6 +459,7 @@
                       "let body;",
                       "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
                       "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Session credentials are not exposed\", () => { pm.expect(body).to.not.have.property(\"SessionTicket\"); pm.expect(body).to.not.have.property(\"EntityToken\"); });",
                       "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
                     ],
                     "type": "text/javascript"
@@ -483,7 +484,7 @@
                     "{{alias_prod}}"
                   ]
                 },
-                "description": "Request a cached PlayFab entity session for the given title alias."
+                "description": "Request non-sensitive PlayFab authentication status for the given title alias."
               },
               "response": []
             },
@@ -500,6 +501,7 @@
                       "let body;",
                       "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
                       "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
+                      "pm.test(\"Session credentials are not exposed\", () => { pm.expect(body).to.not.have.property(\"SessionTicket\"); pm.expect(body).to.not.have.property(\"EntityToken\"); });",
                       "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
                     ],
                     "type": "text/javascript"
@@ -524,12 +526,12 @@
                     "{{alias_bedrock}}"
                   ]
                 },
-                "description": "Request a cached PlayFab entity session for the Bedrock alias."
+                "description": "Request non-sensitive PlayFab authentication status for the Bedrock alias."
               },
               "response": []
             }
           ],
-          "description": "Resolve PlayFab session data for a title alias."
+          "description": "Resolve non-sensitive PlayFab authentication status for a title alias."
         },
         {
           "name": "Webhooks",
@@ -3183,66 +3185,9 @@
                 "description": "Advanced search cursor mode using native Catalog/SearchItems continuation tokens."
               },
               "response": []
-            },
-            {
-              "name": "POST /marketplace/player/search/:alias",
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "exec": [
-                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
-                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
-                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
-                      "let body;",
-                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
-                      "pm.test(\"Body is an object\", () => pm.expect(body).to.be.an(\"object\").and.to.not.be.an(\"array\"));",
-                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));"
-                    ],
-                    "type": "text/javascript"
-                  }
-                }
-              ],
-              "request": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Accept",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"titleEntityToken\": \"{{titleEntityToken}}\",\n  \"titlePlayerAccountId\": \"{{titlePlayerAccountId}}\",\n  \"search\": \"{{keyword}}\",\n  \"creatorName\": \"{{creator1}}\",\n  \"top\": 25,\n  \"skip\": 0,\n  \"creationDateFrom\": \"{{dateFrom}}\",\n  \"creationDateTo\": \"{{dateTo}}\",\n  \"lastModifiedDateFrom\": \"{{dateFrom}}\",\n  \"lastModifiedDateTo\": \"{{dateTo}}\",\n  \"startDateFrom\": \"{{dateFrom}}\",\n  \"startDateTo\": \"{{dateTo}}\",\n  \"contentType\": \"{{contentType}}\"\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/marketplace/player/search/{{alias_prod}}",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "marketplace",
-                    "player",
-                    "search",
-                    "{{alias_prod}}"
-                  ]
-                },
-                "description": "Search the player marketplace with entity tokens and optional filters."
-              },
-              "response": [],
-              "description": "Search the player marketplace with entity tokens, creatorName, keyword, dates, and optional contentType."
             }
           ],
-          "description": "Basic, advanced, and player marketplace search."
+          "description": "Basic and advanced marketplace search."
         },
         {
           "name": "Items",
@@ -4794,14 +4739,6 @@
     {
       "key": "friendlyId",
       "value": "REPLACE_WITH_REAL_FRIENDLY_ID"
-    },
-    {
-      "key": "titleEntityToken",
-      "value": "REPLACE_WITH_ENTITY_TOKEN"
-    },
-    {
-      "key": "titlePlayerAccountId",
-      "value": "REPLACE_WITH_PLAYER_ID"
     },
     {
       "key": "new_alias",

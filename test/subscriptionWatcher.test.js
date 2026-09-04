@@ -160,7 +160,10 @@ test("projectUpdatedSubscriptionItems includes before and after subscription win
 
 test("subscription watcher state serializes and restores item maps", () => {
     const state = {
-        marketplacePass: new Map([["one", makeItem("one", ["csb"])]]),
+        marketplacePass: new Map([["one", makeItem("one", ["csb"], {
+            Images: [{Url: "https://images.example/one.png"}],
+            Contents: [{Url: "https://downloads.example/one.zip", Key: "secret"}]
+        })]]),
         realmsPlus: new Map([["two", makeItem("two", ["realms_plus"])]])
     };
 
@@ -168,6 +171,9 @@ test("subscription watcher state serializes and restores item maps", () => {
 
     assert.equal(restored.marketplacePass.get("one").Id, "one");
     assert.equal(restored.realmsPlus.get("two").Id, "two");
+    assert.equal(restored.marketplacePass.get("one").Contents[0].Url, undefined);
+    assert.equal(restored.marketplacePass.get("one").Contents[0].Key, undefined);
+    assert.equal(restored.marketplacePass.get("one").Images[0].Url, "https://images.example/one.png");
 });
 
 test("subscription watcher treats exhausted upstream 503 as transient", () => {

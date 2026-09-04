@@ -274,6 +274,7 @@ components:
           additionalProperties: true
         rawItem:
           type: object
+          description: Sanitized upstream item without credentials, content keys, or content delivery URLs.
           additionalProperties: true
       required:
         - id

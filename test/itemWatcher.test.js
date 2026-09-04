@@ -222,7 +222,7 @@ test("classifyBootstrapItemChange prefers unsent created over updated", () => {
 });
 
 test("watcher state serializes and deserializes entries", () => {
-    const item = makeItem();
+    const item = makeItem({Contents: [{Url: "https://downloads.example/private.zip", Key: "secret"}]});
     const state = new Map([["item-1", {
         ...previousStateFor(item),
         createdNotified: false
@@ -231,7 +231,9 @@ test("watcher state serializes and deserializes entries", () => {
     const restored = _internals.deserializeState(_internals.serializeState(state));
 
     assert.equal(restored.get("item-1").hash, state.get("item-1").hash);
-    assert.deepEqual(restored.get("item-1").raw, item);
+    assert.equal(restored.get("item-1").raw.Contents[0].Url, undefined);
+    assert.equal(restored.get("item-1").raw.Contents[0].Key, undefined);
+    assert.equal(restored.get("item-1").raw.Images[0].Url, "https://example.com/thumb.png");
     assert.equal(restored.get("item-1").createdNotified, false);
 });
 

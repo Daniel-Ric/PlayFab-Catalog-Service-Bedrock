@@ -63,6 +63,47 @@ test("content revision detects a replaced binary with unchanged compatibility", 
     const changes = _internals.diffRevision(before, after);
     assert.equal(changes.length, 1);
     assert.equal(changes[0].kind, "content");
-    assert.equal(changes[0].before.url, "https://cdn.example/old.zip");
-    assert.equal(changes[0].after.url, "https://cdn.example/new.zip");
+    assert.equal(changes[0].before.urlHost, "cdn.example");
+    assert.equal(changes[0].after.urlHost, "cdn.example");
+    assert.notEqual(changes[0].before.urlFingerprint, changes[0].after.urlFingerprint);
+    assert.equal(JSON.stringify(changes).includes("old.zip"), false);
+    assert.equal(JSON.stringify(changes).includes("new.zip"), false);
+});
+
+test("content revision ignores expiring URL query strings", () => {
+    const before = makeItem({Contents: [{Id: "content-a", Url: "https://cdn.example/content.zip?sig=old", Type: "resourcebinary"}]});
+    const after = makeItem({Contents: [{Id: "content-a", Url: "https://cdn.example/content.zip?sig=new", Type: "resourcebinary"}]});
+
+    assert.equal(_internals.contentRevisionHash(before), _internals.contentRevisionHash(after));
+    assert.deepEqual(_internals.diffRevision(before, after), []);
+});
+
+test("content watcher state stores only a URL host and fingerprint", () => {
+    const secretUrl = "https://downloads.example/private/content.zip?sig=secret";
+    const item = makeItem({
+        Images: [{Tag: "thumbnail", Url: "https://images.example/thumb.png"}],
+        Contents: [{Id: "content-a", Url: secretUrl, Key: "content-key", Type: "resourcebinary"}]
+    });
+    const state = new Map([[item.Id, _internals.snapshotContentItem(item)]]);
+    const serialized = _internals.serializeState(state);
+    const encoded = JSON.stringify(serialized);
+
+    assert.equal(encoded.includes(secretUrl), false);
+    assert.equal(encoded.includes("content-key"), false);
+    assert.equal(encoded.includes("downloads.example"), true);
+    assert.equal(encoded.includes("https://images.example/thumb.png"), true);
+
+    const restored = _internals.deserializeState(serialized).get(item.Id);
+    assert.equal(restored.revision.variants[0].urlHost, "downloads.example");
+    assert.ok(restored.revision.variants[0].urlFingerprint);
+    assert.equal(restored.item.Contents[0].Url, undefined);
+});
+
+test("content watcher migrates legacy raw state without retaining its URL", () => {
+    const item = makeItem({Contents: [{Id: "content-a", Url: "https://legacy.example/content.zip?token=secret", Type: "resourcebinary"}]});
+    const restored = _internals.deserializeState([{id: item.Id, hash: "legacy", raw: item}]).get(item.Id);
+
+    assert.equal(restored.item.Contents[0].Url, undefined);
+    assert.equal(restored.revision.variants[0].urlHost, "legacy.example");
+    assert.equal(JSON.stringify(_internals.serializeState(new Map([[item.Id, restored]]))).includes("token=secret"), false);
 });

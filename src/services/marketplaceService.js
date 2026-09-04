@@ -14,7 +14,6 @@
 
 const {
     sendPlayFabRequest,
-    sendPlayFabRequestWithEntityToken,
     isValidItem,
     transformItem,
     buildSearchPayload,
@@ -28,8 +27,7 @@ const {
 const {resolveTitle} = require("../utils/titles");
 const {loadCreators, resolveCreatorId} = require("../utils/creators");
 const {buildFilter, buildDateFilter, buildContentTypeFilter, filterItemsByDate} = require("../utils/filter");
-const {resolveMarketplaceEntityInput} = require("../utils/marketplaceTokens");
-const {buildPlayerMarketplaceFilter} = require("../utils/marketplaceFilters");
+const {sanitizeCatalogItem} = require("../utils/catalogSanitizer");
 const {SUBSCRIPTION_DEFS, subscriptionFilter} = require("../utils/marketplaceSubscriptions");
 const featuredServers = require("../config/featuredServers");
 const logger = require("../config/logger");
@@ -346,7 +344,7 @@ function buildSalesResponse(headers, itemDetails, creatorDisplayNameFilter) {
                 images: d.Images || [],
                 virtualCurrencyPrices: d.VirtualCurrencyPrices || null,
                 realCurrencyPrices: d.RealCurrencyPrices || null,
-                rawItem: d
+                rawItem: sanitizeCatalogItem(d)
             };
         });
         const filteredItems = creatorDisplayNameFilter ? items.filter(i => i.rawItem?.DisplayProperties?.creatorName === creatorDisplayNameFilter) : items;
@@ -378,8 +376,12 @@ async function enrichWithFullItems(titleId, items, query = {}) {
     if (!shouldEnrichFullItems(query) || !items || !items.length) return items;
     const ids = items.map(i => i.Id);
     const full = await getItemsByIds(titleId, ids, OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
-    const byId = new Map(full.map(i => [i.Id, i]));
-    return items.map(i => byId.get(i.Id) || i);
+    return mergeFullItems(items, full);
+}
+
+function mergeFullItems(items, fullItems) {
+    const byId = new Map((fullItems || []).map(i => [i.Id, i]));
+    return (items || []).map(i => sanitizeCatalogItem(byId.get(i.Id) || i));
 }
 
 async function enrichItemsWithResolvedReferences(titleId, items) {
@@ -706,40 +708,6 @@ module.exports = {
             total: resolveCatalogTotal(data, skip, transformed.length),
             serverPaginated: true
         };
-    },
-
-    async searchPlayerMarketplace(alias, payload = {}) {
-        const titleId = resolveTitle(alias);
-        const tokenInput = resolveMarketplaceEntityInput(payload);
-        let entityToken = tokenInput.entityToken;
-        if (!entityToken) {
-            const data = await sendPlayFabRequestWithEntityToken(titleId, "Authentication/GetEntityToken", {
-                Entity: {Id: tokenInput.titlePlayerAccountId, Type: "title_player_account"}
-            }, tokenInput.masterEntityToken, 2);
-            entityToken = data?.EntityToken;
-            if (!entityToken) {
-                const err = new Error("Entity token response missing.");
-                err.status = 502;
-                throw err;
-            }
-        }
-        const topRaw = Number(payload.top);
-        const skipRaw = Number(payload.skip);
-        const top = Number.isFinite(topRaw) && topRaw > 0 ? Math.min(topRaw, 300) : 100;
-        const skip = Number.isFinite(skipRaw) && skipRaw >= 0 ? skipRaw : 0;
-        const creatorFilter = buildPlayerMarketplaceFilter(payload.filter, payload.creatorName, creatorsArr);
-        const filter = andFilter(andFilter(creatorFilter, buildContentTypeFilter(payload.contentType)), buildDateFilter(payload));
-        const payloadSearch = buildSearchPayload({
-            filter,
-            search: typeof payload.search === "string" ? payload.search : "",
-            top,
-            skip,
-            orderBy: resolveOrderBy(payload.orderBy, "CreationDate desc"),
-            selectFields: typeof payload.select === "string" ? payload.select : "",
-            expandFields: typeof payload.expand === "string" ? payload.expand : ""
-        });
-        const data = await sendPlayFabRequestWithEntityToken(titleId, "Catalog/Search", payloadSearch, entityToken, 2);
-        return (data.Items || []).filter(isValidItem).map(transformItem);
     },
 
     async fetchPopular(alias, query = {}) {
@@ -1332,6 +1300,7 @@ module.exports = {
         sortItemsByOrder,
         uniqueById,
         parseExpand,
+        mergeFullItems,
         shouldEnrichFullItems,
         shouldResolveReferences
     }

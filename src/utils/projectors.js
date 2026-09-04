@@ -12,6 +12,8 @@
 //
 // -----------------------------------------------------------------------------
 
+const {sanitizeCatalogItem} = require("./catalogSanitizer");
+
 function pick(v, ...rest) {
     return v !== undefined && v !== null && v !== "" ? v : rest.length ? pick(rest[0], ...rest.slice(1)) : null;
 }
@@ -85,27 +87,28 @@ function normalizeDate(v) {
 }
 
 function projectCatalogItem(item) {
+    const safeItem = sanitizeCatalogItem(item);
     return {
-        id: item?.Id || item?.id || null,
-        friendlyId: getFriendlyId(item),
-        type: item?.Type || null,
-        title: pickLocale(item?.Title),
-        description: pickLocale(item?.Description),
-        creatorName: item?.DisplayProperties?.creatorName || null,
-        price: getPrice(item),
-        createdAt: normalizeDate(item?.CreationDate),
-        lastModifiedAt: normalizeDate(item?.LastModifiedDate),
-        startDate: normalizeDate(item?.StartDate),
-        thumbnail: getThumbnailUrl(item),
-        hero: getHeroUrl(item),
-        images: getAllImageUrls(item),
-        rating: getRating(item),
-        tags: Array.isArray(item?.Tags) ? item.Tags : [],
-        platforms: Array.isArray(item?.Platforms) ? item.Platforms : [],
-        languages: getLanguagesCount(item),
-        packIdentity: getPackIdentity(item),
-        etag: item?.ETag || null,
-        rawItem: item || null
+        id: safeItem?.Id || safeItem?.id || null,
+        friendlyId: getFriendlyId(safeItem),
+        type: safeItem?.Type || null,
+        title: pickLocale(safeItem?.Title),
+        description: pickLocale(safeItem?.Description),
+        creatorName: safeItem?.DisplayProperties?.creatorName || null,
+        price: getPrice(safeItem),
+        createdAt: normalizeDate(safeItem?.CreationDate),
+        lastModifiedAt: normalizeDate(safeItem?.LastModifiedDate),
+        startDate: normalizeDate(safeItem?.StartDate),
+        thumbnail: getThumbnailUrl(safeItem),
+        hero: getHeroUrl(safeItem),
+        images: getAllImageUrls(safeItem),
+        rating: getRating(safeItem),
+        tags: Array.isArray(safeItem?.Tags) ? safeItem.Tags : [],
+        platforms: Array.isArray(safeItem?.Platforms) ? safeItem.Platforms : [],
+        languages: getLanguagesCount(safeItem),
+        packIdentity: getPackIdentity(safeItem),
+        etag: safeItem?.ETag || null,
+        rawItem: safeItem || null
     };
 }
 

@@ -50,7 +50,6 @@ const mpFeaturedPersona = require("./routes/marketplace/featured-persona");
 const mpMcToken = require("./routes/marketplace/mc-token");
 const mpSales = require("./routes/marketplace/sales");
 const mpSearchAdvanced = require("./routes/marketplace/search-advanced");
-const mpPlayerSearch = require("./routes/marketplace/player-search");
 const mpRecommendations = require("./routes/marketplace/recommendations");
 const mpStats = require("./routes/marketplace/stats");
 const mpSubscriptions = require("./routes/marketplace/subscriptions");
@@ -78,6 +77,7 @@ const {eventBus} = require("./services/eventBus");
 const {createAbuseLimiter, createRateLimiter, createOptionalRateLimiter} = require("./config/rateLimiter");
 const {createCatalogBridgeRouter} = require("./routes/catalogBridge");
 const {versionUpdateService} = require("./services/versionUpdateService");
+const {validateRuntimeConfig} = require("./config/runtimeValidation");
 
 const artLines = [
     " __                 ___       __      __       ___            __   __           __",
@@ -133,10 +133,11 @@ const app = express();
 
 const port = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET || JWT_SECRET.length < 32) {
+const runtimeConfigErrors = validateRuntimeConfig(process.env);
+if (runtimeConfigErrors.length) {
     console.error("");
     console.error(chalk.bgRed.white.bold(" SETUP REQUIRED "));
-    console.error(chalk.red("JWT_SECRET is missing or too short."));
+    for (const message of runtimeConfigErrors) console.error(chalk.red(message));
     console.error(chalk.red("Run `npm run setup` to generate a valid .env and initial data files."));
     console.error("");
     process.exit(1);
@@ -443,7 +444,6 @@ app.use("/marketplace/featured-content", enforceAuth, authLimiter, marketplaceLi
 app.use("/marketplace/mc-token", marketplaceLimiter, cacheHeaders(60, 300), mpMcToken);
 app.use("/marketplace/sales", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpSales);
 app.use("/marketplace/search/advanced", enforceAuth, authLimiter, marketplaceLimiter, mpSearchAdvanced);
-app.use("/marketplace/player/search", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(30, 180), mpPlayerSearch);
 app.use("/marketplace/recommendations", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpRecommendations);
 app.use("/marketplace", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpStats);
 

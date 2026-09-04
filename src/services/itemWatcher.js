@@ -20,6 +20,7 @@ const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
 const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
+const {sanitizeCatalogItem} = require("../utils/catalogSanitizer");
 const {readJson, writeJsonAtomic} = require("../utils/storage");
 const SEARCH_ITEMS_MAX_COUNT = 50;
 const DEFAULT_STATE_FILE = path.join(__dirname, "../data/itemWatcherState.json");
@@ -278,7 +279,7 @@ function serializeState(state) {
     return Array.from(state.entries()).map(([id, entry]) => ({
         id,
         hash: entry?.hash || null,
-        raw: entry?.raw || null,
+        raw: sanitizeCatalogItem(entry?.raw || null),
         createdNotified: entry?.createdNotified === false ? false : true
     })).filter(entry => entry.id && entry.hash);
 }
@@ -290,9 +291,10 @@ function deserializeState(entries) {
         const id = entry?.id || entry?.raw?.Id || entry?.raw?.id;
         const hash = entry?.hash;
         if (!id || !hash) continue;
+        const raw = sanitizeCatalogItem(entry.raw || null);
         state.set(id, {
-            hash: entry.raw ? hashItemCore(entry.raw) : hash,
-            raw: entry.raw || null,
+            hash: raw ? hashItemCore(raw) : hash,
+            raw,
             createdNotified: entry.createdNotified === false ? false : true
         });
     }

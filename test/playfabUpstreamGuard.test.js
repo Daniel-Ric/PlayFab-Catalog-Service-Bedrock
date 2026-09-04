@@ -18,9 +18,23 @@ const {createUpstreamGuard, endpointPolicy, resolvePriority} = require("../src/s
 
 test("SearchItems receives the documented default request budget", () => {
     assert.deepEqual(endpointPolicy("Catalog/SearchItems"), {maxConcurrent: 1, minTime: 600});
+    assert.deepEqual(endpointPolicy("Catalog/Search"), {maxConcurrent: 1, minTime: 600});
     assert.deepEqual(endpointPolicy("Catalog/GetItems"), {maxConcurrent: 4, minTime: 50});
     assert.deepEqual(endpointPolicy("Catalog/SearchStores"), {maxConcurrent: 8, minTime: 0});
     assert.equal(resolvePriority("interactive") < resolvePriority("background"), true);
+});
+
+test("retry attempts do not open the circuit before the logical request is exhausted", async () => {
+    const guard = createUpstreamGuard({
+        threshold: 1,
+        policyResolver: () => ({maxConcurrent: 1, minTime: 0})
+    });
+
+    await guard.schedule("title", "Catalog/Search", async () => ({status: 503}), {trackFailure: false});
+    const response = await guard.schedule("title", "Catalog/Search", async () => ({status: 200}));
+
+    assert.equal(response.status, 200);
+    assert.equal(guard.snapshot().totals.openCircuits, 0);
 });
 
 test("circuit opens after repeated throttling and recovers through one probe", async () => {

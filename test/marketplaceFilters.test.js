@@ -122,6 +122,25 @@ test("sortItemsByOrder keeps merged all-item ranges globally ordered", () => {
     assert.deepEqual(result.map(item => item.Id), ["new", "middle", "old"]);
 });
 
+test("cursor fallback returns the requested legacy offset page", async () => {
+    let receivedOptions;
+    const result = await marketplaceServiceInternals.fetchSearchPageWithCursor(
+        "title",
+        {skip: 2, limit: 2, page: 2, pageSize: 2},
+        "contentType eq 'MarketplaceDurableCatalog_V1.2'",
+        "StartDate desc",
+        async (_titleId, options) => {
+            receivedOptions = options;
+            return [{Id: "one"}, {Id: "two"}, {Id: "three"}, {Id: "four"}, {Id: "five"}];
+        }
+    );
+
+    assert.deepEqual(result.items.map(item => item.Id), ["three", "four"]);
+    assert.equal(result.total, 5);
+    assert.equal(receivedOptions.maxBatches, 1);
+    assert.equal(receivedOptions.batchSize, 50);
+});
+
 test("parseExpand only enables references when requested", () => {
     assert.equal(marketplaceServiceInternals.parseExpand("").refs, false);
     assert.equal(marketplaceServiceInternals.parseExpand("prices,reviews").refs, false);

@@ -14,7 +14,7 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const {resolveCatalogBatchLimit} = require("../src/utils/playfab");
+const {resolveCatalogBatchLimit, _internals} = require("../src/utils/playfab");
 
 test("catalog pagination covers the complete upstream total by default", () => {
     assert.equal(resolveCatalogBatchLimit(42601, 300, 0), 143);
@@ -29,4 +29,32 @@ test("catalog pagination only truncates when an explicit cap is configured", () 
 test("catalog pagination remains bounded when upstream omits its total", () => {
     assert.equal(resolveCatalogBatchLimit(null, 300, 12), 12);
     assert.ok(resolveCatalogBatchLimit(null, 300, 0) >= 143);
+});
+
+test("catalog split boundaries use raw dates even when boundary items are not transformable", () => {
+    const bounds = _internals.catalogDateBounds(
+        [{Id: "legacy", CreationDate: "2017-01-01T00:00:00Z"}],
+        [{Id: "current", CreationDate: "2026-01-01T00:00:00Z"}],
+        "CreationDate"
+    );
+
+    assert.deepEqual(bounds, {
+        oldestMs: Date.parse("2017-01-01T00:00:00Z"),
+        newestMs: Date.parse("2026-01-01T00:00:00Z")
+    });
+});
+
+test("Catalog V2 fallback normalizes legacy date field casing", () => {
+    assert.equal(
+        _internals.catalogV2Expression("CreationDate ge 2020-01-01T00:00:00Z and LastModifiedDate le 2026-01-01T00:00:00Z"),
+        "creationDate ge 2020-01-01T00:00:00Z and lastModifiedDate le 2026-01-01T00:00:00Z"
+    );
+    assert.equal(_internals.catalogV2Expression("rating/totalcount desc, StartDate desc"), "rating/totalCount desc, startDate desc");
+});
+
+test("catalog scans recognize retryable legacy Search failures", () => {
+    assert.equal(_internals.isTransientCatalogSearchError({status: 503}), true);
+    assert.equal(_internals.isTransientCatalogSearchError({response: {status: 429}}), true);
+    assert.equal(_internals.isTransientCatalogSearchError({code: "PLAYFAB_CIRCUIT_OPEN"}), true);
+    assert.equal(_internals.isTransientCatalogSearchError({status: 400}), false);
 });

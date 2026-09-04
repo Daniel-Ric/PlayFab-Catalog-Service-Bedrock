@@ -84,9 +84,8 @@ MarketplaceSearchItemsRequest:
       type: string
     includeRaw:
       type: boolean
-      enum:
-        - false
-      description: Raw PlayFab items are not exposed by the public API.
+      default: false
+      description: Requires an admin JWT and EXPOSE_SENSITIVE_CATALOG_FIELDS=true. Omit or set false for public-safe responses.
 MarketplaceSearchItemSummary:
   type: object
   properties:

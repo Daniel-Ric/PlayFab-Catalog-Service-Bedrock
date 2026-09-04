@@ -12,7 +12,7 @@
 //
 // -----------------------------------------------------------------------------
 
-const {sanitizeCatalogItem} = require("./catalogSanitizer");
+const {sanitizeCatalogItem, sensitiveEventFieldsEnabled} = require("./catalogSanitizer");
 
 function pick(v, ...rest) {
     return v !== undefined && v !== null && v !== "" ? v : rest.length ? pick(rest[0], ...rest.slice(1)) : null;
@@ -87,7 +87,7 @@ function normalizeDate(v) {
 }
 
 function projectCatalogItem(item) {
-    const safeItem = sanitizeCatalogItem(item);
+    const safeItem = sanitizeCatalogItem(item, {exposeSensitive: sensitiveEventFieldsEnabled()});
     return {
         id: safeItem?.Id || safeItem?.id || null,
         friendlyId: getFriendlyId(safeItem),

@@ -16,6 +16,7 @@ const router = require("express").Router();
 const {check, body, query, param} = require("express-validator");
 const validate = require("../../middleware/validate");
 const ctrl = require("../../controllers/marketplace/searchController");
+const {canExposeSensitiveCatalogFields} = require("../../utils/catalogSanitizer");
 const dateQuery = require("./dateQuery");
 const listOptionsQuery = require("./listOptionsQuery");
 
@@ -44,10 +45,11 @@ const searchBodyValidators = [
     body("StoreAlternateId").optional().custom(v => typeof v === "string" || (v && typeof v === "object" && !Array.isArray(v))),
     body("storeAlternateIdType").optional().isString().isLength({max: 80}),
     body("StoreAlternateIdType").optional().isString().isLength({max: 80}),
-    body("includeRaw").optional().isBoolean().custom(value => {
+    body("includeRaw").optional().isBoolean().custom((value, {req}) => {
         if (value === false || value === "false" || value === 0 || value === "0") return true;
-        throw new Error("includeRaw is disabled for public responses.");
-    })
+        if (canExposeSensitiveCatalogFields(req.user)) return true;
+        throw new Error("includeRaw requires an admin JWT and EXPOSE_SENSITIVE_CATALOG_FIELDS=true.");
+    }).toBoolean()
 ];
 
 router.post(

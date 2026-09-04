@@ -18,9 +18,9 @@ const {validateRuntimeConfig} = require("../src/config/runtimeValidation");
 
 const JWT_SECRET = "a-valid-jwt-secret-with-at-least-32-characters";
 
-test("production requires a stable PlayFab device id", () => {
+test("production can start without an environment device id", () => {
     const errors = validateRuntimeConfig({NODE_ENV: "production", JWT_SECRET});
-    assert.ok(errors.some(message => message.includes("PLAYFAB_DEVICE_ID")));
+    assert.deepEqual(errors, []);
 });
 
 test("production accepts a configured PlayFab device id", () => {

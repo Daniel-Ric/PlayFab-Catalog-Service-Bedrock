@@ -20,7 +20,7 @@ const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
 const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
-const {sanitizeCatalogItem} = require("../utils/catalogSanitizer");
+const {sanitizeCatalogItem, sensitiveEventFieldsEnabled} = require("../utils/catalogSanitizer");
 const {readJson, writeJsonAtomic} = require("../utils/storage");
 const SEARCH_ITEMS_MAX_COUNT = 50;
 const DEFAULT_STATE_FILE = path.join(__dirname, "../data/itemWatcherState.json");
@@ -275,11 +275,15 @@ function stateFilePath() {
     return process.env.ITEM_WATCH_STATE_FILE || DEFAULT_STATE_FILE;
 }
 
+function sanitizeWatcherItem(item) {
+    return sanitizeCatalogItem(item, {exposeSensitive: sensitiveEventFieldsEnabled()});
+}
+
 function serializeState(state) {
     return Array.from(state.entries()).map(([id, entry]) => ({
         id,
         hash: entry?.hash || null,
-        raw: sanitizeCatalogItem(entry?.raw || null),
+        raw: sanitizeWatcherItem(entry?.raw || null),
         createdNotified: entry?.createdNotified === false ? false : true
     })).filter(entry => entry.id && entry.hash);
 }
@@ -291,7 +295,7 @@ function deserializeState(entries) {
         const id = entry?.id || entry?.raw?.Id || entry?.raw?.id;
         const hash = entry?.hash;
         if (!id || !hash) continue;
-        const raw = sanitizeCatalogItem(entry.raw || null);
+        const raw = sanitizeWatcherItem(entry.raw || null);
         state.set(id, {
             hash: raw ? hashItemCore(raw) : hash,
             raw,

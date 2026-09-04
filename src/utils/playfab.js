@@ -14,8 +14,10 @@
 
 const axios = require("axios");
 const crypto = require("crypto");
+const fs = require("fs");
 const http = require("http");
 const https = require("https");
+const path = require("path");
 const {Mutex} = require("async-mutex");
 const stringify = require("fast-json-stable-stringify");
 const {sessionCache, dataCache} = require("../config/cache");
@@ -41,6 +43,7 @@ const sessionMutexes = new Map();
 const SESSION_FALLBACK_TTL_MS = Math.max(1000, Number(process.env.SESSION_TTL_MS || 30 * 60 * 1000));
 const SESSION_EXPIRY_SKEW_MS = Math.max(0, Number(process.env.SESSION_EXPIRY_SKEW_MS || 60 * 1000));
 const fallbackDeviceId = `vmc-${crypto.randomBytes(16).toString("hex")}`;
+const DEFAULT_DEVICE_ID_FILE = path.join(__dirname, "../data/playfabDeviceId.json");
 const UPSTREAM_RESPONSE_CACHE_TTL_MS = Math.max(1000, Number(process.env.UPSTREAM_RESPONSE_CACHE_TTL_MS || 45000));
 const UPSTREAM_CACHEABLE_ENDPOINTS = new Set(["Catalog/Search", "Catalog/SearchItems", "Catalog/GetItems", "Catalog/SearchStores", "Catalog/GetStoreItems"]);
 const ITEM_BY_ID_CACHE_TTL_MS = Math.max(1000, Number(process.env.ITEM_BY_ID_CACHE_TTL_MS || 5 * 60 * 1000));
@@ -74,9 +77,48 @@ function retryDelayForStatus(status, headers = {}, attempt = 0) {
     return jitter(200, attempt, 10000);
 }
 
+function playFabDeviceIdFile(env = process.env) {
+    const configured = typeof env.PLAYFAB_DEVICE_ID_FILE === "string" ? env.PLAYFAB_DEVICE_ID_FILE.trim() : "";
+    return configured ? path.resolve(configured) : DEFAULT_DEVICE_ID_FILE;
+}
+
+function readPersistentPlayFabDeviceId(filePath) {
+    if (!fs.existsSync(filePath)) return "";
+    const parsed = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    return typeof parsed?.deviceId === "string" ? parsed.deviceId.trim() : "";
+}
+
+function resolvePersistentPlayFabDeviceId(env = process.env) {
+    const filePath = playFabDeviceIdFile(env);
+    const existing = readPersistentPlayFabDeviceId(filePath);
+    if (existing) return existing;
+
+    fs.mkdirSync(path.dirname(filePath), {recursive: true});
+    try {
+        fs.writeFileSync(filePath, `${JSON.stringify({deviceId: fallbackDeviceId}, null, 2)}\n`, {
+            encoding: "utf8",
+            flag: "wx",
+            mode: 0o600
+        });
+        return fallbackDeviceId;
+    } catch (error) {
+        if (error?.code !== "EEXIST") throw error;
+        const racedValue = readPersistentPlayFabDeviceId(filePath);
+        if (racedValue) return racedValue;
+        throw error;
+    }
+}
+
 function resolvePlayFabDeviceId(env = process.env) {
     const configured = typeof env.PLAYFAB_DEVICE_ID === "string" ? env.PLAYFAB_DEVICE_ID.trim() : "";
-    return configured || fallbackDeviceId;
+    if (configured) return configured;
+    if (String(env.NODE_ENV || "").trim().toLowerCase() !== "production") return fallbackDeviceId;
+    try {
+        return resolvePersistentPlayFabDeviceId(env);
+    } catch (error) {
+        logger.warn(`[PF] could not persist PLAYFAB_DEVICE_ID: ${error.message}; using process-local fallback`);
+        return fallbackDeviceId;
+    }
 }
 
 function resolveSessionExpiresAt(tokenExpiration, now = Date.now()) {
@@ -614,6 +656,9 @@ module.exports = {
     _internals: {
         isRetryableUpstreamStatus,
         retryDelayForStatus,
+        playFabDeviceIdFile,
+        readPersistentPlayFabDeviceId,
+        resolvePersistentPlayFabDeviceId,
         resolvePlayFabDeviceId,
         resolveSessionExpiresAt
     }

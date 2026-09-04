@@ -14,6 +14,9 @@
 
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 const {_internals} = require("../src/utils/playfab");
 
 test("resolvePlayFabDeviceId uses a configured stable device id", () => {
@@ -26,6 +29,20 @@ test("resolvePlayFabDeviceId keeps the process fallback stable", () => {
 
     assert.match(first, /^vmc-[a-f0-9]{32}$/);
     assert.equal(second, first);
+});
+
+test("production persists and reuses an automatically generated device id", t => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), "playfab-device-"));
+    const filePath = path.join(directory, "device.json");
+    t.after(() => fs.rmSync(directory, {recursive: true, force: true}));
+    const env = {NODE_ENV: "production", PLAYFAB_DEVICE_ID_FILE: filePath};
+
+    const first = _internals.resolvePlayFabDeviceId(env);
+    const second = _internals.resolvePlayFabDeviceId(env);
+
+    assert.match(first, /^vmc-[a-f0-9]{32}$/);
+    assert.equal(second, first);
+    assert.equal(JSON.parse(fs.readFileSync(filePath, "utf8")).deviceId, first);
 });
 
 test("503 retries honor Retry-After and otherwise use a longer delay", () => {

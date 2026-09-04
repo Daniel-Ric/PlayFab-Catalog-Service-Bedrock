@@ -18,7 +18,7 @@ const logger = require("../config/logger");
 const marketplaceService = require("./marketplaceService");
 const {resolveTitle} = require("../utils/titles");
 const {projectCatalogItem} = require("../utils/projectors");
-const {sanitizeCatalogItem} = require("../utils/catalogSanitizer");
+const {sanitizeCatalogItem, sensitiveEventFieldsEnabled} = require("../utils/catalogSanitizer");
 const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const {readJson, writeJsonAtomic} = require("../utils/storage");
 const {stableHash} = require("../utils/hash");
@@ -89,11 +89,15 @@ function hashSubscriptionItem(item, subscriptionKey) {
     return stableHash(core);
 }
 
+function sanitizeWatcherItem(item) {
+    return sanitizeCatalogItem(item, {exposeSensitive: sensitiveEventFieldsEnabled()});
+}
+
 function serializeState(state) {
     const out = {};
     for (const key of Object.keys(SUBSCRIPTION_DEFS)) {
         const entries = state[key] instanceof Map ? state[key] : new Map();
-        out[key] = Array.from(entries.values()).filter(item => itemId(item)).map(sanitizeCatalogItem);
+        out[key] = Array.from(entries.values()).filter(item => itemId(item)).map(sanitizeWatcherItem);
     }
     return out;
 }
@@ -105,7 +109,7 @@ function deserializeState(raw) {
         const items = Array.isArray(raw?.[key]) ? raw[key] : [];
         for (const item of items) {
             const id = itemId(item);
-            if (id) state[key].set(id, sanitizeCatalogItem(item));
+            if (id) state[key].set(id, sanitizeWatcherItem(item));
         }
     }
     return state;

@@ -95,17 +95,19 @@ test("normalizeSearchItem extracts marketplace summary fields", () => {
     assert.equal(Object.hasOwn(result, "rawItem"), false);
 });
 
-test("normalizeSearchItem never exposes raw catalog contents", () => {
+test("normalizeSearchItem only exposes raw catalog contents when explicitly requested", () => {
     const raw = {
         Id: "item-1",
         Title: {NEUTRAL: "Title"},
         Contents: [{Url: "https://cdn.example/private-content.zip"}]
     };
 
-    const result = _internals.normalizeSearchItem(raw, "en-US", true);
+    const safe = _internals.normalizeSearchItem(raw, "en-US", false);
+    const compatible = _internals.normalizeSearchItem(raw, "en-US", true);
 
-    assert.equal(Object.hasOwn(result, "rawItem"), false);
-    assert.equal(JSON.stringify(result).includes("private-content.zip"), false);
+    assert.equal(Object.hasOwn(safe, "rawItem"), false);
+    assert.equal(JSON.stringify(safe).includes("private-content.zip"), false);
+    assert.equal(compatible.rawItem.Contents[0].Url, "https://cdn.example/private-content.zip");
 });
 
 test("auditOne returns health issues for incomplete catalog content", () => {

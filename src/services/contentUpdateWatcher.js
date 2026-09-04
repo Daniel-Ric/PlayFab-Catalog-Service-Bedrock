@@ -18,7 +18,7 @@ const logger = require("../config/logger");
 const {stableHash} = require("../utils/hash");
 const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const {projectCatalogItem} = require("../utils/projectors");
-const {sanitizeCatalogItem} = require("../utils/catalogSanitizer");
+const {sanitizeCatalogItem, sensitiveEventFieldsEnabled} = require("../utils/catalogSanitizer");
 const {readJson, writeJsonAtomic} = require("../utils/storage");
 const {_internals: itemWatcherInternals} = require("./itemWatcher");
 
@@ -57,12 +57,18 @@ function contentUrlIdentity(value) {
     }
 }
 
-function normalizeContentVariants(item) {
+function eventExposureOptions(env = process.env) {
+    return {exposeSensitive: sensitiveEventFieldsEnabled(env)};
+}
+
+function normalizeContentVariants(item, options = {}) {
     const contents = Array.isArray(item?.Contents) ? item.Contents : Array.isArray(item?.contents) ? item.contents : [];
     return contents.map(entry => {
-        const urlIdentity = contentUrlIdentity(entry?.Url || entry?.url);
+        const rawUrl = compactText(entry?.Url || entry?.url);
+        const urlIdentity = contentUrlIdentity(rawUrl);
         return {
             id: compactText(entry?.Id || entry?.id).toLowerCase(),
+            url: options.exposeSensitive === true ? rawUrl : null,
             ...urlIdentity,
             type: compactText(entry?.Type || entry?.type).toLowerCase(),
             minClientVersion: normalizeVersion(entry?.MinClientVersion || entry?.minClientVersion),
@@ -73,11 +79,11 @@ function normalizeContentVariants(item) {
         .sort((a, b) => `${a.id}|${a.type}`.localeCompare(`${b.id}|${b.type}`));
 }
 
-function contentRevisionOf(item) {
+function contentRevisionOf(item, options = eventExposureOptions()) {
     const display = item?.DisplayProperties || {};
     return {
         packs: normalizePackIdentities(item),
-        variants: normalizeContentVariants(item),
+        variants: normalizeContentVariants(item, options),
         gameVersion: normalizeVersion(display.lastUpdated),
         minClientVersion: normalizeVersion(display.minClientVersion),
         maxClientVersion: normalizeVersion(display.maxClientVersion),
@@ -85,8 +91,33 @@ function contentRevisionOf(item) {
     };
 }
 
-function contentRevisionHash(item) {
-    return stableHash(contentRevisionOf(item));
+function contentRevisionIdentity(revision) {
+    if (!revision || typeof revision !== "object") return revision;
+    return {
+        ...revision,
+        variants: (revision.variants || []).map(contentVariantIdentity)
+    };
+}
+
+function contentVariantIdentity(variant) {
+    if (!variant || typeof variant !== "object") return variant;
+    const {url: _url, ...identity} = variant;
+    return identity;
+}
+
+function contentRevisionHash(item, options = eventExposureOptions()) {
+    return stableHash(contentRevisionIdentity(contentRevisionOf(item, options)));
+}
+
+function normalizeStoredRevision(revision, options = eventExposureOptions()) {
+    if (!revision || typeof revision !== "object") return null;
+    return {
+        ...revision,
+        variants: (revision.variants || []).map(variant => ({
+            ...variant,
+            url: options.exposeSensitive === true ? compactText(variant?.url) : null
+        }))
+    };
 }
 
 function indexBy(values, keyOf) {
@@ -95,66 +126,77 @@ function indexBy(values, keyOf) {
 
 function diffContentRevisions(before, after) {
     const changes = [];
-    const compareList = (kind, previous, current, keyOf) => {
+    const compareList = (kind, previous, current, keyOf, identityOf = value => value) => {
         const previousByKey = indexBy(previous, keyOf);
         const currentByKey = indexBy(current, keyOf);
         const keys = new Set([...previousByKey.keys(), ...currentByKey.keys()]);
         for (const key of keys) {
             const oldValue = previousByKey.get(key) || null;
             const newValue = currentByKey.get(key) || null;
-            if (stableHash(oldValue) === stableHash(newValue)) continue;
+            if (stableHash(identityOf(oldValue)) === stableHash(identityOf(newValue))) continue;
             changes.push({kind, key, before: oldValue, after: newValue});
         }
     };
 
     compareList("pack", before.packs, after.packs, value => value.uuid || value.type);
-    compareList("content", before.variants, after.variants, value => value.id || `${value.type}|${value.minClientVersion}`);
+    compareList(
+        "content",
+        before.variants,
+        after.variants,
+        value => value.id || `${value.type}|${value.minClientVersion}`,
+        contentVariantIdentity
+    );
     for (const field of ["gameVersion", "minClientVersion", "maxClientVersion", "totalContentFileSize"]) {
         if (before[field] !== after[field]) changes.push({kind: "property", key: field, before: before[field], after: after[field]});
     }
     return changes;
 }
 
-function diffRevision(beforeItem, afterItem) {
-    return diffContentRevisions(contentRevisionOf(beforeItem), contentRevisionOf(afterItem));
+function diffRevision(beforeItem, afterItem, options = eventExposureOptions()) {
+    return diffContentRevisions(contentRevisionOf(beforeItem, options), contentRevisionOf(afterItem, options));
 }
 
 function stateFilePath() {
     return process.env.CONTENT_UPDATE_WATCH_STATE_FILE || DEFAULT_STATE_FILE;
 }
 
-function serializeState(state) {
-    return Array.from(state.entries()).map(([id, entry]) => ({
-        id,
-        hash: entry.hash,
-        revision: entry.revision || null,
-        item: sanitizeCatalogItem(entry.item || entry.raw || null)
-    })).filter(entry => entry.id && entry.hash);
+function serializeState(state, options = eventExposureOptions()) {
+    return Array.from(state.entries()).map(([id, entry]) => {
+        const sourceItem = entry.item || entry.raw || null;
+        const revision = normalizeStoredRevision(entry.revision, options)
+            || (sourceItem ? contentRevisionOf(sourceItem, options) : null);
+        return {
+            id,
+            hash: revision ? stableHash(contentRevisionIdentity(revision)) : entry.hash,
+            revision,
+            item: sanitizeCatalogItem(sourceItem, options)
+        };
+    }).filter(entry => entry.id && entry.hash);
 }
 
-function deserializeState(entries) {
+function deserializeState(entries, options = eventExposureOptions()) {
     const state = new Map();
     if (!Array.isArray(entries)) return state;
     for (const entry of entries) {
         const sourceItem = entry?.item || entry?.raw || null;
         const id = entry?.id || sourceItem?.Id || sourceItem?.id;
-        const revision = entry?.revision || (sourceItem ? contentRevisionOf(sourceItem) : null);
+        const revision = normalizeStoredRevision(entry?.revision, options) || (sourceItem ? contentRevisionOf(sourceItem, options) : null);
         if (!id || !revision) continue;
         state.set(id, {
-            hash: stableHash(revision),
+            hash: stableHash(contentRevisionIdentity(revision)),
             revision,
-            item: sanitizeCatalogItem(sourceItem)
+            item: sanitizeCatalogItem(sourceItem, options)
         });
     }
     return state;
 }
 
-function snapshotContentItem(item) {
-    const revision = contentRevisionOf(item);
+function snapshotContentItem(item, options = eventExposureOptions()) {
+    const revision = contentRevisionOf(item, options);
     return {
-        hash: stableHash(revision),
+        hash: stableHash(contentRevisionIdentity(revision)),
         revision,
-        item: sanitizeCatalogItem(item)
+        item: sanitizeCatalogItem(item, options)
     };
 }
 
@@ -177,17 +219,18 @@ function savePersistedState(state) {
     }
 }
 
-function buildContentUpdate(previous, current) {
+function buildContentUpdate(previous, current, options = eventExposureOptions()) {
     if (!previous || !current) return null;
-    const currentSnapshot = snapshotContentItem(current);
+    const currentSnapshot = snapshotContentItem(current, options);
     const hash = currentSnapshot.hash;
     if (previous.hash === hash) return null;
-    const previousRevision = previous.revision || contentRevisionOf(previous.item || previous.raw);
+    const previousRevision = normalizeStoredRevision(previous.revision, options)
+        || contentRevisionOf(previous.item || previous.raw, options);
     const changes = diffContentRevisions(previousRevision, currentSnapshot.revision);
     if (!changes.length) return null;
     return {
         id: current.Id || current.id,
-        before: sanitizeCatalogItem(previous.item || previous.raw),
+        before: sanitizeCatalogItem(previous.item || previous.raw, options),
         after: currentSnapshot.item,
         changes,
         hash
@@ -290,8 +333,11 @@ module.exports = {
         normalizePackIdentities,
         normalizeContentVariants,
         contentUrlIdentity,
+        eventExposureOptions,
         contentRevisionOf,
+        contentRevisionIdentity,
         contentRevisionHash,
+        normalizeStoredRevision,
         diffContentRevisions,
         diffRevision,
         buildContentUpdate,

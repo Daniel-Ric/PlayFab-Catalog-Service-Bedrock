@@ -78,6 +78,7 @@ const {createAbuseLimiter, createRateLimiter, createOptionalRateLimiter} = requi
 const {createCatalogBridgeRouter} = require("./routes/catalogBridge");
 const {versionUpdateService} = require("./services/versionUpdateService");
 const {validateRuntimeConfig} = require("./config/runtimeValidation");
+const {requiresAdminForSensitiveFields, sensitiveCatalogFieldsEnabled} = require("./utils/catalogSanitizer");
 
 const artLines = [
     " __                 ___       __      __       ___            __   __           __",
@@ -311,6 +312,18 @@ const jwtCache = new NodeCache({stdTTL: 0, checkperiod: 120, useClones: false});
 const isDocs = (p) => p === "/docs" || p.startsWith("/docs/");
 const pathIs = (reqPath, probe) => reqPath === probe || reqPath === `${probe}/`;
 
+function enforceSensitiveFieldRole(req, res, user) {
+    if (!requiresAdminForSensitiveFields(req.originalUrl, process.env) || user?.role === "admin") return true;
+    res.status(403).json({
+        error: {
+            type: "forbidden",
+            message: "Sensitive data compatibility mode requires an admin token.",
+            traceId: req.headers["x-request-id"] || req.id
+        }
+    });
+    return false;
+}
+
 function enforceAuth(req, res, next) {
     if (req.method === "OPTIONS") return next();
     if (req.path === "/openapi.json" && req.method === "GET") return next();
@@ -330,12 +343,14 @@ function enforceAuth(req, res, next) {
     const cached = jwtCache.get(token);
     if (cached) {
         req.user = cached;
+        if (!enforceSensitiveFieldRole(req, res, cached)) return;
         return next();
     }
 
     try {
         const payload = jwt.verify(token, JWT_SECRET);
         req.user = payload;
+        if (!enforceSensitiveFieldRole(req, res, payload)) return;
         const nowSec = Math.floor(Date.now() / 1000);
         const ttl = typeof payload.exp === "number" ? Math.max(1, payload.exp - nowSec) : 300;
         jwtCache.set(token, payload, ttl);
@@ -347,6 +362,11 @@ function enforceAuth(req, res, next) {
             },
         });
     }
+}
+
+function enforceSensitiveMarketplaceAuth(req, res, next) {
+    if (!sensitiveCatalogFieldsEnabled()) return next();
+    return enforceAuth(req, res, next);
 }
 
 app.use(compression({
@@ -441,7 +461,7 @@ app.use("/marketplace/resolve", enforceAuth, authLimiter, marketplaceLimiter, ca
 app.use("/marketplace/compare", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpCompare);
 app.use("/marketplace/featured-servers", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(300, 1200), mpFeaturedServers);
 app.use("/marketplace/featured-content", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(300, 1200), mpFeaturedPersona);
-app.use("/marketplace/mc-token", marketplaceLimiter, cacheHeaders(60, 300), mpMcToken);
+app.use("/marketplace/mc-token", enforceSensitiveMarketplaceAuth, marketplaceLimiter, cacheHeaders(60, 300), mpMcToken);
 app.use("/marketplace/sales", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpSales);
 app.use("/marketplace/search/advanced", enforceAuth, authLimiter, marketplaceLimiter, mpSearchAdvanced);
 app.use("/marketplace/recommendations", enforceAuth, authLimiter, marketplaceLimiter, cacheHeaders(60, 300), mpRecommendations);

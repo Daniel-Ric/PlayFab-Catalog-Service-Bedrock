@@ -17,6 +17,7 @@ const {
     sendPlayFabRequest,
     transformItem
 } = require("../utils/playfab");
+const {sanitizeCatalogItem} = require("../utils/catalogSanitizer");
 
 const OS = process.env.OS || "iOS";
 const MAX_SEARCH_COUNT = 50;
@@ -177,7 +178,7 @@ function normalizeDeepLinks(item) {
     })).filter(link => link.platform || link.url);
 }
 
-function normalizeSearchItem(item, language) {
+function normalizeSearchItem(item, language, includeRaw = false) {
     const images = normalizeImages(item);
     const id = item?.Id || item?.id || "";
     const out = {
@@ -202,6 +203,7 @@ function normalizeSearchItem(item, language) {
         lastModifiedDate: item?.LastModifiedDate || item?.lastModifiedDate || null,
         clientUrl: id ? `https://open.view-marketplace.net/StoreOffer/${id}` : null
     };
+    if (includeRaw) out.rawItem = sanitizeCatalogItem(item, {exposeSensitive: true});
     return out;
 }
 
@@ -290,7 +292,7 @@ async function searchItems(alias, body = {}, defaults = {}) {
     const titleId = resolveTitle(alias);
     const payload = buildSearchItemsPayload(body, defaults);
     const data = await runSearchItems(titleId, payload);
-    const items = data.rawItems.map(item => normalizeSearchItem(item, payload.Language));
+    const items = data.rawItems.map(item => normalizeSearchItem(item, payload.Language, body.includeRaw === true));
     return {
         items,
         pagination: {
@@ -466,7 +468,7 @@ async function localizedSearch(alias, body = {}) {
             language,
             select: body.select || LOCALIZED_SELECT,
             count: body.count || 24,
-            includeRaw: false
+            includeRaw: body.includeRaw === true
         });
         results.set(language, {
             items: data.items,

@@ -23,13 +23,36 @@ const SENSITIVE_KEYS = new Set([
     "token"
 ]);
 
-function sanitizeValue(value, context, seen) {
+function readBooleanFlag(value) {
+    return /^(1|true|yes|on)$/i.test(String(value || "").trim());
+}
+
+function sensitiveCatalogFieldsEnabled(env = process.env) {
+    return readBooleanFlag(env.EXPOSE_SENSITIVE_CATALOG_FIELDS);
+}
+
+function sensitiveEventFieldsEnabled(env = process.env) {
+    return readBooleanFlag(env.EXPOSE_SENSITIVE_EVENT_FIELDS);
+}
+
+function canExposeSensitiveCatalogFields(user, env = process.env) {
+    return sensitiveCatalogFieldsEnabled(env) && user?.role === "admin";
+}
+
+function requiresAdminForSensitiveFields(requestPath, env = process.env) {
+    const path = String(requestPath || "").split("?", 1)[0];
+    const isWithin = prefix => path === prefix || path.startsWith(`${prefix}/`);
+    if (sensitiveCatalogFieldsEnabled(env) && isWithin("/marketplace")) return true;
+    return sensitiveEventFieldsEnabled(env) && isWithin("/events");
+}
+
+function sanitizeValue(value, context, seen, exposeSensitive) {
     if (value === null || typeof value !== "object") return value;
     if (seen.has(value)) return seen.get(value);
     if (Array.isArray(value)) {
         const array = [];
         seen.set(value, array);
-        for (const entry of value) array.push(sanitizeValue(entry, context, seen));
+        for (const entry of value) array.push(sanitizeValue(entry, context, seen, exposeSensitive));
         return array;
     }
 
@@ -37,16 +60,28 @@ function sanitizeValue(value, context, seen) {
     seen.set(value, object);
     for (const [key, entry] of Object.entries(value)) {
         const normalized = key.toLowerCase();
-        if (SENSITIVE_KEYS.has(normalized)) continue;
-        if (context.inContents && (normalized === "url" || normalized === "key")) continue;
-        object[key] = sanitizeValue(entry, {inContents: context.inContents || normalized === "contents"}, seen);
+        const isSensitive = SENSITIVE_KEYS.has(normalized)
+            || (context.inContents && (normalized === "url" || normalized === "key"));
+        if (isSensitive && !exposeSensitive) {
+            object[key] = null;
+            continue;
+        }
+        object[key] = sanitizeValue(entry, {inContents: context.inContents || normalized === "contents"}, seen, exposeSensitive);
     }
     return object;
 }
 
-function sanitizeCatalogItem(item) {
+function sanitizeCatalogItem(item, options = {}) {
     if (!item || typeof item !== "object") return item;
-    return sanitizeValue(item, {inContents: false}, new WeakMap());
+    const exposeSensitive = options.exposeSensitive === true
+        || (options.exposeSensitive === undefined && sensitiveCatalogFieldsEnabled(options.env));
+    return sanitizeValue(item, {inContents: false}, new WeakMap(), exposeSensitive);
 }
 
-module.exports = {sanitizeCatalogItem};
+module.exports = {
+    sanitizeCatalogItem,
+    canExposeSensitiveCatalogFields,
+    requiresAdminForSensitiveFields,
+    sensitiveCatalogFieldsEnabled,
+    sensitiveEventFieldsEnabled
+};

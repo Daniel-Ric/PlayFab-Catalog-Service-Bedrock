@@ -8,6 +8,8 @@ npm-debug.log*
 /src/data/contentUpdateWatcherState.json.*.tmp
 /src/data/itemWatcherState.json
 /src/data/itemWatcherState.json.*.tmp
+/src/data/playfabDeviceId.json
+/src/data/playfabDeviceId.json.*.tmp
 /src/data/subscriptionWatcherState.json
 /src/data/subscriptionWatcherState.json.*.tmp
 /src/data/webhooks.json

@@ -200,10 +200,11 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 | `FEATURED_PRIMARY_ALIAS` | `prod`  | Primary alias for featured/SSE sources          |
 | `OS`                     | `iOS`   | OS label used in upstream requests              |
 | `PLAYFAB_DEVICE_ID`      | generated | Stable anonymous PlayFab device identity      |
+| `PLAYFAB_DEVICE_ID_FILE` | `src/data/playfabDeviceId.json` | Persistent fallback identity file when the variable is omitted |
 | `PLAYFAB_CONCURRENCY`    | `12`    | Parallel PlayFab requests                       |
 | `PLAYFAB_BATCH`          | `600`   | Max batch size for bulk PlayFab calls           |
 
-`npm run setup` generates `PLAYFAB_DEVICE_ID` once and preserves it on later setup runs. Keep the value stable per installation and outside version control so PlayFab reuses the linked anonymous account. Production startup fails when it is missing; development and tests retain the process-local fallback.
+`npm run setup` generates `PLAYFAB_DEVICE_ID` once and preserves it on later setup runs. Keep the value stable per installation and outside version control so PlayFab reuses the linked anonymous account. If production starts without the variable, the service generates the ID once in `PLAYFAB_DEVICE_ID_FILE` (default `src/data/playfabDeviceId.json`) and reuses it after restarts. Development and tests retain the process-local fallback.
 
 ### Caching / TTLs / Sizes
 
@@ -229,6 +230,8 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 | `ENABLE_CREATOR_PARTNER_WATCHER` | `true` | Enable creator/partner registry watcher |
 | `ENABLE_FEATURED_CONTENT_WATCHER` | `true` | Enable featured content watcher      |
 | `ENABLE_SUBSCRIPTION_WATCHER` | `false` | Enable Marketplace Pass / Realms Plus membership watcher |
+| `EXPOSE_SENSITIVE_CATALOG_FIELDS` | `false` | Restore exact legacy URL/key/token values for admin-only marketplace access |
+| `EXPOSE_SENSITIVE_EVENT_FIELDS` | `false` | Restore exact legacy URL/key/token values in admin-only SSE and trusted webhooks |
 | `SSE_HEARTBEAT_MS`        | `15000` | SSE heartbeat interval (min 5000)           |
 | `SSE_MAX_CLIENTS`         | `1000`  | Maximum concurrent SSE connections          |
 | `SSE_MAX_CLIENTS_PER_IDENTITY` | `100` | Maximum concurrent SSE connections per authenticated identity |
@@ -333,6 +336,7 @@ This service uses small JSON files under `src/data/` which you should **persist*
   ]
   ```
 * `webhooks.json` — persisted webhook registrations (auto-managed).
+* `playfabDeviceId.json` — generated stable PlayFab identity when `PLAYFAB_DEVICE_ID` is omitted in production (auto-managed and ignored by Git).
 
 > If these files are missing, the API will warn (e.g., creators) or initialize to empty structures.
 
@@ -378,7 +382,7 @@ Cache  ◄─────────────────────── 
 
 ## Security Model
 
-* **Auth**: All routes require `Authorization: Bearer <jwt>` *except* `/login`, `/openapi.json`, `/docs` (when enabled), and `GET /marketplace/mc-token`.
+* **Auth**: All routes require `Authorization: Bearer <jwt>` *except* `/login`, `/openapi.json`, `/docs` (when enabled), and, by default, `GET /marketplace/mc-token`. The token route also becomes admin-only when `EXPOSE_SENSITIVE_CATALOG_FIELDS=true`.
 * **Roles**: `role=admin` is required for:
 
   * `GET /session/:alias`
@@ -699,7 +703,7 @@ Date filters are pushed into PlayFab search where possible and can be combined w
 * `refs`: resolve `ItemReferences` to full items and return under `ResolvedReferences`.
 * `fresh=true`: bypass application caches and retrieve the current item with Catalog V2 `GetItem`.
 
-Catalog V2 `SearchItems` cursor pagination is the default for new search integrations. Legacy `page`, `pageSize`, `skip`, and `limit` pagination remains compatible, but responses using it include `Deprecation: true`; migrate clients to `/marketplace/search/items/:alias` and `continuationToken`. Public SearchItems responses never include raw upstream items, even when an older client sends `includeRaw`.
+Catalog V2 `SearchItems` cursor pagination is the default for new search integrations. Legacy `page`, `pageSize`, `skip`, and `limit` pagination remains compatible, but responses using it include `Deprecation: true`; migrate clients to `/marketplace/search/items/:alias` and `continuationToken`. Raw upstream items remain disabled by default. An administrator can explicitly restore the legacy `includeRaw=true` response by enabling `EXPOSE_SENSITIVE_CATALOG_FIELDS=true`; this also restricts marketplace access to admin JWTs while enabled.
 
 #### `GET /marketplace/friendly/:alias/:friendlyId`
 
@@ -752,7 +756,7 @@ Aggregate store sales (from `SearchStores` + `GetStoreItems`) with items resolve
       "discountPercent": 30,
       "startDate": "2024-10-01T00:00:00Z",
       "endDate": "2024-10-08T00:00:00Z",
-      "items": [ { "id": "...", "rawItem": { /* sanitized public item */ } } ]
+      "items": [ { "id": "...", "rawItem": { /* sensitive values are null by default */ } } ]
     }
   }
 }
@@ -862,6 +866,7 @@ Not allowed (returns `400`):
 
 * `/events/stream` (optional query `events=<comma-separated-event-names>`):
   `item.snapshot`, `item.created`, `item.updated`, `item.content.updated`, `marketplace.pass.snapshot`, `marketplace.pass.added`, `marketplace.pass.removed`, `marketplace.pass.updated`, `realms.plus.snapshot`, `realms.plus.added`, `realms.plus.removed`, `realms.plus.updated`, `sale.snapshot`, `sale.update`, `price.changed`, `creator.trending`, `featured.content.added`, `featured.content.removed`, `featured.content.updated`.
+* Sensitive field names remain backward compatible, but their values are `null` by default. Content revisions retain `before.url` and `after.url` alongside `urlHost` and `urlFingerprint`; exact URLs and other sensitive event values require `EXPOSE_SENSITIVE_EVENT_FIELDS=true`. While enabled, SSE access is admin-only and webhook destinations must be treated as trusted credential recipients.
 * Subscription events compare the current `csb` / `realms_plus` tag memberships with the last persisted watcher state. Added/removed events include the current item list, updated events include `before` / `after` entries, and each item includes `subscription.startDate` / `subscription.endDate` from `csbStartDate`, `csbEndDate`, `realmsPlusStartDate`, and `realmsPlusEndDate`.
 * Featured content changes emit dedicated `featured.content.added`, `featured.content.removed`, and `featured.content.updated` events. Payloads include the matching `addedItems`, `removedItems`, or `changedItems` plus item details with `featuredContext` (`page`, `row`, `component`, `itemIndex`); `currentItemDetails` and `previousItemDetails` provide the full after/before featured item lists. Same-ID layout or metadata changes emit `featured.content.updated`, set `contentChanged=true`, and include `previousContentSignature` / `currentContentSignature`.
 
@@ -1161,6 +1166,9 @@ DEFAULT_ALIAS=prod
 TITLE_ID=20CA2
 OS=iOS
 PLAYFAB_DEVICE_ID=vmc-<unique-random-id>
+PLAYFAB_DEVICE_ID_FILE=src/data/playfabDeviceId.json
+EXPOSE_SENSITIVE_CATALOG_FIELDS=false
+EXPOSE_SENSITIVE_EVENT_FIELDS=false
 TRUST_PROXY=1
 LOG_LEVEL=info
 CORS_ORIGINS=http://localhost:5173,https://view-marketplace.net

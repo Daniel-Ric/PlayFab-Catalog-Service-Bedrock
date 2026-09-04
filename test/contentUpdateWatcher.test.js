@@ -68,11 +68,29 @@ test("content revision detects a replaced binary with unchanged compatibility", 
     const changes = _internals.diffRevision(before, after);
     assert.equal(changes.length, 1);
     assert.equal(changes[0].kind, "content");
+    assert.equal(changes[0].before.url, null);
+    assert.equal(changes[0].after.url, null);
     assert.equal(changes[0].before.urlHost, "cdn.example");
     assert.equal(changes[0].after.urlHost, "cdn.example");
     assert.notEqual(changes[0].before.urlFingerprint, changes[0].after.urlFingerprint);
     assert.equal(JSON.stringify(changes).includes("old.zip"), false);
     assert.equal(JSON.stringify(changes).includes("new.zip"), false);
+});
+
+test("content revision restores legacy URL fields only in explicit event mode", () => {
+    const before = makeItem({Contents: [{Id: "content-a", Url: "https://cdn.example/old.zip", Type: "resourcebinary"}]});
+    const after = makeItem({Contents: [{Id: "content-a", Url: "https://cdn.example/new.zip", Type: "resourcebinary"}]});
+    const changes = _internals.diffRevision(before, after, {exposeSensitive: true});
+    const update = _internals.buildContentUpdate(
+        _internals.snapshotContentItem(before, {exposeSensitive: true}),
+        after,
+        {exposeSensitive: true}
+    );
+
+    assert.equal(changes[0].before.url, "https://cdn.example/old.zip");
+    assert.equal(changes[0].after.url, "https://cdn.example/new.zip");
+    assert.equal(update.before.Contents[0].Url, "https://cdn.example/old.zip");
+    assert.equal(update.after.Contents[0].Url, "https://cdn.example/new.zip");
 });
 
 test("content revision ignores expiring URL query strings", () => {
@@ -81,6 +99,11 @@ test("content revision ignores expiring URL query strings", () => {
 
     assert.equal(_internals.contentRevisionHash(before), _internals.contentRevisionHash(after));
     assert.deepEqual(_internals.diffRevision(before, after), []);
+    assert.equal(
+        _internals.contentRevisionHash(before, {exposeSensitive: true}),
+        _internals.contentRevisionHash(after, {exposeSensitive: true})
+    );
+    assert.deepEqual(_internals.diffRevision(before, after, {exposeSensitive: true}), []);
 });
 
 test("content watcher state stores only a URL host and fingerprint", () => {
@@ -101,14 +124,14 @@ test("content watcher state stores only a URL host and fingerprint", () => {
     const restored = _internals.deserializeState(serialized).get(item.Id);
     assert.equal(restored.revision.variants[0].urlHost, "downloads.example");
     assert.ok(restored.revision.variants[0].urlFingerprint);
-    assert.equal(restored.item.Contents[0].Url, undefined);
+    assert.equal(restored.item.Contents[0].Url, null);
 });
 
 test("content watcher migrates legacy raw state without retaining its URL", () => {
     const item = makeItem({Contents: [{Id: "content-a", Url: "https://legacy.example/content.zip?token=secret", Type: "resourcebinary"}]});
     const restored = _internals.deserializeState([{id: item.Id, hash: "legacy", raw: item}]).get(item.Id);
 
-    assert.equal(restored.item.Contents[0].Url, undefined);
+    assert.equal(restored.item.Contents[0].Url, null);
     assert.equal(restored.revision.variants[0].urlHost, "legacy.example");
     assert.equal(JSON.stringify(_internals.serializeState(new Map([[item.Id, restored]]))).includes("token=secret"), false);
 });

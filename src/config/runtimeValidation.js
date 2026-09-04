@@ -17,11 +17,6 @@ function validateRuntimeConfig(env = {}) {
     const jwtSecret = typeof env.JWT_SECRET === "string" ? env.JWT_SECRET : "";
     if (jwtSecret.length < 32) errors.push("JWT_SECRET is missing or too short.");
 
-    const production = String(env.NODE_ENV || "").trim().toLowerCase() === "production";
-    const deviceId = typeof env.PLAYFAB_DEVICE_ID === "string" ? env.PLAYFAB_DEVICE_ID.trim() : "";
-    if (production && !deviceId) {
-        errors.push("PLAYFAB_DEVICE_ID is required in production to preserve the PlayFab account identity.");
-    }
     return errors;
 }
 

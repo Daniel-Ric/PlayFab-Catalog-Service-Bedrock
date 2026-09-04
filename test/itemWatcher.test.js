@@ -231,8 +231,8 @@ test("watcher state serializes and deserializes entries", () => {
     const restored = _internals.deserializeState(_internals.serializeState(state));
 
     assert.equal(restored.get("item-1").hash, state.get("item-1").hash);
-    assert.equal(restored.get("item-1").raw.Contents[0].Url, undefined);
-    assert.equal(restored.get("item-1").raw.Contents[0].Key, undefined);
+    assert.equal(restored.get("item-1").raw.Contents[0].Url, null);
+    assert.equal(restored.get("item-1").raw.Contents[0].Key, null);
     assert.equal(restored.get("item-1").raw.Images[0].Url, "https://example.com/thumb.png");
     assert.equal(restored.get("item-1").createdNotified, false);
 });

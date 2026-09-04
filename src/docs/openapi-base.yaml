@@ -274,7 +274,7 @@ components:
           additionalProperties: true
         rawItem:
           type: object
-          description: Sanitized upstream item without credentials, content keys, or content delivery URLs.
+          description: Upstream item whose sensitive credential, key, token, and content URL values are null by default. Exact legacy values require an admin JWT and EXPOSE_SENSITIVE_CATALOG_FIELDS=true.
           additionalProperties: true
       required:
         - id

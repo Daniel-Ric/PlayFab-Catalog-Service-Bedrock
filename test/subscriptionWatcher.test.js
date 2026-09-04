@@ -171,8 +171,8 @@ test("subscription watcher state serializes and restores item maps", () => {
 
     assert.equal(restored.marketplacePass.get("one").Id, "one");
     assert.equal(restored.realmsPlus.get("two").Id, "two");
-    assert.equal(restored.marketplacePass.get("one").Contents[0].Url, undefined);
-    assert.equal(restored.marketplacePass.get("one").Contents[0].Key, undefined);
+    assert.equal(restored.marketplacePass.get("one").Contents[0].Url, null);
+    assert.equal(restored.marketplacePass.get("one").Contents[0].Key, null);
     assert.equal(restored.marketplacePass.get("one").Images[0].Url, "https://images.example/one.png");
 });
 

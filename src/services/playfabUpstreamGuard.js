@@ -109,7 +109,7 @@ function createUpstreamGuard(options = {}) {
         const halfOpenProbe = reserve(entry);
         let started = false;
         try {
-            return await entry.limiter.schedule({priority: resolvePriority(scheduleOptions.priority)}, async () => {
+            return await entry.limiter.schedule({priority: PRIORITIES.default}, async () => {
                 started = true;
                 if (!halfOpenProbe && entry.circuit.openUntil > clock()) rejectCircuit(entry);
                 entry.metrics.started += 1;

@@ -24,6 +24,8 @@ class SseHub {
         this.seq = 0;
         this.maxClients = this.readPositiveInt(options.maxClients, process.env.SSE_MAX_CLIENTS, 1000);
         this.maxClientsPerKey = this.readPositiveInt(options.maxClientsPerKey, process.env.SSE_MAX_CLIENTS_PER_IDENTITY, 100);
+        this.maxQueueBytes = this.readPositiveInt(options.maxQueueBytes, process.env.SSE_MAX_QUEUE_BYTES, 32 * 1024 * 1024);
+        this.drainTimeoutMs = this.readPositiveInt(options.drainTimeoutMs, process.env.SSE_DRAIN_TIMEOUT_MS, 30000);
     }
 
     readPositiveInt(optionValue, envValue, fallback) {
@@ -55,11 +57,25 @@ class SseHub {
             throw error;
         }
 
-        const client = {res, filters, key, heartbeat: null, lastHeartbeatAt: Date.now()};
-        const envHeartbeatMs = Math.max(5000, parseInt(process.env.SSE_HEARTBEAT_MS || "15000", 10));
+        const client = {res, filters, key, heartbeat: null, drainTimer: null, blocked: false, queue: [], queueBytes: 0};
+        const envHeartbeatMs = Math.max(5000, this.readPositiveInt(undefined, process.env.SSE_HEARTBEAT_MS, 15000));
         const hbMs = filters && typeof filters.heartbeatMs === "number" && filters.heartbeatMs >= 5000 ? filters.heartbeatMs : envHeartbeatMs;
 
-        res.on("close", () => this.removeClient(client));
+        client.onClose = () => this.removeClient(client);
+        client.onError = () => this.terminateClient(client);
+        client.onDrain = () => {
+            clearTimeout(client.drainTimer);
+            client.drainTimer = null;
+            client.blocked = false;
+            while (client.queue.length && !client.blocked && this.clients.has(client)) {
+                const line = client.queue.shift();
+                client.queueBytes -= Buffer.byteLength(line);
+                this.write(client, line);
+            }
+        };
+        res.on("close", client.onClose);
+        res.on("error", client.onError);
+        res.on("drain", client.onDrain);
 
         res.status(200);
         res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
@@ -74,32 +90,25 @@ class SseHub {
                 this.removeClient(client);
                 return;
             }
-            if (Date.now() - client.lastHeartbeatAt < hbMs) return;
-            try {
-                if (!res.write(": heartbeat\n\n")) {
-                    this.terminateClient(client);
-                    return;
-                }
-                client.lastHeartbeatAt = Date.now();
-                if (typeof res.flush === "function") res.flush();
-            } catch {
-                this.terminateClient(client);
-            }
-        }, 5000);
+            if (!client.blocked) this.write(client, ": heartbeat\n\n");
+        }, hbMs);
 
         this.clients.add(client);
         this.clientsByKey.set(key, (this.clientsByKey.get(key) || 0) + 1);
-        if (!res.write("event: ready\ndata: {}\n\n")) {
-            this.terminateClient(client);
-            return null;
-        }
-        if (typeof res.flush === "function") res.flush();
+        this.write(client, "event: ready\ndata: {}\n\n");
         return client;
     }
 
     removeClient(client) {
         if (client.heartbeat) clearInterval(client.heartbeat);
+        clearTimeout(client.drainTimer);
         client.heartbeat = null;
+        client.drainTimer = null;
+        client.queue = [];
+        client.queueBytes = 0;
+        client.res.removeListener("close", client.onClose);
+        client.res.removeListener("error", client.onError);
+        client.res.removeListener("drain", client.onDrain);
         if (!this.clients.delete(client)) return;
         const count = this.clientsByKey.get(client.key) || 0;
         if (count <= 1) this.clientsByKey.delete(client.key);
@@ -111,6 +120,32 @@ class SseHub {
         const res = client.res;
         if (typeof res.destroy === "function") res.destroy();
         else if (!res.writableEnded && typeof res.end === "function") res.end();
+    }
+
+    write(client, line) {
+        if (!this.clients.has(client)) return;
+        if (client.blocked) {
+            client.queue.push(line);
+            client.queueBytes += Buffer.byteLength(line);
+            if (client.queueBytes > this.maxQueueBytes) {
+                logger.warn("[SSE] closing client after pending event queue exceeded its limit");
+                this.terminateClient(client);
+            }
+            return;
+        }
+        try {
+            if (!client.res.write(line)) {
+                client.blocked = true;
+                client.drainTimer = setTimeout(() => {
+                    logger.warn("[SSE] closing client after write buffer failed to drain");
+                    this.terminateClient(client);
+                }, this.drainTimeoutMs);
+                client.drainTimer.unref?.();
+            }
+            if (typeof client.res.flush === "function") client.res.flush();
+        } catch {
+            this.terminateClient(client);
+        }
     }
 
     matchesFilter(filters, eventName, payload) {
@@ -143,16 +178,7 @@ class SseHub {
                 continue;
             }
             if (!this.matchesFilter(client.filters, eventName, payload)) continue;
-            try {
-                if (!res.write(line)) {
-                    this.terminateClient(client);
-                    continue;
-                }
-                if (typeof res.flush === "function") res.flush();
-            } catch {
-                logger.debug(`[SSE] write error event=${eventName}`);
-                this.terminateClient(client);
-            }
+            this.write(client, line);
         }
     }
 }

@@ -1,5 +1,82 @@
 # Changelog
 
+## 16.4.2 (2026-09-10)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Save local watcher changes (5630bec)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 4 files: src/services/contentUpdateWatcher.js, src/services/itemWatcher.js, plus 2 more
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 4
+- Line changes: +98 / -60
+
+## 16.4.3 (2026-09-10)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Retry transient catalog bridge failures and improve error diagnostics (8eccb77)
+- Impact: Repository update with a small change footprint across repository files, application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- README: 1 file: readme.md
+- Service layer: 1 file: src/services/catalogBridgeService.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +36 / -8
+
+## 16.5.0 (2026-09-10)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Merge watcher changes and catalog bridge fixes (7dcfb79)
+- Impact: Repository update with a medium change footprint across repository files, application logic.
+- Bump reason: medium change footprint (6 files, 202 total line changes)
+
+### Changed Areas
+
+- README: 1 file: readme.md
+- Service layer: 5 files: src/services/catalogBridgeService.js, src/services/contentUpdateWatcher.js, plus 3 more
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 6
+- Line changes: +134 / -68
+
+## 16.5.1 (2026-09-10)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Merge remote release changelog (85829e1)
+- Impact: Repository update with a small change footprint across repository files.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Changelog: 1 file: CHANGELOG.md
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +19 / -0
 ## 16.4.1 (2026-09-09)
 
 ### Summary
@@ -3610,6 +3687,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

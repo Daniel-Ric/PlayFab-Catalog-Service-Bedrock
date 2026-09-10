@@ -24,7 +24,6 @@ const {sanitizeCatalogItem, sensitiveEventFieldsEnabled} = require("../utils/cat
 const {readJson, writeJsonAtomic} = require("../utils/storage");
 const SEARCH_ITEMS_MAX_COUNT = 50;
 const DEFAULT_STATE_FILE = path.join(__dirname, "../data/itemWatcherState.json");
-let searchItemsUnavailable = false;
 
 function getTitleId() {
     const alias = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || "").trim();
@@ -126,14 +125,14 @@ function shouldFetchNextPage(nextToken, previousToken, seenTokens) {
     return true;
 }
 
-async function collectPaginatedItems(itemsPerRequest, maxItems, loadPage) {
+async function collectPaginatedItems(itemsPerRequest, maxItems, loadPage, requireComplete = false) {
     const allItems = [];
     let continuationToken = null;
     let scannedHits = 0;
     const seenContinuationTokens = new Set();
 
-    while (scannedHits < maxItems) {
-        const remaining = maxItems - scannedHits;
+    while (requireComplete || scannedHits < maxItems) {
+        const remaining = requireComplete ? itemsPerRequest : maxItems - scannedHits;
         const count = Math.min(itemsPerRequest, remaining);
         const page = await loadPage(continuationToken, count);
         const pageItems = page.items || [];
@@ -143,11 +142,15 @@ async function collectPaginatedItems(itemsPerRequest, maxItems, loadPage) {
         scannedHits += Math.max(0, hitCount);
         allItems.push(...pageItems);
         continuationToken = page.continuationToken || null;
-        if (!shouldFetchNextPage(continuationToken, previousToken, seenContinuationTokens)) break;
-        if (hitCount <= 0) break;
+        if (!continuationToken) break;
+        if (!shouldFetchNextPage(continuationToken, previousToken, seenContinuationTokens) || hitCount <= 0) {
+            if (requireComplete) throw new Error("Incomplete watcher scan: pagination did not advance.");
+            break;
+        }
+        if (seenContinuationTokens.size >= 2000) throw new Error("Watcher scan exceeded 2000 pages; keeping previous cursor.");
     }
 
-    return allItems.slice(0, maxItems);
+    return requireComplete ? allItems : allItems.slice(0, maxItems);
 }
 
 function normalizeFieldSpec(field) {
@@ -174,7 +177,7 @@ async function searchItemsPage(titleId, os, filter, orderBy, continuationToken, 
         Filter: filter, OrderBy: orderBy, ContinuationToken: continuationToken, Count: safeCount
     };
 
-    if (searchItemsUnavailable) {
+    if (String(continuationToken || "").startsWith("offset:")) {
         return await searchItemsPageFallback(titleId, os, filter, orderBy, continuationToken, safeCount);
     }
 
@@ -182,14 +185,15 @@ async function searchItemsPage(titleId, os, filter, orderBy, continuationToken, 
         const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, os, {priority: "background"});
         return data || {};
     } catch (err) {
-        searchItemsUnavailable = true;
-        logger.warn(`[ItemWatcher] Catalog/SearchItems failed, falling back to Catalog/Search for this process: ${err.message}`);
+        if (continuationToken || ![404, 405, 501, 429, 500, 502, 503, 504].includes(Number(err.status))) throw err;
+        logger.warn(`[ItemWatcher] Catalog/SearchItems failed; using Catalog/Search for this scan: ${err.message}`);
         return await searchItemsPageFallback(titleId, os, filter, orderBy, continuationToken, safeCount);
     }
 }
 
 async function searchItemsPageFallback(titleId, os, filter, orderBy, continuationToken, safeCount) {
     const offset = parseFallbackOffset(continuationToken);
+    if (continuationToken && !String(continuationToken).startsWith("offset:")) throw new Error("Cannot use a V2 cursor with Catalog/Search.");
     const data = await sendPlayFabRequest(titleId, "Catalog/Search", {
         Filter: filter,
         OrderBy: orderBy,
@@ -238,7 +242,8 @@ async function requestItems(titleId, os, filter, orderBy, continuationToken, cou
     const ids = hits.map(idOfSearchHit).filter(Boolean);
     const full = await getItemsCompat(titleId, os, ids);
     const fallbackItems = hits.map(itemFromSearchHit).filter(Boolean);
-    const items = ((full && full.length) ? full : fallbackItems).filter(isWatchableMarketplaceItem);
+    const byId = new Map(full.map(item => [item.Id || item.id, item]));
+    const items = fallbackItems.map(item => byId.get(item.Id || item.id) || item).filter(isWatchableMarketplaceItem);
     return {items, continuationToken: nextToken, hitCount: hits.length};
 }
 
@@ -252,9 +257,10 @@ async function fetchItemsSince(titleId, os, field, sinceIso, itemsPerRequest, ma
         const orderBy = `${f} asc`;
 
         try {
-            return await collectPaginatedItems(itemsPerRequest, maxItems, (continuationToken, count) => requestItems(titleId, os, filter, orderBy, continuationToken, count));
+            return await collectPaginatedItems(itemsPerRequest, maxItems, (continuationToken, count) => requestItems(titleId, os, filter, orderBy, continuationToken, count), true);
         } catch (e) {
             lastErr = e;
+            if (Number(e.status) !== 400) throw e;
         }
     }
 
@@ -422,11 +428,12 @@ class ItemWatcher {
         const itemsPerRequest = Math.max(10, parseInt(process.env.ITEM_WATCH_ITEMS_PER_REQUEST || "200", 10));
         const maxItems = Math.max(itemsPerRequest, parseInt(process.env.ITEM_WATCH_MAX_ITEMS || "10000", 10));
         const bootstrapItemsPerRequest = Math.max(10, parseInt(process.env.ITEM_WATCH_BOOTSTRAP_ITEMS_PER_REQUEST || String(itemsPerRequest), 10));
-        const bootstrapMaxItems = Math.max(bootstrapItemsPerRequest, parseInt(process.env.ITEM_WATCH_BOOTSTRAP_MAX_ITEMS || String(maxItems), 10));
+        const bootstrapMaxItems = Math.max(bootstrapItemsPerRequest, parseInt(process.env.ITEM_WATCH_BOOTSTRAP_MAX_ITEMS || "600", 10));
         const overlapMs = Math.max(0, parseInt(process.env.ITEM_WATCH_OVERLAP_MS || "60000", 10));
         const createdLookbackMs = Math.max(overlapMs, parseInt(process.env.ITEM_WATCH_CREATED_LOOKBACK_MS || "86400000", 10));
 
         const run = async () => {
+            const scanStartedAt = Date.now();
             const titleId = getTitleId();
 
             if (!this.bootstrapped) {
@@ -435,8 +442,8 @@ class ItemWatcher {
                 const bootstrapMap = new Map(persisted.state);
                 const created = [];
                 const updated = [];
-                const createdSinceTs = Math.max(0, Date.now() - createdLookbackMs);
-                const updatedSinceTs = Math.max(0, Date.now() - overlapMs);
+                const createdSinceTs = Math.max(0, scanStartedAt - createdLookbackMs);
+                const updatedSinceTs = Math.max(0, scanStartedAt - overlapMs);
 
                 for (const it of recent) {
                     const id = it.Id || it.id;
@@ -457,9 +464,6 @@ class ItemWatcher {
                         createdNotified: kind === "created" ? createdWasEmitted : createdNotified
                     });
                 }
-                this.state = bootstrapMap;
-                this.lastRunTs = Date.now();
-                this.bootstrapped = true;
                 eventBus.emit("item.snapshot", {
                     ts: Date.now(), count: recent.length, items: projectCatalogItems(recent)
                 });
@@ -477,7 +481,10 @@ class ItemWatcher {
                         }))
                     });
                 }
-                savePersistedState(this.state);
+                savePersistedState(bootstrapMap);
+                this.state = bootstrapMap;
+                this.lastRunTs = scanStartedAt;
+                this.bootstrapped = true;
                 return;
             }
 
@@ -488,12 +495,13 @@ class ItemWatcher {
 
             const changed = await requestChangedItems(titleId, os, sinceIso, itemsPerRequest, maxItems, createdSinceIso);
             if (!changed.length) {
-                this.lastRunTs = Date.now();
+                this.lastRunTs = scanStartedAt;
                 return;
             }
 
             const created = [];
             const updated = [];
+            const nextState = new Map(this.state);
 
             for (const it of changed) {
                 const id = it.Id || it.id;
@@ -510,7 +518,7 @@ class ItemWatcher {
                     });
                 }
 
-                this.state.set(id, {
+                nextState.set(id, {
                     hash: nextHash,
                     raw: it,
                     createdNotified
@@ -533,8 +541,9 @@ class ItemWatcher {
                 });
             }
 
-            savePersistedState(this.state);
-            this.lastRunTs = Date.now();
+            savePersistedState(nextState);
+            this.state = nextState;
+            this.lastRunTs = scanStartedAt;
         };
 
         const runOnce = createNonOverlappingRunner({

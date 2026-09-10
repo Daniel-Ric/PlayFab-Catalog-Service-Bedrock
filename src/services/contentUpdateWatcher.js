@@ -256,6 +256,7 @@ class ContentUpdateWatcher {
         const overlapMs = Math.max(0, parseInt(process.env.CONTENT_UPDATE_WATCH_OVERLAP_MS || "60000", 10));
 
         const run = async () => {
+            const scanStartedAt = Date.now();
             const titleId = itemWatcherInternals.getTitleId();
             if (!this.bootstrapped) {
                 const recent = await itemWatcherInternals.fetchBootstrapItems(titleId, os, itemsPerRequest, maxItems, 0);
@@ -270,11 +271,11 @@ class ContentUpdateWatcher {
                     if (update) updates.push(update);
                     nextState.set(id, snapshotContentItem(item));
                 }
-                this.state = nextState;
-                this.lastRunTs = Date.now();
-                this.bootstrapped = true;
                 this.emitUpdates(eventBus, updates);
-                savePersistedState(this.state);
+                savePersistedState(nextState);
+                this.state = nextState;
+                this.lastRunTs = scanStartedAt;
+                this.bootstrapped = true;
                 return;
             }
 
@@ -282,17 +283,19 @@ class ContentUpdateWatcher {
             const sinceIso = new Date(sinceTs).toISOString();
             const changed = await itemWatcherInternals.requestChangedItems(titleId, os, sinceIso, itemsPerRequest, maxItems, sinceIso);
             const updates = [];
+            const nextState = new Map(this.state);
             for (const item of changed) {
                 const id = item.Id || item.id;
                 if (!id) continue;
                 const previous = this.state.get(id) || null;
                 const update = buildContentUpdate(previous, item);
                 if (update) updates.push(update);
-                this.state.set(id, snapshotContentItem(item));
+                nextState.set(id, snapshotContentItem(item));
             }
             this.emitUpdates(eventBus, updates);
-            savePersistedState(this.state);
-            this.lastRunTs = Date.now();
+            savePersistedState(nextState);
+            this.state = nextState;
+            this.lastRunTs = scanStartedAt;
         };
 
         const runOnce = createNonOverlappingRunner({

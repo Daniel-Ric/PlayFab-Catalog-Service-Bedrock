@@ -14,6 +14,9 @@
 
 const crypto = require("crypto");
 const axios = require("axios");
+const {setTimeout: delay} = require("timers/promises");
+
+const TRANSIENT_TRANSPORT_CODES = new Set(["ECONNRESET", "EPIPE", "EAI_AGAIN"]);
 
 function badRequest(message) {
     const err = new Error(message);
@@ -132,11 +135,22 @@ function buildProxyRequest(payload, cfg, options = {}) {
 }
 
 async function executeProxyPayload(payload, cfg, options = {}) {
+    const request = buildProxyRequest(payload, cfg, options);
+    const deadline = Date.now() + cfg.requestTimeoutMs;
     let upstream;
-    try {
-        upstream = await axios.request(buildProxyRequest(payload, cfg, options));
-    } catch (cause) {
-        throw normalizeCatalogUpstreamError(cause, cfg.requestTimeoutMs);
+    for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+            upstream = await axios.request({...request, timeout: Math.max(1, deadline - Date.now())});
+            break;
+        } catch (cause) {
+            const code = cause?.code || cause?.cause?.code;
+            if (attempt === 1 && request.method === "GET" && !cause?.response
+                && TRANSIENT_TRANSPORT_CODES.has(code) && deadline - Date.now() > 150) {
+                await delay(150);
+                continue;
+            }
+            throw normalizeCatalogUpstreamError(cause, cfg.requestTimeoutMs, request, attempt);
+        }
     }
     const contentType = upstream.headers?.["content-type"] || "application/octet-stream";
     return {
@@ -146,16 +160,26 @@ async function executeProxyPayload(payload, cfg, options = {}) {
     };
 }
 
-function normalizeCatalogUpstreamError(cause, timeoutMs) {
-    const timedOut = cause?.code === "ECONNABORTED" || cause?.code === "ETIMEDOUT" || /timeout/i.test(String(cause?.message || ""));
-    const err = new Error(timedOut
+function normalizeCatalogUpstreamError(cause, timeoutMs, request = {}, attempts = 1) {
+    const rawCode = cause?.code || cause?.cause?.code;
+    const transportCode = /^[A-Z][A-Z0-9_]{1,63}$/.test(String(rawCode || "")) ? rawCode : "UNKNOWN";
+    const timedOut = transportCode === "ECONNABORTED" || transportCode === "ETIMEDOUT" || /timeout/i.test(String(cause?.message || ""));
+    let origin;
+    try {
+        origin = new URL(request.url).origin;
+    } catch {
+        origin = "unknown";
+    }
+    const message = timedOut
         ? `Catalog upstream timed out after ${timeoutMs}ms.`
-        : "Catalog upstream request failed.");
+        : "Catalog upstream request failed.";
+    const err = new Error(`${message} [transport=${transportCode}, upstream=${origin}, attempts=${attempts}]`);
     err.status = timedOut ? 504 : 502;
     err.publicMessage = timedOut
         ? "Catalog upstream request timed out. Please try again."
         : "Catalog upstream is currently unavailable. Please try again.";
     err.code = timedOut ? "CATALOG_UPSTREAM_TIMEOUT" : "CATALOG_UPSTREAM_UNAVAILABLE";
+    err.transportCode = transportCode;
     err.cause = cause;
     return err;
 }

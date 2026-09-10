@@ -1383,6 +1383,10 @@ If `CATALOG_BRIDGE_ENABLED=true`, a reverse proxy can additionally route these p
 
 Existing public `/catalog/...` proxy rules can remain unchanged. The bridge accepts only relative `/catalog/...` targets and forwards them to the configured `CATALOG_UPSTREAM_ORIGIN`.
 
+The bridge retries GET requests once after a connection reset, broken pipe, or temporary DNS failure, within the configured upstream timeout. It does not replay writes, timed-out requests, or HTTP error responses. Secure requests use the same retry behavior without requiring a second handshake.
+
+For bridge 502/504 errors, server logs include `transport`, `upstream` (origin only), and `attempts`, without request headers, bodies, URL credentials, or query parameters. Check the configured target from the bridge host: `ENOTFOUND` indicates a DNS lookup failure, `ECONNREFUSED` indicates a refused connection, and `ECONNRESET` indicates an interrupted connection. A 504 indicates that the upstream timeout was reached. Validation and missing-configuration errors retain their original status instead of being reported as transport failures.
+
 ---
 
 ## Observability & Ops

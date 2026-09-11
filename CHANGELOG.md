@@ -1,5 +1,68 @@
 # Changelog
 
+## 16.6.0 (2026-09-11)
+
+### Summary
+
+- Change type: Documentation
+- Main change: PlayFab - Persist and replay missed SSE notifications (a524517)
+- Impact: Documentation with a medium change footprint across repository files, application logic.
+- Bump reason: medium change footprint (6 files, 92 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/eventsController.js
+- OpenAPI documentation: 1 file: src/docs/paths/events.stream.yaml
+- Repository files: 2 files: .dockerignore, .gitignore
+- Service layer: 2 files: src/services/eventJournal.js, src/services/sseHub.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 6
+- Line changes: +83 / -9
+
+## 16.7.0 (2026-09-11)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Restore watcher recovery and reliable state updates (161061e)
+- Impact: Repository update with a medium change footprint across application logic.
+- Bump reason: medium change footprint (8 files, 222 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/healthController.js
+- Service layer: 4 files: src/services/contentUpdateWatcher.js, src/services/featuredContentWatcher.js, plus 2 more
+- Shared utilities: 3 files: src/utils/projectors.js, src/utils/watcherCursor.js, plus 1 more
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 8
+- Line changes: +157 / -65
+
+## 16.8.0 (2026-09-11)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Configure notification watchers and cover recovery regressions (f215a5c)
+- Impact: Test coverage with a medium change footprint across repository files, application logic, test coverage.
+- Bump reason: medium change footprint (3 files, 245 total line changes)
+
+### Changed Areas
+
+- Application source: 1 file: src/scripts/setup.js
+- Repository files: 1 file: .env.example
+- Tests: 1 file: test/notificationReliability.test.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 3
+- Line changes: +242 / -3
 ## 16.4.2 (2026-09-10)
 
 ### Summary
@@ -3687,6 +3750,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

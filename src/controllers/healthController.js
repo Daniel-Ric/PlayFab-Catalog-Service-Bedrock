@@ -18,6 +18,8 @@ const {sendPlayFabRequest, getStoreItems, getSession} = require("../utils/playfa
 const {resolveTitle} = require("../utils/titles");
 const {salesWatcher} = require("../services/salesWatcher");
 const {itemWatcher} = require("../services/itemWatcher");
+const {subscriptionWatcher} = require('../services/subscriptionWatcher');
+const {featuredContentWatcher} = require('../services/featuredContentWatcher');
 const {contentUpdateWatcher} = require("../services/contentUpdateWatcher");
 const {priceWatcher} = require("../services/priceWatcher");
 const {trendingWatcher} = require("../services/trendingWatcher");
@@ -156,10 +158,16 @@ function watcherDetails(w, envPrefix, enabledBool) {
         };
     } else if (envPrefix === "CREATOR_PARTNER") {
         intervalMs = readIntEnv("CREATOR_PARTNER_WATCH_INTERVAL_MS", 21600000);
+    } else if (envPrefix === 'CONTENT_UPDATE') {
+        intervalMs = readIntEnv('CONTENT_UPDATE_WATCH_INTERVAL_MS', 30000);
+    } else if (envPrefix === 'SUBSCRIPTION') {
+        intervalMs = readIntEnv('SUBSCRIPTION_WATCH_INTERVAL_MS', 300000);
+    } else if (envPrefix === 'FEATURED_CONTENT') {
+        intervalMs = readIntEnv('FEATURED_CONTENT_WATCH_INTERVAL_MS', 21600000);
     }
 
     const running = !!w.running;
-    const lastRunTs = w.lastRunTs || 0;
+    const lastRunTs = w.lastSuccessAt || w.lastRunTs || 0;
     const msSinceLastRun = lastRunTs ? Date.now() - lastRunTs : null;
 
     let status;
@@ -167,6 +175,8 @@ function watcherDetails(w, envPrefix, enabledBool) {
         status = "disabled";
     } else if (!running) {
         status = "not_running";
+    } else if (w.lastError) {
+        status = 'error';
     } else {
         if (!intervalMs || msSinceLastRun == null) {
             status = "unknown";
@@ -180,6 +190,10 @@ function watcherDetails(w, envPrefix, enabledBool) {
         enabled: !!enabledBool,
         running,
         status,
+        inFlight: !!w.inFlight,
+        lastError: w.lastError || null,
+        lastErrorAt: w.lastErrorAt || null,
+        lastDurationMs: w.lastDurationMs ?? null,
         lastRunTs,
         msSinceLastRun,
         configuredIntervalMs: intervalMs,
@@ -439,6 +453,8 @@ exports.getHealth = async (_req, res, next) => {
             salesWatcher: watcherDetails(salesWatcher, "SALES", configInfo.watchersEnabled.sales),
             itemWatcher: watcherDetails(itemWatcher, "ITEM", configInfo.watchersEnabled.item),
             contentUpdateWatcher: watcherDetails(contentUpdateWatcher, "CONTENT_UPDATE", configInfo.watchersEnabled.contentUpdate),
+            subscriptionWatcher: watcherDetails(subscriptionWatcher, 'SUBSCRIPTION', readBoolEnv('ENABLE_SUBSCRIPTION_WATCHER')),
+            featuredContentWatcher: watcherDetails(featuredContentWatcher, 'FEATURED_CONTENT', readBoolEnv('ENABLE_FEATURED_CONTENT_WATCHER')),
             priceWatcher: watcherDetails(priceWatcher, "PRICE", configInfo.watchersEnabled.price),
             trendingWatcher: watcherDetails(trendingWatcher, "TRENDING", configInfo.watchersEnabled.trending),
             creatorPartnerWatcher: watcherDetails(creatorPartnerWatcher, "CREATOR_PARTNER", configInfo.watchersEnabled.creatorPartner)

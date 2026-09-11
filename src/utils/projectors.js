@@ -88,7 +88,9 @@ function normalizeDate(v) {
 
 function projectCatalogItem(item) {
     const safeItem = sanitizeCatalogItem(item, {exposeSensitive: sensitiveEventFieldsEnabled()});
+    if (safeItem) delete safeItem.__catalogComplete;
     return {
+        snapshotComplete: item?.__catalogComplete === true,
         id: safeItem?.Id || safeItem?.id || null,
         friendlyId: getFriendlyId(safeItem),
         type: safeItem?.Type || null,

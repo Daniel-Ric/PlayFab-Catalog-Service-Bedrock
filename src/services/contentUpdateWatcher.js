@@ -20,6 +20,7 @@ const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const {projectCatalogItem} = require("../utils/projectors");
 const {sanitizeCatalogItem, sensitiveEventFieldsEnabled} = require("../utils/catalogSanitizer");
 const {readJson, writeJsonAtomic} = require("../utils/storage");
+const {WatcherCursor} = require('../utils/watcherCursor');
 const {_internals: itemWatcherInternals} = require("./itemWatcher");
 
 const DEFAULT_STATE_FILE = path.join(__dirname, "../data/contentUpdateWatcherState.json");
@@ -207,7 +208,7 @@ function loadPersistedState() {
         return {state: deserializeState(readJson(filePath, [])), loaded: true};
     } catch (err) {
         logger.warn(`[ContentUpdateWatcher] failed to load state file: ${err.message}`);
-        return {state: new Map(), loaded: false};
+        throw err;
     }
 }
 
@@ -216,6 +217,7 @@ function savePersistedState(state) {
         writeJsonAtomic(stateFilePath(), serializeState(state));
     } catch (err) {
         logger.warn(`[ContentUpdateWatcher] failed to save state file: ${err.message}`);
+        throw err;
     }
 }
 
@@ -253,14 +255,18 @@ class ContentUpdateWatcher {
         const intervalMs = Math.max(10000, parseInt(process.env.CONTENT_UPDATE_WATCH_INTERVAL_MS || "30000", 10));
         const itemsPerRequest = Math.max(10, parseInt(process.env.CONTENT_UPDATE_WATCH_ITEMS_PER_REQUEST || "200", 10));
         const maxItems = Math.max(itemsPerRequest, parseInt(process.env.CONTENT_UPDATE_WATCH_MAX_ITEMS || "10000", 10));
-        const overlapMs = Math.max(0, parseInt(process.env.CONTENT_UPDATE_WATCH_OVERLAP_MS || "60000", 10));
+        const cursor = new WatcherCursor(`${stateFilePath()}.cursor.json`);
+        const overlapMs = Math.max(cursor.overlapMs, parseInt(process.env.CONTENT_UPDATE_WATCH_OVERLAP_MS || '0', 10));
 
         const run = async () => {
             const scanStartedAt = Date.now();
+            const window = cursor.window(scanStartedAt, overlapMs);
             const titleId = itemWatcherInternals.getTitleId();
             if (!this.bootstrapped) {
-                const recent = await itemWatcherInternals.fetchBootstrapItems(titleId, os, itemsPerRequest, maxItems, 0);
                 const persisted = loadPersistedState();
+                const recent = persisted.loaded
+                    ? await itemWatcherInternals.requestChangedItems(titleId, os, new Date(window.since).toISOString(), itemsPerRequest, maxItems)
+                    : await itemWatcherInternals.fetchBootstrapItems(titleId, os, itemsPerRequest, maxItems, 0);
                 const nextState = new Map(persisted.state);
                 const updates = [];
                 for (const item of recent) {
@@ -273,13 +279,14 @@ class ContentUpdateWatcher {
                 }
                 this.emitUpdates(eventBus, updates);
                 savePersistedState(nextState);
+                cursor.commit(scanStartedAt, window);
                 this.state = nextState;
                 this.lastRunTs = scanStartedAt;
                 this.bootstrapped = true;
                 return;
             }
 
-            const sinceTs = Math.max(0, (this.lastRunTs || Date.now()) - overlapMs);
+            const sinceTs = window.since;
             const sinceIso = new Date(sinceTs).toISOString();
             const changed = await itemWatcherInternals.requestChangedItems(titleId, os, sinceIso, itemsPerRequest, maxItems, sinceIso);
             const updates = [];
@@ -294,11 +301,13 @@ class ContentUpdateWatcher {
             }
             this.emitUpdates(eventBus, updates);
             savePersistedState(nextState);
+            cursor.commit(scanStartedAt, window);
             this.state = nextState;
             this.lastRunTs = scanStartedAt;
         };
 
         const runOnce = createNonOverlappingRunner({
+            status: this,
             run,
             onError: err => logger.error(`[ContentUpdateWatcher] run failed: ${err.stack || err.message}`),
             onSkip: () => logger.debug("[ContentUpdateWatcher] previous run still in progress; skipping tick")

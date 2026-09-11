@@ -17,6 +17,9 @@ const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
 const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const {fetchFeaturedPersona} = require("./featuredPersonaService");
+const path = require('node:path');
+const {readJson, writeJsonAtomic} = require('../utils/storage');
+const {sanitizeCatalogItem} = require('../utils/catalogSanitizer');
 
 function featuredItemId(item) {
     if (!item || typeof item !== "object") return null;
@@ -383,59 +386,69 @@ class FeaturedContentWatcher {
         this.running = true;
 
         const intervalMs = Math.max(60000, parseInt(process.env.FEATURED_CONTENT_WATCH_INTERVAL_MS || "21600000", 10));
+        const stateFile = process.env.FEATURED_CONTENT_WATCH_STATE_FILE || path.join(__dirname, '../data/featuredContentState.json');
+        const save = (ids, entries, signature) => writeJsonAtomic(stateFile, {
+            ids, entries: sanitizeCatalogItem(entries, {exposeSensitive: false}), signature
+        });
 
         const run = async () => {
-            try {
-                const titleId = getTitleId();
-                const payload = await fetchFeaturedPersona(titleId);
-                const entries = collectFeaturedItemEntries(payload);
-                const currentItemIds = uniqueIdsFromEntries(entries);
-                const currentItemIdsSet = new Set(currentItemIds);
-                const currentContentSignature = featuredContentSignature(payload, entries);
-
-                if (!this.lastItemIds) {
-                    this.lastItemIds = currentItemIdsSet;
-                    this.lastEntries = entries;
-                    this.lastContentSignature = currentContentSignature;
-                    return;
+            if (!this.lastItemIds) {
+                const stored = readJson(stateFile, null);
+                if (stored) {
+                    this.lastItemIds = new Set(stored.ids);
+                    this.lastEntries = stored.entries;
+                    this.lastContentSignature = stored.signature;
                 }
+            }
+            const titleId = getTitleId();
+            const payload = await fetchFeaturedPersona(titleId);
+            const entries = collectFeaturedItemEntries(payload);
+            const currentItemIds = uniqueIdsFromEntries(entries);
+            const currentItemIdsSet = new Set(currentItemIds);
+            const currentContentSignature = featuredContentSignature(payload, entries);
 
-                const previousItemIds = Array.from(this.lastItemIds);
-                const addedItemIds = currentItemIds.filter(id => !this.lastItemIds.has(id));
-                const removedItemIds = previousItemIds.filter(id => !currentItemIdsSet.has(id));
-                const contentChanged = this.lastContentSignature !== currentContentSignature;
-
-                if (addedItemIds.length || removedItemIds.length || contentChanged) {
-                    const eventPayload = buildFeaturedContentChangePayload({
-                        titleId,
-                        previousEntries: this.lastEntries,
-                        currentEntries: entries,
-                        previousContentSignature: this.lastContentSignature,
-                        currentContentSignature,
-                        content: payload
-                    });
-
-                    this.lastItemIds = currentItemIdsSet;
-                    this.lastEntries = entries;
-                    this.lastContentSignature = currentContentSignature;
-
-                    if (eventPayload) {
-                        emitFeaturedContentChangeEvents(eventBus, eventPayload);
-                    }
-                    return;
-                }
-
+            if (!this.lastItemIds) {
+                save(currentItemIds, entries, currentContentSignature);
                 this.lastItemIds = currentItemIdsSet;
                 this.lastEntries = entries;
                 this.lastContentSignature = currentContentSignature;
-            } catch (e) {
-                logger.debug(`[FeaturedContentWatcher] error ${e.message || "err"}`);
+                return;
             }
+
+            const previousItemIds = Array.from(this.lastItemIds);
+            const addedItemIds = currentItemIds.filter(id => !this.lastItemIds.has(id));
+            const removedItemIds = previousItemIds.filter(id => !currentItemIdsSet.has(id));
+            const contentChanged = this.lastContentSignature !== currentContentSignature;
+
+            if (addedItemIds.length || removedItemIds.length || contentChanged) {
+                const eventPayload = buildFeaturedContentChangePayload({
+                    titleId,
+                    previousEntries: this.lastEntries,
+                    currentEntries: entries,
+                    previousContentSignature: this.lastContentSignature,
+                    currentContentSignature,
+                    content: payload
+                });
+
+                if (eventPayload) {
+                    emitFeaturedContentChangeEvents(eventBus, eventPayload);
+                }
+                save(currentItemIds, entries, currentContentSignature);
+                this.lastItemIds = currentItemIdsSet;
+                this.lastEntries = entries;
+                this.lastContentSignature = currentContentSignature;
+                return;
+            }
+
+            this.lastItemIds = currentItemIdsSet;
+            this.lastEntries = entries;
+            this.lastContentSignature = currentContentSignature;
         };
 
         const runOnce = createNonOverlappingRunner({
+            status: this,
             run,
-            onError: e => logger.debug(`[FeaturedContentWatcher] error ${e.message || "err"}`),
+            onError: e => logger.error(`[FeaturedContentWatcher] error ${e.message || "err"}`),
             onSkip: () => logger.debug("[FeaturedContentWatcher] previous run still in progress; skipping tick")
         });
         runOnce();

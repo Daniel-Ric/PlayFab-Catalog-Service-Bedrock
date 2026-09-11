@@ -22,6 +22,7 @@ const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
 const {sanitizeCatalogItem, sensitiveEventFieldsEnabled} = require("../utils/catalogSanitizer");
 const {readJson, writeJsonAtomic} = require("../utils/storage");
+const {WatcherCursor} = require('../utils/watcherCursor');
 const SEARCH_ITEMS_MAX_COUNT = 50;
 const DEFAULT_STATE_FILE = path.join(__dirname, "../data/itemWatcherState.json");
 
@@ -114,7 +115,7 @@ async function fetchBootstrapItems(titleId, os, itemsPerRequest, maxItems, creat
         addItems(await fetchItemsSince(titleId, os, "CreationDate", createdSinceIso, itemsPerRequest, maxItems));
     }
 
-    return Array.from(itemMap.values()).slice(0, maxItems);
+    return Array.from(itemMap.values());
 }
 
 function shouldFetchNextPage(nextToken, previousToken, seenTokens) {
@@ -166,11 +167,6 @@ function idOfSearchHit(hit) {
     return hit.Id || hit.id || hit.Item?.Id || hit.Item?.id || hit.ItemId || hit.itemId || null;
 }
 
-function itemFromSearchHit(hit) {
-    if (!hit) return null;
-    return hit.Item || hit.item || hit;
-}
-
 async function searchItemsPage(titleId, os, filter, orderBy, continuationToken, count) {
     const safeCount = Math.max(1, Math.min(SEARCH_ITEMS_MAX_COUNT, parseInt(count, 10) || SEARCH_ITEMS_MAX_COUNT));
     const payload = {
@@ -185,7 +181,8 @@ async function searchItemsPage(titleId, os, filter, orderBy, continuationToken, 
         const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, os, {priority: "background"});
         return data || {};
     } catch (err) {
-        if (continuationToken || ![404, 405, 501, 429, 500, 502, 503, 504].includes(Number(err.status))) throw err;
+        const transportFailure = ['ECONNRESET', 'ETIMEDOUT', 'ECONNABORTED', 'EAI_AGAIN'].includes(err.code);
+        if (continuationToken || (!transportFailure && ![400, 404, 405, 422, 501, 429, 500, 502, 503, 504].includes(Number(err.status)))) throw err;
         logger.warn(`[ItemWatcher] Catalog/SearchItems failed; using Catalog/Search for this scan: ${err.message}`);
         return await searchItemsPageFallback(titleId, os, filter, orderBy, continuationToken, safeCount);
     }
@@ -240,10 +237,19 @@ async function requestItems(titleId, os, filter, orderBy, continuationToken, cou
     if (!hits.length) return {items: [], continuationToken: nextToken, hitCount: 0};
 
     const ids = hits.map(idOfSearchHit).filter(Boolean);
-    const full = await getItemsCompat(titleId, os, ids);
-    const fallbackItems = hits.map(itemFromSearchHit).filter(Boolean);
+    let full;
+    try { full = await getItemsCompat(titleId, os, ids); }
+    catch { full = []; }
     const byId = new Map(full.map(item => [item.Id || item.id, item]));
-    const items = fallbackItems.map(item => byId.get(item.Id || item.id) || item).filter(isWatchableMarketplaceItem);
+    for (const id of ids) {
+        if (byId.has(id)) continue;
+        const data = await sendPlayFabRequest(titleId, 'Catalog/GetItem', {Id: id}, 'X-EntityToken', 3, os, {priority: 'background'});
+        const item = data?.Item || data?.item;
+        if (!item || (item.Id || item.id) !== id) throw new Error(`Incomplete watcher details for item ${id}; retaining scan cursor.`);
+        byId.set(id, item);
+    }
+    if (ids.length !== hits.length) throw new Error('Watcher search returned a hit without an item ID.');
+    const items = ids.map(id => ({...byId.get(id), __catalogComplete: true})).filter(isWatchableMarketplaceItem);
     return {items, continuationToken: nextToken, hitCount: hits.length};
 }
 
@@ -324,7 +330,7 @@ function loadPersistedState() {
         return {state: deserializeState(readJson(filePath, [])), loaded: true};
     } catch (err) {
         logger.warn(`[ItemWatcher] failed to load state file: ${err.message}`);
-        return {state: new Map(), loaded: false};
+        throw err;
     }
 }
 
@@ -333,6 +339,7 @@ function savePersistedState(state) {
         writeJsonAtomic(stateFilePath(), serializeState(state));
     } catch (err) {
         logger.warn(`[ItemWatcher] failed to save state file: ${err.message}`);
+        throw err;
     }
 }
 
@@ -429,21 +436,27 @@ class ItemWatcher {
         const maxItems = Math.max(itemsPerRequest, parseInt(process.env.ITEM_WATCH_MAX_ITEMS || "10000", 10));
         const bootstrapItemsPerRequest = Math.max(10, parseInt(process.env.ITEM_WATCH_BOOTSTRAP_ITEMS_PER_REQUEST || String(itemsPerRequest), 10));
         const bootstrapMaxItems = Math.max(bootstrapItemsPerRequest, parseInt(process.env.ITEM_WATCH_BOOTSTRAP_MAX_ITEMS || "600", 10));
-        const overlapMs = Math.max(0, parseInt(process.env.ITEM_WATCH_OVERLAP_MS || "60000", 10));
+        const cursor = new WatcherCursor(`${stateFilePath()}.cursor.json`);
+        const overlapMs = Math.max(cursor.overlapMs, parseInt(process.env.ITEM_WATCH_OVERLAP_MS || '0', 10));
         const createdLookbackMs = Math.max(overlapMs, parseInt(process.env.ITEM_WATCH_CREATED_LOOKBACK_MS || "86400000", 10));
 
         const run = async () => {
             const scanStartedAt = Date.now();
+            const window = cursor.window(scanStartedAt, overlapMs);
             const titleId = getTitleId();
 
             if (!this.bootstrapped) {
-                const recent = await fetchBootstrapItems(titleId, os, bootstrapItemsPerRequest, bootstrapMaxItems, createdLookbackMs);
                 const persisted = loadPersistedState();
+                const recent = persisted.loaded
+                    ? await requestChangedItems(titleId, os, new Date(window.since).toISOString(), itemsPerRequest, maxItems, new Date(Math.min(window.since, scanStartedAt - createdLookbackMs)).toISOString())
+                    : await fetchBootstrapItems(titleId, os, bootstrapItemsPerRequest, bootstrapMaxItems, createdLookbackMs);
                 const bootstrapMap = new Map(persisted.state);
                 const created = [];
                 const updated = [];
-                const createdSinceTs = Math.max(0, scanStartedAt - createdLookbackMs);
-                const updatedSinceTs = Math.max(0, scanStartedAt - overlapMs);
+                const createdSinceTs = Math.max(0, persisted.loaded
+                    ? Math.min(window.since, scanStartedAt - createdLookbackMs)
+                    : scanStartedAt - createdLookbackMs);
+                const updatedSinceTs = window.since;
 
                 for (const it of recent) {
                     const id = it.Id || it.id;
@@ -482,19 +495,21 @@ class ItemWatcher {
                     });
                 }
                 savePersistedState(bootstrapMap);
+                cursor.commit(scanStartedAt, window);
                 this.state = bootstrapMap;
                 this.lastRunTs = scanStartedAt;
                 this.bootstrapped = true;
                 return;
             }
 
-            const sinceTs = Math.max(0, (this.lastRunTs || Date.now()) - overlapMs);
+            const sinceTs = window.since;
             const sinceIso = new Date(sinceTs).toISOString();
             const createdSinceTs = Math.max(0, Date.now() - createdLookbackMs);
             const createdSinceIso = new Date(createdSinceTs).toISOString();
 
             const changed = await requestChangedItems(titleId, os, sinceIso, itemsPerRequest, maxItems, createdSinceIso);
             if (!changed.length) {
+                cursor.commit(scanStartedAt, window);
                 this.lastRunTs = scanStartedAt;
                 return;
             }
@@ -542,11 +557,13 @@ class ItemWatcher {
             }
 
             savePersistedState(nextState);
+            cursor.commit(scanStartedAt, window);
             this.state = nextState;
             this.lastRunTs = scanStartedAt;
         };
 
         const runOnce = createNonOverlappingRunner({
+            status: this,
             run,
             onError: err => {
                 logger.error(`[ItemWatcher] run failed: ${err.stack || err.message}`);

@@ -122,7 +122,7 @@ function loadPersistedState() {
         return {state: deserializeState(readJson(filePath, {})), loaded: true};
     } catch (err) {
         logger.warn(`[SubscriptionWatcher] failed to load state file: ${err.message}`);
-        return {state: deserializeState({}), loaded: false};
+        throw err;
     }
 }
 
@@ -131,6 +131,7 @@ function savePersistedState(state) {
         writeJsonAtomic(stateFilePath(), serializeState(state));
     } catch (err) {
         logger.warn(`[SubscriptionWatcher] failed to save state file: ${err.message}`);
+        throw err;
     }
 }
 
@@ -232,7 +233,6 @@ class SubscriptionWatcher {
                 }
                 const previous = this.state[key] || new Map();
                 const {currentMap, added, removed, updated} = diffSubscriptionItems(previous, items, key);
-                this.state[key] = currentMap;
 
                 eventBus.emit(subscriptionEventName(key, "snapshot"), {
                     ts: Date.now(),
@@ -267,16 +267,21 @@ class SubscriptionWatcher {
                         items: projectUpdatedSubscriptionItems(updated, key)
                     });
                 }
+                const nextState = {...this.state, [key]: currentMap};
+                savePersistedState(nextState);
+                this.state = nextState;
                 successfulRefreshes += 1;
             }
 
             if (successfulRefreshes > 0) {
-                savePersistedState(this.state);
                 this.suppressInitialChanges = false;
+            } else {
+                throw new Error('No subscription list could be refreshed; keeping previous memberships.');
             }
         };
 
         const runOnce = createNonOverlappingRunner({
+            status: this,
             run,
             onError: err => logger.error(`[SubscriptionWatcher] run failed: ${err.stack || err.message}`),
             onSkip: () => logger.debug("[SubscriptionWatcher] previous run still in progress; skipping tick")

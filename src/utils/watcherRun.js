@@ -12,7 +12,7 @@
 //
 // -----------------------------------------------------------------------------
 
-function createNonOverlappingRunner({run, onError, onSkip, skipLogIntervalMs = 60000, now = () => Date.now()}) {
+function createNonOverlappingRunner({run, onError, onSkip, status = {}, skipLogIntervalMs = 60000, now = () => Date.now()}) {
     let inFlight = false;
     let lastSkipLogTs = 0;
 
@@ -27,10 +27,16 @@ function createNonOverlappingRunner({run, onError, onSkip, skipLogIntervalMs = 6
         }
 
         inFlight = true;
+        status.inFlight = true;
+        status.lastStartedAt = now();
         try {
             await run();
+            status.lastSuccessAt = now();
+            status.lastError = null;
             return true;
         } catch (err) {
+            status.lastError = err.message;
+            status.lastErrorAt = now();
             if (typeof onError === "function") {
                 onError(err);
                 return false;
@@ -38,6 +44,8 @@ function createNonOverlappingRunner({run, onError, onSkip, skipLogIntervalMs = 6
             throw err;
         } finally {
             inFlight = false;
+            status.inFlight = false;
+            status.lastDurationMs = now() - status.lastStartedAt;
         }
     };
 }

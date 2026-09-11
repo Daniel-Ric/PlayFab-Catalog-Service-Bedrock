@@ -15,3 +15,6 @@ src/data/subscriptionWatcherState.json
 src/data/subscriptionWatcherState.json.*.tmp
 src/data/webhooks.json
 src/data/webhooks.json.*.tmp
+src/data/events.json*
+src/data/featuredContentState.json*
+src/data/*.cursor.json*

@@ -19,9 +19,21 @@
     description: >
       Server-Sent Events stream for marketplace and creator events.
       Optionally filter by event types and/or creator name.
+      Reconnect with Last-Event-ID to replay retained notifications (seven days,
+      up to 128 MiB, with the latest record retained). A ready event checkpoints
+      the stream. replay-gap indicates that the cursor is no longer retained;
+      available retained events are then replayed. Initial connections without
+      a cursor receive live events only. Persist the API data volume.
     security:
       - BearerAuth: [ ]
     parameters:
+      - in: header
+        name: Last-Event-ID
+        required: false
+        description: Last durably accepted SSE event ID; 0 replays all retained events.
+        schema:
+          type: string
+          maxLength: 200
       - in: query
         name: events
         required: false

@@ -15,13 +15,14 @@
 const logger = require("../config/logger");
 const {getCreatorNamesFromPayload} = require("../utils/eventPayload");
 const {EVENT_NAMES} = require("../config/eventNames");
+const {EventJournal} = require('./eventJournal');
 
 class SseHub {
     constructor(options = {}) {
         this.clients = new Set();
         this.clientsByKey = new Map();
         this.initialized = false;
-        this.seq = 0;
+        this.journal = options.journal || new EventJournal({file: process.env.SSE_JOURNAL_FILE});
         this.maxClients = this.readPositiveInt(options.maxClients, process.env.SSE_MAX_CLIENTS, 1000);
         this.maxClientsPerKey = this.readPositiveInt(options.maxClientsPerKey, process.env.SSE_MAX_CLIENTS_PER_IDENTITY, 100);
         this.maxQueueBytes = this.readPositiveInt(options.maxQueueBytes, process.env.SSE_MAX_QUEUE_BYTES, 32 * 1024 * 1024);
@@ -42,7 +43,8 @@ class SseHub {
         }
     }
 
-    addClient(res, filters, clientKey = "unknown") {
+    addClient(res, filters, clientKey = "unknown", lastEventId = null) {
+        const replay = this.journal.replay(lastEventId);
         const key = String(clientKey || "unknown");
         if (this.clients.size >= this.maxClients) {
             const error = new Error("SSE connection capacity reached.");
@@ -95,7 +97,11 @@ class SseHub {
 
         this.clients.add(client);
         this.clientsByKey.set(key, (this.clientsByKey.get(key) || 0) + 1);
-        this.write(client, "event: ready\ndata: {}\n\n");
+        if (replay.gap) this.write(client, 'event: replay-gap\ndata: {"reason":"cursor_not_retained"}\n\n');
+        for (const record of replay.records) {
+            if (this.matchesFilter(filters, record.event, record.data)) this.write(client, this.frame(record));
+        }
+        this.write(client, `id: ${replay.latestId}\nevent: ready\ndata: {}\n\n`);
         return client;
     }
 
@@ -164,12 +170,15 @@ class SseHub {
         return true;
     }
 
-    broadcast(eventName, payload) {
-        if (!this.clients.size) return;
+    frame(record) {
+        return `${record.id ? `id: ${record.id}\n` : ''}event: ${record.event}\ndata: ${JSON.stringify({event: record.event, data: record.data})}\n\n`;
+    }
 
-        const id = (payload && typeof payload.ts === "number" ? String(payload.ts) : String(Date.now())) + "-" + String(++this.seq);
-        const frameData = JSON.stringify({event: eventName, data: payload});
-        const line = `id: ${id}\nevent: ${eventName}\ndata: ${frameData}\n\n`;
+    broadcast(eventName, payload) {
+        const record = eventName.endsWith('.snapshot')
+            ? {event: eventName, data: payload}
+            : this.journal.append(eventName, payload);
+        const line = this.frame(record);
 
         for (const client of this.clients) {
             const res = client.res;

@@ -46,5 +46,6 @@ exports.stream = (req, res) => {
     };
 
     const clientKey = req.user && req.user.sub ? `user:${req.user.sub}` : `ip:${req.ip || req.socket?.remoteAddress || "unknown"}`;
-    sseHub.addClient(res, filters, clientKey);
+    const cursor = req.headers['last-event-id'];
+    sseHub.addClient(res, filters, clientKey, typeof cursor === 'string' ? cursor.slice(0, 200) : null);
 };

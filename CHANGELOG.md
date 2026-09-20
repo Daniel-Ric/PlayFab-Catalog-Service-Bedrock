@@ -1,5 +1,29 @@
 # Changelog
 
+## 17.0.0 (2026-09-20)
+
+### Summary
+
+- Change type: Test coverage
+- Main change: PlayFab - Improve catalog indexing and clean repository (ae1ecd8)
+- Impact: Test coverage with a large change footprint across repository files, CI and workflow automation, application logic.
+- Bump reason: large change footprint (34 files, 1096 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/marketplace/salesController.js
+- API routes: 1 file: src/routes/marketplace/catalog-index.js
+- Application source: 5 files: src/index.js, src/middleware/pagination.js, plus 3 more
+- GitHub automation scripts: 1 file: .github/scripts/generate-wiki.js
+- OpenAPI documentation: 5 files: src/docs/paths/catalog-index.yaml, src/docs/schemas/AdvancedSearchResponse.yaml, plus 3 more
+- Repository files: 2 files: .env.example, .gitignore
+- Other areas: 4 additional groups.
+
+### Release Metrics
+
+- Version bump: major
+- Files changed: 34
+- Line changes: +1060 / -36
 ## 16.6.0 (2026-09-11)
 
 ### Summary
@@ -3750,6 +3774,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

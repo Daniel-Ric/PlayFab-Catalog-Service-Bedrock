@@ -42,6 +42,15 @@ function withPagination(handler, opts = {}) {
             const paginated = serverPaginated
                 ? buildPaginatedResult(rest.items, params, total)
                 : {...rest, ...sliceArray(rest.items, {...params, totalOverride: total}), total};
+            if (serverPaginated) {
+
+
+                paginated.meta.rawTotal = result.rawTotal ?? null;
+                paginated.meta.totalIsExact = false;
+                paginated.meta.total = null;
+                paginated.total = null;
+                paginated.coverage = {status: "partial", reason: "legacy_raw_pagination", total: null, totalIsExact: false};
+            }
             setPaginationHeaders(res, paginated.meta);
             return paginated;
         }

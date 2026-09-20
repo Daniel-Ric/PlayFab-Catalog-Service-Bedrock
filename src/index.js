@@ -28,8 +28,8 @@ const versionRoutes = require("./routes/version");
 const rateLimit = require("express-rate-limit");
 
 const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 1000, // limit each IP to 1000 authenticated requests per windowMs
+    windowMs: 15 * 60 * 1000,
+    max: 1000,
     standardHeaders: true,
     legacyHeaders: false,
 });
@@ -397,6 +397,10 @@ function requireRole(role) {
     };
 }
 
+
+app.use("/marketplace", require("./routes/marketplace/catalog-index").createCatalogIndexRouter(undefined,
+    createOptionalRateLimiter("CATALOG_INDEX", {windowMs: 60 * 1000, max: 6000})));
+
 if (process.env.VALIDATE_REQUESTS === "true") {
     function bearerAuthHandler(req) {
         const authHeader = req.headers["authorization"];
@@ -505,6 +509,7 @@ app.listen(port, async () => {
     }
     initSseHub(eventBus);
     initWebhookDispatcher(eventBus);
+    require("./services/catalogIndexStore").startCatalogIndexSync(logger);
 
     if (process.env.ENABLE_SALES_WATCHER === "true") {
         salesWatcher.start(eventBus);

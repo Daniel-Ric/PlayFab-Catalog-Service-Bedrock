@@ -180,7 +180,8 @@ test("full item enrichment cannot restore private content fields", () => {
 
 test("readCatalogTotal returns upstream total count variants", () => {
     assert.equal(marketplaceServiceInternals.readCatalogTotal({TotalCount: 12}), 12);
-    assert.equal(marketplaceServiceInternals.readCatalogTotal({Count: 42601}), 42601);
+    assert.equal(marketplaceServiceInternals.readCatalogTotal({Count: 50}), null);
+    assert.equal(marketplaceServiceInternals.readCatalogTotal({TotalCount: null, count: 50}), null);
     assert.equal(marketplaceServiceInternals.readCatalogTotal({total: 4}), 4);
     assert.equal(marketplaceServiceInternals.readCatalogTotal({}), null);
 });

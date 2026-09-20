@@ -1,0 +1,20 @@
+CatalogCoverage:
+  type: object
+  properties:
+    status:
+      type: string
+      enum: [complete, partial, stale]
+    reason:
+      type: string
+      nullable: true
+    total:
+      type: integer
+      nullable: true
+    totalIsExact:
+      type: boolean
+    snapshotId:
+      type: string
+      nullable: true
+    updatedAt:
+      type: string
+      nullable: true

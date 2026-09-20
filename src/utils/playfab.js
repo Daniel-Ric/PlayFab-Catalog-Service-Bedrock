@@ -118,7 +118,7 @@ function resolvePlayFabDeviceId(env = process.env, options = {}) {
 function resolveSessionExpiresAt(tokenExpiration, now = Date.now()) {
     const tokenExpiresAt = Date.parse(tokenExpiration || "");
     if (!Number.isFinite(tokenExpiresAt) || tokenExpiresAt <= now) return now + SESSION_FALLBACK_TTL_MS;
-    // Refresh shortly before PlayFab rejects the token.
+
     const refreshSkew = Math.min(SESSION_EXPIRY_SKEW_MS, Math.floor((tokenExpiresAt - now) / 2));
     return tokenExpiresAt - refreshSkew;
 }
@@ -253,8 +253,9 @@ function catalogItems(data) {
 }
 
 function catalogTotalCount(data) {
-    const candidates = [data?.TotalCount, data?.totalCount, data?.Total, data?.total, data?.Count, data?.count];
+    const candidates = [data?.TotalCount, data?.totalCount, data?.Total, data?.total];
     for (const candidate of candidates) {
+        if (candidate == null || candidate === "") continue;
         const total = Number(candidate);
         if (Number.isFinite(total) && total >= 0) return total;
     }

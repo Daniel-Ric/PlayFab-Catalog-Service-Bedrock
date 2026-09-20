@@ -1,10 +1,10 @@
-// -----------------------------------------------------------------------------
-//
-// File: .github/scripts/generate-wiki.js
-// Generates structured GitHub Wiki markdown from the repository's OpenAPI spec,
-// source tree, package metadata, tests, and runtime configuration references.
-//
-// -----------------------------------------------------------------------------
+
+
+
+
+
+
+
 
 const fs = require("fs");
 const path = require("path");

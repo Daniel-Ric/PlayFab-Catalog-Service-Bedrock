@@ -39,3 +39,13 @@ test("offset pagination emits migration headers", () => {
     assert.equal(headers.Deprecation, "true");
     assert.match(headers.Warning, /continuationToken/);
 });
+
+test('raw totals never masquerade as visible offer totals; filtered pages still advance', async () => {
+    const headers = {};
+    const result = await withPagination(async () => ({items: [], total: 793, rawTotal: 793, serverPaginated: true}))(
+        {query: {page: 1, pageSize: 100, limit: 100}}, {setHeader: (key, value) => { headers[key] = value; }});
+    assert.equal(result.meta.total, null);
+    assert.equal(result.meta.rawTotal, 793);
+    assert.equal(result.meta.hasNext, true);
+    assert.equal(headers['X-Total-Count'], undefined);
+});

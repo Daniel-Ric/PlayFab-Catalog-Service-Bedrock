@@ -76,8 +76,8 @@ function sliceArray(items, params) {
 }
 
 function setPaginationHeaders(res, meta) {
-    res.setHeader("X-Total-Count", String(meta.total));
-    res.setHeader("Content-Range", `items ${meta.start}-${meta.end >= meta.start ? meta.end : meta.start}/${meta.total}`);
+    if (meta.total != null) res.setHeader("X-Total-Count", String(meta.total));
+    res.setHeader("Content-Range", `items ${meta.start}-${meta.end >= meta.start ? meta.end : meta.start}/${meta.total ?? '*'}`);
 }
 
 module.exports = {normalizeParams, buildPaginatedResult, sliceArray, setPaginationHeaders};

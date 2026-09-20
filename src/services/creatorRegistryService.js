@@ -108,6 +108,12 @@ async function syncCreatorRegistry(titleId = getTitleId()) {
     const previous = loadCreators().slice();
     const current = await fetchCreatorRegistry(titleId);
     const diff = diffCreators(previous, current);
+    const previousById = new Map(previous.map(creator => [creator.id, creator]));
+    for (const creator of current) {
+        const old = previousById.get(creator.id);
+        creator.aliases = [...new Set([...(old?.aliases || []), old?.creatorName, old?.displayName,
+            creator.creatorName, creator.displayName].filter(Boolean))];
+    }
     saveCreators(current);
     return {previous, current, diff};
 }

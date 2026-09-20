@@ -14,6 +14,8 @@
 PaginatedItems:
   type: object
   properties:
+    coverage:
+      $ref: '#/components/schemas/CatalogCoverage'
     items:
       type: array
       items:

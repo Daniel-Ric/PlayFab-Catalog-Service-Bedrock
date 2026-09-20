@@ -1,0 +1,50 @@
+/marketplace/browse:
+  get:
+    summary: Browse a complete persistent catalog snapshot
+    description: Public card metadata. Cursor binds query and snapshot. Replaced snapshots remain readable for two minutes; expired cursors return 409 and require restarting pagination. Creator names match offer aliases without expanding through shared upload accounts. See CATALOG_INDEX.md for all filters.
+    security: []
+    tags: [Marketplace]
+    parameters:
+      - in: query
+        name: limit
+        schema: {type: integer, minimum: 1, maximum: 1000, default: 24}
+      - in: query
+        name: cursor
+        schema: {type: string, maxLength: 8192}
+      - in: query
+        name: scope
+        schema: {type: string, enum: [marketplace, persona, server, raw, all, offers]}
+      - in: query
+        name: category
+        schema: {type: string}
+      - in: query
+        name: creator
+        schema: {type: string}
+      - in: query
+        name: q
+        schema: {type: string, maxLength: 200}
+    responses:
+      '200': {description: Items, pagination, and explicit snapshot coverage}
+      '400': {description: Invalid query or cursor}
+      '409': {description: Snapshot changed}
+/marketplace/home:
+  get:
+    summary: Bounded discovery blocks from the local catalog index
+    security: []
+    tags: [Marketplace]
+    responses:
+      '200': {description: At most 12 cards in each of six blocks plus coverage}
+/marketplace/index-stats:
+  get:
+    summary: Separate offer, persona, raw and archive counts
+    security: []
+    tags: [Marketplace]
+    responses:
+      '200': {description: Scope and category counts plus coverage}
+/marketplace/coverage:
+  get:
+    summary: Persistent catalog import progress and last error
+    security: []
+    tags: [Marketplace]
+    responses:
+      '200': {description: Snapshot age, open partitions and sync outcome}

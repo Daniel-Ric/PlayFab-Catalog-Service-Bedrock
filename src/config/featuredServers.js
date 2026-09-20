@@ -12,7 +12,7 @@
 //
 // -----------------------------------------------------------------------------
 
-// src/config/featuredServers.js
+
 module.exports = [
     {name: 'GALAXITE', id: '086920fe-4f18-4db5-a7bf-b587cec822ec'},
     {name: 'Lifeboat', id: '6b5e355a-be73-4f2c-8c2f-e0623517b7f6'},

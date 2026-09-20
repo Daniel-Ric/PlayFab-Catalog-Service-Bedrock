@@ -16,8 +16,15 @@ PaginationMeta:
   properties:
     total:
       type: integer
+      nullable: true
       format: int64
       minimum: 0
+    rawTotal:
+      type: integer
+      nullable: true
+      description: Upstream raw count, including non-offer rows; null if not supplied.
+    totalIsExact:
+      type: boolean
     page:
       type: integer
       minimum: 1
@@ -41,4 +48,4 @@ PaginationMeta:
       minimum: 0
     end:
       type: integer
-      minimum: 0
+      minimum: -1

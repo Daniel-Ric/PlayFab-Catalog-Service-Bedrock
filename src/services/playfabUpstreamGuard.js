@@ -109,12 +109,15 @@ function createUpstreamGuard(options = {}) {
         const halfOpenProbe = reserve(entry);
         let started = false;
         try {
-            return await entry.limiter.schedule({priority: PRIORITIES.default}, async () => {
+            return await entry.limiter.schedule({priority: resolvePriority(scheduleOptions.priority)}, async () => {
                 started = true;
                 if (!halfOpenProbe && entry.circuit.openUntil > clock()) rejectCircuit(entry);
                 entry.metrics.started += 1;
                 try {
-                    const result = await task();
+                    const sharedDirectory = options.sharedDirectory || process.env.PLAYFAB_SHARED_BUDGET_DIRECTORY;
+                    const result = sharedDirectory && /^catalog\/search(items)?$/i.test(endpoint)
+                        ? await require("./sharedUpstreamBudget").withSharedSearchBudget(sharedDirectory, `${titleId}:${endpoint}`, entry.policy.minTime, task)
+                        : await task();
                     const status = Number(result?.status) || 0;
                     record(entry, status, scheduleOptions.trackFailure !== false || halfOpenProbe);
                     if (status >= 400) entry.metrics.failed += 1; else entry.metrics.succeeded += 1;

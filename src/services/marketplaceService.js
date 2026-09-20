@@ -98,18 +98,20 @@ function resolveCatalogPagination(query = {}, fallbackTop, maxTop = PAGE_SIZE) {
 }
 
 function readCatalogTotal(data) {
-    const candidates = [data?.TotalCount, data?.totalCount, data?.Total, data?.total, data?.Count, data?.count];
+    const candidates = [data?.TotalCount, data?.totalCount, data?.Total, data?.total];
     for (const candidate of candidates) {
+        if (candidate == null || candidate === "") continue;
         const total = Number(candidate);
         if (Number.isFinite(total) && total >= 0) return total;
     }
     return null;
 }
 
-function resolveCatalogTotal(data, skip, itemCount) {
+function resolveCatalogTotal(data, skip, itemCount, requestedCount) {
     const total = readCatalogTotal(data);
     if (total !== null) return total;
-    return skip + itemCount;
+    const rawCount = (data?.Items || data?.items || []).length;
+    return skip + rawCount + (rawCount >= requestedCount ? 1 : 0);
 }
 
 function buildAllFilter(query = {}) {
@@ -484,6 +486,7 @@ async function fetchSearchPageByFilter(titleId, query = {}, filter = "", orderBy
     if (params.skip > 10000) return fetchSearchPageWithCursor(titleId, params, filter, orderBy);
     const items = [];
     let total = null;
+    let rawTotal = null;
     let skip = params.skip;
     let remaining = params.limit;
 
@@ -495,8 +498,9 @@ async function fetchSearchPageByFilter(titleId, query = {}, filter = "", orderBy
             const raw = data.Items || data.items || [];
 
             const upstreamTotal = readCatalogTotal(data);
+            if (upstreamTotal !== null) rawTotal = upstreamTotal;
             if (upstreamTotal !== null) total = upstreamTotal;
-            else total = skip + raw.length;
+            else total = skip + raw.length + (raw.length === top ? 1 : 0);
 
             items.push(...raw.filter(isValidItem).map(transformItem));
             if (!raw.length || raw.length < top || (upstreamTotal !== null && skip + raw.length >= upstreamTotal)) break;
@@ -510,7 +514,7 @@ async function fetchSearchPageByFilter(titleId, query = {}, filter = "", orderBy
         return fetchSearchPageWithCursor(titleId, params, filter, orderBy);
     }
 
-    return {params, items, total: total ?? params.skip + items.length};
+    return {params, items, total: total ?? params.skip + items.length, rawTotal};
 }
 
 function canUseServerSearchPage(query = {}) {
@@ -690,7 +694,7 @@ module.exports = {
             const page = await fetchAllSearchPage(titleId, query, orderBy);
             let items = await enrichWithFullItems(titleId, page.items, query);
             if (expand.refs || shouldResolveReferences(query, false)) items = await enrichItemsWithResolvedReferences(titleId, items);
-            return {items, total: page.total, serverPaginated: true};
+            return {items, total: page.total, rawTotal: page.rawTotal ?? null, serverPaginated: true};
         }
         const list = await fetchAllSearchItems(titleId, query, orderBy);
         const enriched = await enrichWithFullItems(titleId, list, query);
@@ -713,7 +717,8 @@ module.exports = {
         if (!params.apply) return transformed;
         return {
             items: transformed,
-            total: resolveCatalogTotal(data, skip, transformed.length),
+            total: resolveCatalogTotal(data, skip, transformed.length, top),
+            rawTotal: readCatalogTotal(data),
             serverPaginated: true
         };
     },
@@ -735,7 +740,8 @@ module.exports = {
         if (!params.apply) return transformed;
         return {
             items: transformed,
-            total: resolveCatalogTotal(data, skip, transformed.length),
+            total: resolveCatalogTotal(data, skip, transformed.length, top),
+            rawTotal: readCatalogTotal(data),
             serverPaginated: true
         };
     },
@@ -755,7 +761,7 @@ module.exports = {
                 const aDate = Date.parse(a.StartDate || a.startDate || a.CreationDate || "") || 0;
                 return bDate - aDate;
             });
-            return {items, total: page.total, serverPaginated: true};
+            return {items, total: page.total, rawTotal: page.rawTotal ?? null, serverPaginated: true};
         }
         let items = await searchLoop(titleId, {filter, orderBy, batch: 300});
         items = await enrichWithFullItems(titleId, items, query);

@@ -641,6 +641,7 @@ exports.advancedSearch = async (alias, body, {page, pageSize}) => {
         let pagesScanned = 0;
         let latestPayload = null;
         let cursorRepeated = false;
+        let failure = null;
 
         while (pagesScanned < normalized.cursorPages) {
             const payload = searchInternals.buildSearchItemsPayload({
@@ -654,7 +655,15 @@ exports.advancedSearch = async (alias, body, {page, pageSize}) => {
                 store: normalized.store
             });
             latestPayload = payload;
-            const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, OS);
+            let data;
+            try {
+                data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, OS);
+            } catch (error) {
+                if (!pagesScanned) throw error;
+                failure = /skip must be between/i.test(`${error.message} ${error.publicMessage || ""}`) ? "upstream_search_window" : "upstream_error";
+                nextContinuationToken = continuationToken;
+                break;
+            }
             raw.push(...(data?.Items || data?.items || []));
             pagesScanned += 1;
 
@@ -662,7 +671,8 @@ exports.advancedSearch = async (alias, body, {page, pageSize}) => {
             if (!nextContinuationToken) break;
             if (nextContinuationToken === continuationToken || seenContinuationTokens.has(nextContinuationToken)) {
                 cursorRepeated = true;
-                nextContinuationToken = "";
+                failure = "cursor_repeated";
+                nextContinuationToken = continuationToken;
                 break;
             }
             seenContinuationTokens.add(nextContinuationToken);
@@ -674,6 +684,11 @@ exports.advancedSearch = async (alias, body, {page, pageSize}) => {
         const sorted = applyLocalSort(filtered, localSort);
         return {
             items: sorted,
+            coverage: {
+                status: failure || nextContinuationToken ? "partial" : "complete",
+                reason: failure, total: null, totalIsExact: false,
+                updatedAt: new Date().toISOString()
+            },
             meta: {
                 mode: "cursor",
                 count: sorted.length,
@@ -684,6 +699,7 @@ exports.advancedSearch = async (alias, body, {page, pageSize}) => {
                 continuationToken: nextContinuationToken || null,
                 hasNext: Boolean(nextContinuationToken),
                 cursorRepeated,
+                failure,
                 language: latestPayload?.Language || null,
                 requestedSelect: normalized.select || "",
                 select: latestPayload?.Select || "",

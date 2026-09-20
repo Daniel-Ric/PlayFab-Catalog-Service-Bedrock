@@ -13,6 +13,8 @@
 // -----------------------------------------------------------------------------
 
 const {spawnSync} = require("node:child_process");
+const fs = require("node:fs");
+const path = require("node:path");
 
 function supportsTestIsolationFlag() {
     return process.allowedNodeEnvironmentFlags.has("--test-isolation")
@@ -22,6 +24,10 @@ function supportsTestIsolationFlag() {
 const args = supportsTestIsolationFlag()
     ? ["--test", "--test-isolation=none"]
     : ["--test"];
+
+args.push(...fs.readdirSync(path.join(__dirname, "../../test"))
+    .filter(file => file.endsWith(".test.js"))
+    .map(file => path.join(__dirname, "../../test", file)));
 
 const result = spawnSync(process.execPath, args, {
     stdio: "inherit",

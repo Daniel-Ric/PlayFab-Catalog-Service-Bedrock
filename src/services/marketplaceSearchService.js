@@ -188,7 +188,8 @@ function normalizeSearchItem(item, language, includeRaw = false) {
         title: localizedValue(item?.Title || item?.title, language),
         description: localizedValue(item?.Description || item?.description, language),
         keywords: normalizeKeywordValues(item?.Keywords || item?.keywords, language),
-        creatorId: item?.CreatorId || item?.creatorId || item?.CreatorEntityKey?.Id || null,
+        creatorId: item?.CreatorId || item?.creatorId || (item?.CreatorEntityKey?.Type && item?.CreatorEntityKey?.Id
+            ? `${item.CreatorEntityKey.Type}!${item.CreatorEntityKey.Id}` : item?.CreatorEntityKey?.Id) || null,
         creatorName: item?.DisplayProperties?.creatorName || item?.displayProperties?.creatorName || "",
         thumbnail: thumbnailFrom(images),
         images,

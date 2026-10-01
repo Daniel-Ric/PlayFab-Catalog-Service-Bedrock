@@ -136,6 +136,42 @@ test('actual item watcher detects a three-minute late index update and survives 
     second.module.itemWatcher.stop();
 });
 
+test('item watcher preserves omitted locales across scans and restart, but applies explicit edits and clears', async t => {
+    const file = path.join(temp(t), 'state.json');
+    const env = {ITEM_WATCH_STATE_FILE: file};
+    let now = 1800000000000;
+    const full = {Id: 'locales', Title: {NEUTRAL: 'Pet', 'de-DE': 'Haustier'},
+        Description: {NEUTRAL: 'Description', 'de-DE': 'Beschreibung'},
+        CreationDate: new Date(now - 10 * 86400000).toISOString(), LastModifiedDate: new Date(now).toISOString()};
+    let visible = full;
+    const events = [];
+    const mocks = {'../config/logger': quiet, '../utils/playfab': {
+        isWatchableMarketplaceItem: () => true, getItemsByIds: async () => [],
+        sendPlayFabRequest: async () => ({Items: [visible]})
+    }};
+    const load = () => loadWatcher('itemWatcher.js', env, mocks, () => now);
+    const bus = {emit: (event, payload) => { if (event === 'item.updated') events.push(payload.items[0]); }};
+    const first = load(); first.module.itemWatcher.start(bus); await settled(first.module.itemWatcher);
+    visible = {...full, Title: {NEUTRAL: 'Pet'}, Description: undefined};
+    now += 30000; await first.tick();
+    assert.equal(events.length, 0);
+    assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8'))[0].raw.Title, full.Title);
+    assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8'))[0].raw.Description, full.Description);
+    first.module.itemWatcher.stop();
+    const second = load(); second.module.itemWatcher.start(bus); await settled(second.module.itemWatcher);
+    assert.equal(events.length, 0);
+    visible = full; now += 30000; await second.tick();
+    assert.equal(events.length, 0);
+    visible = {...full, Title: {NEUTRAL: 'New pet', 'de-DE': null}, Description: {}};
+    now += 30000; await second.tick();
+    assert.equal(events.length, 1);
+    assert.equal(events[0].before.rawItem.Title['de-DE'], 'Haustier');
+    assert.deepEqual(events[0].after.rawItem.Title, visible.Title);
+    assert.deepEqual(events[0].after.rawItem.Description, {});
+    assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8'))[0].raw.Title, visible.Title);
+    second.module.itemWatcher.stop();
+});
+
 test('restart recovers items released more than one day ago during downtime', async t => {
     const env = {ITEM_WATCH_STATE_FILE: path.join(temp(t), 'state.json')};
     let now = Date.parse('2026-09-07T10:00:00Z');

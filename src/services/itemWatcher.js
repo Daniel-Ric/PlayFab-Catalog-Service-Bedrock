@@ -89,6 +89,21 @@ function hashItemCore(it) {
     return stableHash(core);
 }
 
+function preserveKnownTranslations(item, previous) {
+    const next = {...item};
+    for (const field of ['Title', 'Description']) {
+        const current = item[field];
+        const known = previous?.[field];
+        if (current === undefined) {
+            if (known !== undefined) next[field] = known;
+        } else if (current && typeof current === 'object' && !Array.isArray(current)
+            && Object.keys(current).length && known && typeof known === 'object' && !Array.isArray(known)) {
+            next[field] = {...known, ...Object.fromEntries(Object.entries(current).filter(([, value]) => value !== undefined))};
+        }
+    }
+    return next;
+}
+
 async function fetchRecentItems(titleId, os, itemsPerRequest, maxItems) {
     const field = "lastModifiedDate";
     const orderBy = `${field} desc`;
@@ -458,10 +473,11 @@ class ItemWatcher {
                     : scanStartedAt - createdLookbackMs);
                 const updatedSinceTs = window.since;
 
-                for (const it of recent) {
+                for (let it of recent) {
                     const id = it.Id || it.id;
                     if (!id) continue;
                     const prev = persisted.state.get(id) || null;
+                    it = preserveKnownTranslations(it, prev?.raw);
                     const {kind, nextHash, createdNotified} = classifyBootstrapItemChange(it, prev, createdSinceTs, updatedSinceTs);
                     const createdWasEmitted = persisted.loaded && kind === "created";
                     if (persisted.loaded && kind === "created") {
@@ -518,11 +534,12 @@ class ItemWatcher {
             const updated = [];
             const nextState = new Map(this.state);
 
-            for (const it of changed) {
+            for (let it of changed) {
                 const id = it.Id || it.id;
                 if (!id) continue;
 
                 const prev = this.state.get(id) || null;
+                it = preserveKnownTranslations(it, prev?.raw);
                 const {kind, nextHash, createdNotified} = classifyItemChange(it, prev, sinceTs, createdSinceTs);
 
                 if (kind === "created") {

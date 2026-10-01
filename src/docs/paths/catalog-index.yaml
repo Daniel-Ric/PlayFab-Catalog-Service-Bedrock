@@ -23,6 +23,14 @@
       - in: query
         name: q
         schema: {type: string, maxLength: 200}
+      - in: query
+        name: pieceType
+        schema: {type: string}
+        example: persona_capes
+      - in: query
+        name: excludePieceTypes
+        schema: {type: string}
+        example: persona_emote,persona_capes
     responses:
       '200': {description: Items, pagination, and explicit snapshot coverage}
       '400': {description: Invalid query or cursor}

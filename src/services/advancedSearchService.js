@@ -167,7 +167,9 @@ function validateRequestBody(body) {
         "creatorName",
         "offerId",
         "purchasable",
-        "packIdentityType"
+        "packIdentityType",
+        "pieceType",
+        "excludePieceTypes"
     ]);
     const unknownFilters = Object.keys(filters).filter(k => !allowedFilters.has(k));
     if (unknownFilters.length) {
@@ -404,6 +406,8 @@ function applyApiLayerFilters(items, filters) {
     const keywordSet = new Set(normalizeArray(filters.keywords).map(v => v.toLowerCase()));
     const offerId = typeof filters.offerId === "string" ? filters.offerId.trim().toLowerCase() : "";
     const packIdentityType = typeof filters.packIdentityType === "string" ? filters.packIdentityType.trim().toLowerCase() : "";
+    const pieceType = typeof filters.pieceType === "string" ? filters.pieceType.trim().toLowerCase() : "";
+    const excludePieceTypes = new Set(normalizeArray(filters.excludePieceTypes).map(v => v.toLowerCase()));
     const creatorName = typeof filters.creatorName === "string" ? filters.creatorName.trim().toLowerCase() : "";
     const priceMin = toFiniteNumber(filters?.priceAmounts?.min);
     const priceMax = toFiniteNumber(filters?.priceAmounts?.max);
@@ -431,6 +435,10 @@ function applyApiLayerFilters(items, filters) {
             const found = identities.some(entry => String(entry?.type || "").toLowerCase() === packIdentityType);
             if (!found) return false;
         }
+
+        const itemPieceType = String(item?.DisplayProperties?.pieceType || "").toLowerCase();
+        if (pieceType && itemPieceType !== pieceType) return false;
+        if (excludePieceTypes.has(itemPieceType)) return false;
 
         if (creatorName) {
             const itemCreator = String(item?.DisplayProperties?.creatorName || "").trim().toLowerCase();
@@ -620,6 +628,8 @@ function hasLocalOnlyFilters(filters = {}) {
         normalizeArray(filters.keywords).length
         || (typeof filters.offerId === "string" && filters.offerId.trim())
         || (typeof filters.packIdentityType === "string" && filters.packIdentityType.trim())
+        || (typeof filters.pieceType === "string" && filters.pieceType.trim())
+        || normalizeArray(filters.excludePieceTypes).length
         || (typeof filters.creatorName === "string" && filters.creatorName.trim())
         || normalizeBoolean(filters.purchasable) !== null
         || (typeof filters?.priceAmounts?.currencyId === "string" && filters.priceAmounts.currencyId.trim())

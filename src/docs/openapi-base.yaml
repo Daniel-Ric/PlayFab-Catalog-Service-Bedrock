@@ -546,6 +546,16 @@ components:
               type: boolean
             packIdentityType:
               type: string
+            pieceType:
+              type: string
+              example: persona_capes
+            excludePieceTypes:
+              oneOf:
+                - type: string
+                - type: array
+                  items:
+                    type: string
+              example: [persona_emote, persona_capes]
             ratingMin:
               type: number
               minimum: 0

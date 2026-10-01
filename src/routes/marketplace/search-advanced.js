@@ -67,6 +67,8 @@ router.post(
         body("filters.offerId").optional().isString(),
         body("filters.purchasable").optional().isBoolean(),
         body("filters.packIdentityType").optional().isString(),
+        body("filters.pieceType").optional().isString(),
+        body("filters.excludePieceTypes").optional().custom(v => typeof v === "string" || Array.isArray(v)),
         body("filters.ratingMin").optional().isFloat({min: 0}),
         body("sort").optional().isArray(),
         body("sort.*.field").optional().isString(),

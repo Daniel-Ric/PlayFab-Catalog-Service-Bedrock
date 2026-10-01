@@ -194,3 +194,23 @@ test('incremental creation and release partitions preserve their field when spli
         for (const child of children) assert.match(partitionFilter(scan, child), new RegExp(`^${field} ge`));
     }
 });
+
+test('piece type filters apply before pagination and bind cursors to the subtype', () => {
+    const items = ['persona_capes', 'persona_hood', 'persona_emote', 'persona_capes', ''].map((pieceType, i) =>
+        projectOffer(row(i, {ContentType: 'PersonaDurable', DisplayProperties: {pieceType}})));
+    const index = new CatalogOfferIndex({id: 'persona', updatedAt: new Date().toISOString(), items});
+    const first = index.query({scope: 'persona', pieceType: 'persona_capes', limit: 1});
+    assert.equal(first.meta.total, 2);
+    assert.equal(first.items[0].DisplayProperties.pieceType, 'persona_capes');
+    const second = index.query({scope: 'persona', pieceType: 'persona_capes', limit: 1, cursor: first.pagination.nextCursor});
+    assert.equal(second.items.length, 1);
+    assert.notEqual(second.items[0].Id, first.items[0].Id);
+    assert.equal(second.pagination.hasNext, false);
+    assert.throws(() => index.query({scope: 'persona', pieceType: 'persona_emote', limit: 1, cursor: first.pagination.nextCursor}), /match query/);
+    assert.throws(() => index.query({scope: 'persona', pieceType: 'persona_capes', excludePieceTypes: 'persona_emote', limit: 1, cursor: first.pagination.nextCursor}), /match query/);
+    const cosmetics = index.query({scope: 'persona', excludePieceTypes: 'persona_emote,persona_capes'});
+    assert.deepEqual(cosmetics.items.map(item => item.Id), ['1', '4']);
+    assert.equal(cosmetics.meta.total, 2);
+    assert.equal(index.query({scope: 'persona', pieceType: 'unknown'}).meta.total, 0);
+    assert.equal(index.query({scope: 'persona'}).meta.total, 5);
+});

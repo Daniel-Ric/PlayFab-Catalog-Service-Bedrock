@@ -82,6 +82,7 @@ class CatalogOfferIndex {
             sort: String(input.sort || "latest"), dir: input.dir || (['title', 'price'].includes(input.sort) ? 'asc' : 'desc'), archived: String(input.archived || "false") === "true",
             free: String(input.free || "false") === "true", packType: String(input.packType || ""),
             tag: String(input.tag || ''), platform: String(input.platform || ''),
+            pieceType: String(input.pieceType || '').trim().toLowerCase(), excludePieceTypes: String(input.excludePieceTypes || '').split(',').map(type => type.trim().toLowerCase()).filter(Boolean),
             contentTypes: String(input.contentTypes || ''), tagsAll: String(input.tagsAll || ''), limit
         };
         query.purchasable = input.purchasable === 'true' || input.purchasable === true ? true
@@ -118,6 +119,8 @@ class CatalogOfferIndex {
             matches = this.items.filter(item => item.archived === query.archived
                 && (query.scope === "all" || item.scope === query.scope || (query.scope === 'offers' && ['marketplace', 'persona', 'server'].includes(item.scope)))
                 && (!query.category || item.category === query.category)
+                && (!query.pieceType || String(item.DisplayProperties?.pieceType || '').toLowerCase() === query.pieceType)
+                && !query.excludePieceTypes.includes(String(item.DisplayProperties?.pieceType || '').toLowerCase())
                 && (!query.contentTypes || query.contentTypes.split(',').includes(item.ContentType))
                 && (!query.tagsAll || query.tagsAll.split(',').every(tag => item.Tags.includes(tag)))
                 && (!creatorIds || creatorIds.has(item.Id))

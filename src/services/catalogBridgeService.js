@@ -120,15 +120,23 @@ function buildProxyRequest(payload, cfg, options = {}) {
         throw err;
     }
     const relativeUrl = validateCatalogUrl(payload?.url);
+    const method = normalizeMethod(payload?.method);
+    const target = new URL(relativeUrl, "http://catalog-bridge.local");
+    const fullScan = method === "GET"
+        && /^\/catalog\/marketplace\/(?:all\/[^/]+|free\/[^/]+|tag\/[^/]+\/[^/]+)\/?$/i.test(target.pathname)
+        && !["page", "pageSize", "skip", "limit"].some(key => target.searchParams.has(key));
+    const timeout = fullScan
+        ? Math.max(cfg.requestTimeoutMs, cfg.fullScanTimeoutMs || cfg.requestTimeoutMs)
+        : cfg.requestTimeoutMs;
     return {
         url: `${cfg.upstreamOrigin}${relativeUrl}`,
-        method: normalizeMethod(payload?.method),
+        method,
         headers: {
             ...sanitizeHeaders(payload?.headers),
             Authorization: `Bearer ${cfg.bearerToken}`
         },
         data: typeof payload?.body === "undefined" ? undefined : payload.body,
-        timeout: cfg.requestTimeoutMs,
+        timeout,
         maxBodyLength: cfg.maxBodyBytes,
         validateStatus: () => true
     };
@@ -136,7 +144,7 @@ function buildProxyRequest(payload, cfg, options = {}) {
 
 async function executeProxyPayload(payload, cfg, options = {}) {
     const request = buildProxyRequest(payload, cfg, options);
-    const deadline = Date.now() + cfg.requestTimeoutMs;
+    const deadline = Date.now() + request.timeout;
     let upstream;
     for (let attempt = 1; attempt <= 2; attempt++) {
         try {
@@ -149,7 +157,7 @@ async function executeProxyPayload(payload, cfg, options = {}) {
                 await delay(150);
                 continue;
             }
-            throw normalizeCatalogUpstreamError(cause, cfg.requestTimeoutMs, request, attempt);
+            throw normalizeCatalogUpstreamError(cause, request.timeout, request, attempt);
         }
     }
     const contentType = upstream.headers?.["content-type"] || "application/octet-stream";
@@ -165,15 +173,20 @@ function normalizeCatalogUpstreamError(cause, timeoutMs, request = {}, attempts 
     const transportCode = /^[A-Z][A-Z0-9_]{1,63}$/.test(String(rawCode || "")) ? rawCode : "UNKNOWN";
     const timedOut = transportCode === "ECONNABORTED" || transportCode === "ETIMEDOUT" || /timeout/i.test(String(cause?.message || ""));
     let origin;
+    let pathname;
     try {
-        origin = new URL(request.url).origin;
+        const target = new URL(request.url);
+        origin = target.origin;
+        pathname = target.pathname;
     } catch {
         origin = "unknown";
+        pathname = "unknown";
     }
+    const method = ["GET", "POST", "PUT", "PATCH", "DELETE"].includes(request.method) ? request.method : "UNKNOWN";
     const message = timedOut
         ? `Catalog upstream timed out after ${timeoutMs}ms.`
         : "Catalog upstream request failed.";
-    const err = new Error(`${message} [transport=${transportCode}, upstream=${origin}, attempts=${attempts}]`);
+    const err = new Error(`${message} [transport=${transportCode}, upstream=${origin}, attempts=${attempts}, method=${method}, path=${JSON.stringify(pathname)}]`);
     err.status = timedOut ? 504 : 502;
     err.publicMessage = timedOut
         ? "Catalog upstream request timed out. Please try again."

@@ -64,6 +64,7 @@ function getCatalogBridgeConfig() {
         rateLimitWindowMs: intEnv("CATALOG_BRIDGE_RATE_LIMIT_WINDOW_MS", 60 * 1000),
         rateLimitMax: intEnv("CATALOG_BRIDGE_RATE_LIMIT_MAX", 120),
         requestTimeoutMs: intEnv("CATALOG_BRIDGE_UPSTREAM_TIMEOUT_MS", 60000),
+        fullScanTimeoutMs: intEnv("CATALOG_BRIDGE_FULL_SCAN_TIMEOUT_MS", 300000),
         maxBodyBytes: intEnv("CATALOG_BRIDGE_MAX_BODY_BYTES", 1024 * 1024)
     };
 }

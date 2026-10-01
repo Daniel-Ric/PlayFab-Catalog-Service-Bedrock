@@ -144,6 +144,94 @@ test("catalog bridge maps other transport failures to 502", () => {
     assert.equal(err.code, "CATALOG_UPSTREAM_UNAVAILABLE");
 });
 
+test("catalog bridge extends only unpaginated full-list GET requests", () => withEnv({
+    CATALOG_BRIDGE_UPSTREAM_TIMEOUT_MS: undefined,
+    CATALOG_BRIDGE_FULL_SCAN_TIMEOUT_MS: undefined
+}, () => {
+    const cfg = {...getCatalogBridgeConfig(), proxyEnabled: true,
+        upstreamOrigin: "https://example.test", bearerToken: "server-token"};
+    assert.equal(cfg.fullScanTimeoutMs, 300000);
+    const paths = ["/catalog/marketplace/all/prod", "/catalog/marketplace/free/prod",
+        "/catalog/marketplace/tag/prod/3PServerContent"];
+    for (const url of paths) {
+        assert.equal(buildProxyRequest({url}, cfg).timeout, 300000);
+        assert.equal(buildProxyRequest({url: `${url}/?refs=false`}, cfg).timeout, 300000);
+        assert.equal(buildProxyRequest({url, method: "POST"}, cfg).timeout, 60000);
+        for (const query of ["page=1", "pageSize=24", "skip=0", "limit=24", "page="]) {
+            assert.equal(buildProxyRequest({url: `${url}?${query}`}, cfg).timeout, 60000);
+        }
+    }
+    assert.equal(buildProxyRequest({url: "/catalog/marketplace/latest/prod"}, cfg).timeout, 60000);
+    assert.equal(buildProxyRequest({url: paths[0]}, {...cfg, fullScanTimeoutMs: 180000}).timeout, 180000);
+    assert.equal(buildProxyRequest({url: paths[0]}, {...cfg, requestTimeoutMs: 400000}).timeout, 400000);
+}));
+
+test("slow full scans return complete responses through plain and secure bridges", () => withServer((_req, res) => {
+    setTimeout(() => {
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify([{Id: "first"}, {Id: "last"}]));
+    }, 200);
+}, async origin => {
+    const cfg = {...getCatalogBridgeConfig(), proxyEnabled: true, secureEnabled: true,
+        upstreamOrigin: origin, bearerToken: "server-token", requestTimeoutMs: 50, fullScanTimeoutMs: 1000};
+    const payload = {url: "/catalog/marketplace/all/prod", method: "GET"};
+    const plain = await executeProxyPayload(payload, cfg);
+    assert.equal(plain.status, 200);
+    assert.deepEqual(plain.body, [{Id: "first"}, {Id: "last"}]);
+    const store = new CatalogHandshakeStore(cfg);
+    try {
+        const handshake = store.create();
+        const client = crypto.createECDH("prime256v1");
+        client.generateKeys();
+        const encrypted = encryptForHandshake(handshake, {...payload, csrfToken: handshake.csrfToken}, client);
+        const result = await executeSecurePayload(encrypted, {...cfg, proxyEnabled: false}, store);
+        assert.deepEqual(decryptSecureResponse(result, handshake, client), plain);
+    } finally {
+        clearInterval(store.timer);
+    }
+}));
+
+test("stalled full scans still stop at their selected budget and report it", () => withServer((_req, _res) => {}, async origin => {
+    const cfg = {...getCatalogBridgeConfig(), proxyEnabled: true,
+        upstreamOrigin: origin, bearerToken: "server-token", requestTimeoutMs: 20, fullScanTimeoutMs: 100};
+    await assert.rejects(executeProxyPayload({url: "/catalog/marketplace/free/prod"}, cfg), error => {
+        assert.equal(error.status, 504);
+        assert.match(error.message, /timed out after 100ms/);
+        assert.match(error.message, /attempts=1/);
+        return true;
+    });
+}));
+
+test("catalog bridge transport diagnostics identify the endpoint without leaking credentials or query values", () => {
+    const cause = Object.assign(new Error("timeout"), {code: "ECONNABORTED"});
+    const err = _internals.normalizeCatalogUpstreamError(cause, 60000, {
+        url: "https://user:secret@example.test/catalog/prod/search?token=private#hidden",
+        method: "POST",
+        headers: {Authorization: "Bearer confidential"},
+        data: {secret: "sensitive-body"}
+    });
+    assert.match(err.message, /upstream=https:\/\/example.test/);
+    assert.match(err.message, /method=POST/);
+    assert.match(err.message, /path="\/catalog\/prod\/search"/);
+    assert.doesNotMatch(err.message, /user|secret|token|private|hidden|confidential|sensitive-body/);
+    assert.doesNotMatch(err.publicMessage, /example.test|\/catalog\//);
+});
+
+test("catalog bridge aborts a stalled upstream with 504 without replaying the request", async () => {
+    let requests = 0;
+    await withServer((_req, _res) => { requests++; }, async (origin) => {
+        const cfg = {...getCatalogBridgeConfig(), proxyEnabled: true,
+            upstreamOrigin: origin, bearerToken: "server-token", requestTimeoutMs: 100};
+        await assert.rejects(executeProxyPayload({url: "/catalog/stalled", method: "GET"}, cfg), error => {
+            assert.equal(error.status, 504);
+            assert.equal(error.code, "CATALOG_UPSTREAM_TIMEOUT");
+            assert.match(error.message, /attempts=1, method=GET, path="\/catalog\/stalled"/);
+            return true;
+        });
+        assert.equal(requests, 1);
+    });
+});
+
 test("catalog bridge plain proxy forwards allowed catalog requests", () => withServer((req, res) => {
     assert.equal(req.url, "/catalog/items?take=1");
     assert.equal(req.headers.authorization, "Bearer server-token");

@@ -179,6 +179,7 @@ The Catalog Bridge is disabled by default and adds no routes, handshakes, CORS r
 | `CATALOG_BRIDGE_CORS_ALLOWED_HEADERS` | `Content-Type,X-CSRF-Token` | Bridge CORS request headers |
 | `CATALOG_BRIDGE_CORS_CREDENTIALS` | `true` | Add bridge CORS credentials support |
 | `CATALOG_BRIDGE_UPSTREAM_TIMEOUT_MS` | `60000` | Bridge upstream timeout; independent from the PlayFab timeout |
+| `CATALOG_BRIDGE_FULL_SCAN_TIMEOUT_MS` | `300000` | Minimum timeout for unpaginated GET requests to marketplace `all/:alias`, `free/:alias`, and `tag/:alias/:tag` |
 | `CATALOG_BRIDGE_MAX_BODY_BYTES` | `1048576` | Bridge JSON body limit |
 
 `POST /api/catalog/proxy` accepts only relative `url` values under `/catalog/`, blocks `/catalog/login`, ignores client-supplied `Authorization`, and injects the configured server-side bearer token. `GET /api/security/catalog-handshake` creates short-lived P-256 ECDH handshakes for `POST /api/catalog/secure`; the encrypted payload is the same proxy payload plus the handshake `csrfToken` when CSRF is enabled.
@@ -1384,6 +1385,8 @@ If `CATALOG_BRIDGE_ENABLED=true`, a reverse proxy can additionally route these p
 Existing public `/catalog/...` proxy rules can remain unchanged. The bridge accepts only relative `/catalog/...` targets and forwards them to the configured `CATALOG_UPSTREAM_ORIGIN`.
 
 The bridge retries GET requests once after a connection reset, broken pipe, or temporary DNS failure, within the configured upstream timeout. It does not replay writes, timed-out requests, or HTTP error responses. Secure requests use the same retry behavior without requiring a second handshake.
+
+Unpaginated GET requests to marketplace `all/:alias`, `free/:alias`, and `tag/:alias/:tag` load all matching catalog pages and can exceed 60 seconds on a cold cache. For those requests, the bridge uses the greater of `CATALOG_BRIDGE_UPSTREAM_TIMEOUT_MS` and `CATALOG_BRIDGE_FULL_SCAN_TIMEOUT_MS`, preserving the complete response. Requests containing `page`, `pageSize`, `skip`, or `limit` keep the regular timeout. Both plain and secure proxy routes use this policy. Client and reverse-proxy timeouts must also accommodate the full scan; this budget does not make the scan faster or guarantee completion. For interactive lists, request a page, for example `?page=1&pageSize=24`.
 
 For bridge 502/504 errors, server logs include `transport`, `upstream` (origin only), and `attempts`, without request headers, bodies, URL credentials, or query parameters. Check the configured target from the bridge host: `ENOTFOUND` indicates a DNS lookup failure, `ECONNREFUSED` indicates a refused connection, and `ECONNRESET` indicates an interrupted connection. A 504 indicates that the upstream timeout was reached. Validation and missing-configuration errors retain their original status instead of being reported as transport failures.
 

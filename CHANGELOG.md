@@ -1,5 +1,27 @@
 # Changelog
 
+## 17.2.0 (2026-10-06)
+
+### Summary
+
+- Change type: Documentation
+- Main change: PlayFab - Add creator image support (660de15)
+- Impact: Documentation with a medium change footprint across repository files, application logic.
+- Bump reason: medium change footprint (7 files, 101 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/creatorsController.js
+- OpenAPI documentation: 3 files: src/docs/openapi-base.yaml, src/docs/paths/creators.yml, plus 1 more
+- README: 1 file: readme.md
+- Repository files: 1 file: .env.example
+- Service layer: 1 file: src/services/creatorRegistryService.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 7
+- Line changes: +94 / -7
 ## 17.1.3 (2026-10-01)
 
 ### Summary
@@ -3855,6 +3877,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

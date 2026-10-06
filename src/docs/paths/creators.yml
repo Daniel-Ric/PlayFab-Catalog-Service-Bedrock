@@ -16,7 +16,7 @@
     tags:
       - Creators
     summary: Get all creators
-    description: Returns creatorName and displayName for known creators.
+    description: Returns creatorName, displayName and a nullable imageUrl for known creators. Images come from Minecraft Creator Collections and are cached. Stored images are used while a slow refresh continues in the background.
     security:
       - BearerAuth: [ ]
     parameters:

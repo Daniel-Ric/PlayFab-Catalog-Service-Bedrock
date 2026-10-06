@@ -15,9 +15,11 @@
 const withETag = require("../middleware/etag");
 const withPagination = require("../middleware/pagination");
 const { loadCreators } = require("../utils/creators");
+const { enrichCreatorImages } = require("../services/creatorRegistryService");
 
 const creators = loadCreators();
 
 exports.getAll = withETag(withPagination(async () => {
-    return creators.map(c => ({ creatorName: c.creatorName, displayName: c.displayName }));
+    const enriched = await enrichCreatorImages(creators, undefined, 2000);
+    return enriched.map(c => ({ creatorName: c.creatorName, displayName: c.displayName, imageUrl: c.imageUrl }));
 }));

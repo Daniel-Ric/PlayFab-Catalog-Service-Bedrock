@@ -18,6 +18,12 @@ Creator:
       type: string
     displayName:
       type: string
+    imageUrl:
+      type: string
+      format: uri
+      nullable: true
+      description: Creator Collection thumbnail URL, or null when no image is available.
   required:
     - creatorName
     - displayName
+    - imageUrl

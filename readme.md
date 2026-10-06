@@ -255,6 +255,7 @@ Optional generator inputs are `CATALOG_BRIDGE_TOKEN_SUB`, `CATALOG_BRIDGE_TOKEN_
 | `TRENDING_TOP_N`          | `20`    | Top creators emitted per trending window    |
 | `CREATOR_PARTNER_WATCH_INTERVAL_MS` | `21600000` | Creator/partner registry watcher interval |
 | `CREATORNAME_MODE`        | `nospace` | Creator registry normalization mode (`nospace` or `alnum`) |
+| `CREATOR_IMAGES_TTL_MS`   | `21600000` | Cache duration for Creator Collection images |
 | `STORE_CONCURRENCY`       | `6`     | Parallel store requests                     |
 | `PRICE_WATCH_MAX_STORES`  | `50`    | Max stores scanned for price signature      |
 
@@ -465,7 +466,7 @@ Response:
 | GET    | `/titles`        | All alias→TitleId entries            |
 | POST   | `/titles`        | Create alias `{ alias, id, notes? }` |
 | DELETE | `/titles/:alias` | Remove alias                         |
-| GET    | `/creators`      | List `creatorName`, `displayName`    |
+| GET    | `/creators`      | List `creatorName`, `displayName`, `imageUrl`    |
 
 #### Marketplace Catalog
 
@@ -571,7 +572,7 @@ Remove an alias mapping.
 
 #### `GET /creators`
 
-Paginated list of creators (from `src/data/creators.json`).
+Paginated list of creators with `creatorName`, `displayName`, and `imageUrl`. Images are matched by creator entity ID from Minecraft Creator Collections (`OfferCollectionQueries_V3.0`, tag `collection.creator`) and cached for six hours by default (`CREATOR_IMAGES_TTL_MS`). Creators without an available image return `imageUrl: null`. The endpoint waits at most two seconds for a refresh, then returns stored images while the refresh continues. The creator registry watcher persists image URLs and reports image changes.
 
 #### `GET /marketplace/all/:alias`
 

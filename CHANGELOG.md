@@ -1,5 +1,24 @@
 # Changelog
 
+## 17.2.1 (2026-10-08)
+
+### Summary
+
+- Change type: Bug fix
+- Main change: update proxy-addr to patched 2.0.8 (#81) (bcf916c)
+- Impact: Bug fix with a small change footprint across project dependencies, test coverage.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Dependencies: 1 file: package-lock.json
+- Tests: 1 file: test/proxyTrust.test.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 2
+- Line changes: +44 / -3
 ## 17.2.0 (2026-10-06)
 
 ### Summary
@@ -3877,6 +3896,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

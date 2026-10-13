@@ -1,5 +1,23 @@
 # Changelog
 
+## 17.3.0 (2026-10-13)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Refactor content watcher for improved state handling (84fc8b6)
+- Impact: Repository update with a medium change footprint across application logic.
+- Bump reason: medium change footprint (2 files, 643 total line changes)
+
+### Changed Areas
+
+- Service layer: 2 files: src/services/contentBinaryEvidence.js, src/services/contentUpdateWatcher.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 2
+- Line changes: +582 / -61
 ## 17.2.1 (2026-10-08)
 
 ### Summary
@@ -3896,6 +3914,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

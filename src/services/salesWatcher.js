@@ -12,6 +12,8 @@
 //
 // -----------------------------------------------------------------------------
 
+const path = require("path");
+const {readJson, writeJsonAtomic} = require("../utils/storage");
 const {sendPlayFabRequest, getStoreItems, getItemsByIds} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
@@ -168,10 +170,12 @@ async function fetchItemDetails(titleId, os, storesWithItems, batchSize, concurr
     return new Map(items.map(item => [item?.Id || item?.id, item]).filter(pair => pair[0]));
 }
 
-function snapshot(storesWithItems, itemDetails) {
+function snapshot(storesWithItems, itemDetails, now = Date.now()) {
     const map = new Map();
     for (const x of storesWithItems) {
         const entry = buildSaleEntry(x.Store, x.Items, itemDetails);
+        if (entry.sale.startDate && Date.parse(entry.sale.startDate) > now) continue;
+        if (entry.sale.endDate && Date.parse(entry.sale.endDate) <= now) continue;
         map.set(entry.id, entry);
     }
     return map;
@@ -303,11 +307,34 @@ function buildPayload(ts, snap, changes) {
 }
 
 class SalesWatcher {
-    constructor() {
+    constructor(stateFile = process.env.SALES_WATCH_STATE_FILE || path.join(__dirname, "../data/salesWatcherState.json")) {
+        this.stateFile = stateFile;
+        this.initialized = false;
         this.running = false;
         this.timer = null;
         this.prev = new Map();
         this.lastRunTs = 0;
+    }
+
+    processSnapshot(snap, eventBus) {
+        if (!this.initialized) {
+            const saved = readJson(this.stateFile, null);
+            if (saved !== null) {
+                this.prev = new Map(saved);
+                this.initialized = true;
+            }
+        }
+        const ts = Date.now();
+        const changes = this.initialized ? diff(this.prev, snap) : null;
+        if (changes === null) {
+            eventBus.emit("sale.snapshot", buildPayload(ts, snap));
+        } else if (changes.length) {
+            eventBus.emit("sale.update", buildPayload(ts, snap, changes));
+        }
+        if (changes === null || changes.length) writeJsonAtomic(this.stateFile, Array.from(snap));
+        this.prev = snap;
+        this.initialized = true;
+        this.lastRunTs = ts;
     }
 
     start(eventBus) {
@@ -324,18 +351,7 @@ class SalesWatcher {
                 const storesWithItems = await fetchStoresWithItems(titleId, os, concurrency);
                 const itemDetails = await fetchItemDetails(titleId, os, storesWithItems, itemBatchSize, itemConcurrency);
                 const snap = snapshot(storesWithItems, itemDetails);
-                if (!this.prev.size) {
-                    this.prev = snap;
-                    this.lastRunTs = Date.now();
-                    eventBus.emit("sale.snapshot", buildPayload(Date.now(), snap));
-                    return;
-                }
-                const changes = diff(this.prev, snap);
-                this.prev = snap;
-                this.lastRunTs = Date.now();
-                if (changes.length) {
-                    eventBus.emit("sale.update", buildPayload(Date.now(), snap, changes));
-                }
+                this.processSnapshot(snap, eventBus);
             } catch (e) {
                 logger.debug(`[SalesWatcher] error ${e.message || "err"}`);
                 this.lastRunTs = Date.now();
@@ -365,6 +381,7 @@ const salesWatcher = new SalesWatcher();
 module.exports = {
     salesWatcher,
     _internals: {
+        SalesWatcher,
         buildSaleEntry,
         buildPayload,
         diffSaleItems,

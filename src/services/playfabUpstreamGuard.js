@@ -13,12 +13,13 @@
 // -----------------------------------------------------------------------------
 
 const Bottleneck = require("bottleneck");
+const {retryAfterMs} = require("../utils/retryAfter");
 
 const PRIORITIES = Object.freeze({interactive: 3, default: 5, background: 8});
 const DEFAULT_POLICY = Object.freeze({maxConcurrent: 8, minTime: 0});
 const CATALOG_SEARCH_POLICY = Object.freeze({maxConcurrent: 1, minTime: 600});
 const SEARCH_ITEMS_POLICY = Object.freeze({maxConcurrent: 1, minTime: 600});
-const GET_ITEMS_POLICY = Object.freeze({maxConcurrent: 4, minTime: 50});
+const GET_ITEMS_POLICY = Object.freeze({maxConcurrent: 4, minTime: 600});
 const CIRCUIT_FAILURE_THRESHOLD = 3;
 const CIRCUIT_OPEN_MS = 15000;
 
@@ -55,7 +56,7 @@ function createUpstreamGuard(options = {}) {
     const BottleneckClass = options.BottleneckClass || Bottleneck;
 
     function getEntry(titleId, endpoint) {
-        const key = `${titleId}:${endpoint}`;
+        const key = `${titleId}:${endpoint.toLowerCase()}`;
         let entry = entries.get(key);
         if (entry) return entry;
         const policy = policyResolver(endpoint);
@@ -65,6 +66,8 @@ function createUpstreamGuard(options = {}) {
             endpoint,
             policy,
             limiter: new BottleneckClass(policy),
+            cooldownUntil: 0,
+            nextStartAt: 0,
             circuit: {failures: 0, openUntil: 0, halfOpen: false},
             metrics: {scheduled: 0, started: 0, succeeded: 0, failed: 0, throttled: 0, circuitRejected: 0}
         };
@@ -103,6 +106,11 @@ function createUpstreamGuard(options = {}) {
         entry.circuit.halfOpen = false;
     }
 
+    function recordCooldown(entry, response) {
+        const delay = retryAfterMs(response, clock());
+        if (delay !== null) entry.cooldownUntil = Math.max(entry.cooldownUntil, clock() + delay);
+    }
+
     async function schedule(titleId, endpoint, task, scheduleOptions = {}) {
         const entry = getEntry(String(titleId || "unknown"), String(endpoint || "unknown"));
         entry.metrics.scheduled += 1;
@@ -111,19 +119,25 @@ function createUpstreamGuard(options = {}) {
         try {
             return await entry.limiter.schedule({priority: resolvePriority(scheduleOptions.priority)}, async () => {
                 started = true;
+                while (Math.max(entry.cooldownUntil, entry.nextStartAt) > clock()) {
+                    await new Promise(resolve => setTimeout(resolve, Math.min(2147483647, Math.max(entry.cooldownUntil, entry.nextStartAt) - clock())));
+                }
                 if (!halfOpenProbe && entry.circuit.openUntil > clock()) rejectCircuit(entry);
+                entry.nextStartAt = clock() + entry.policy.minTime;
                 entry.metrics.started += 1;
                 try {
                     const sharedDirectory = options.sharedDirectory || process.env.PLAYFAB_SHARED_BUDGET_DIRECTORY;
-                    const result = sharedDirectory && /^catalog\/search(items)?$/i.test(endpoint)
-                        ? await require("./sharedUpstreamBudget").withSharedSearchBudget(sharedDirectory, `${titleId}:${endpoint}`, entry.policy.minTime, task)
+                    const result = sharedDirectory && /^catalog\/(search(items)?|getitems?)$/i.test(endpoint)
+                        ? await require("./sharedUpstreamBudget").withSharedSearchBudget(sharedDirectory, entry.key, entry.policy.minTime, task)
                         : await task();
+                    recordCooldown(entry, result);
                     const status = Number(result?.status) || 0;
                     record(entry, status, scheduleOptions.trackFailure !== false || halfOpenProbe);
                     if (status >= 400) entry.metrics.failed += 1; else entry.metrics.succeeded += 1;
                     return result;
                 } catch (error) {
                     if (error?.code !== "PLAYFAB_CIRCUIT_OPEN") {
+                        recordCooldown(entry, error?.response);
                         record(entry, error?.status || error?.response?.status, scheduleOptions.trackFailure !== false || halfOpenProbe);
                         entry.metrics.failed += 1;
                     }

@@ -19,7 +19,7 @@ const {createUpstreamGuard, endpointPolicy, resolvePriority} = require("../src/s
 test("SearchItems receives the documented default request budget", () => {
     assert.deepEqual(endpointPolicy("Catalog/SearchItems"), {maxConcurrent: 1, minTime: 600});
     assert.deepEqual(endpointPolicy("Catalog/Search"), {maxConcurrent: 1, minTime: 600});
-    assert.deepEqual(endpointPolicy("Catalog/GetItems"), {maxConcurrent: 4, minTime: 50});
+    assert.deepEqual(endpointPolicy("Catalog/GetItems"), {maxConcurrent: 4, minTime: 600});
     assert.deepEqual(endpointPolicy("Catalog/SearchStores"), {maxConcurrent: 8, minTime: 0});
     assert.equal(resolvePriority("interactive") < resolvePriority("background"), true);
 });

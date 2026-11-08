@@ -23,6 +23,7 @@ const stringify = require("fast-json-stable-stringify");
 const {sessionCache, dataCache} = require("../config/cache");
 const logger = require("../config/logger");
 const {upstreamGuard} = require("../services/playfabUpstreamGuard");
+const {retryAfterMs} = require("./retryAfter");
 const {sanitizeCatalogItem} = require("./catalogSanitizer");
 
 const httpAgent = new http.Agent({
@@ -58,21 +59,14 @@ function sleep(ms) {
     return new Promise(r => setTimeout(r, ms));
 }
 
-function parseRetryAfter(h) {
-    if (!h) return null;
-    const n = Number(h);
-    if (!Number.isNaN(n)) return Math.max(0, Math.floor(n * 1000));
-    return 3000;
-}
-
 function jitter(base, attempt, max) {
     const exp = Math.min(max, Math.pow(2, attempt) * base);
     return Math.floor(Math.random() * exp);
 }
 
-function retryDelayForStatus(status, headers = {}, attempt = 0) {
-    const retryAfter = parseRetryAfter(headers?.["retry-after"]);
-    if (retryAfter !== null && (status === 429 || status === 503)) return retryAfter;
+function retryDelayForStatus(status, headers = {}, attempt = 0, data) {
+    const retryAfter = retryAfterMs({status, headers, data});
+    if (retryAfter !== null) return retryAfter;
     if (status === 503) return 500 + jitter(1000, attempt, 15000);
     return jitter(200, attempt, 10000);
 }
@@ -226,7 +220,7 @@ async function sendPlayFabRequestInternal(titleId, endpoint, payload = {}, auth 
                 if (upstreamMsg) e.publicMessage = `Upstream error ${status}: ${String(upstreamMsg)}`;
                 throw e;
             }
-            const waitMs = retryDelayForStatus(status, r.headers, attempt);
+            const waitMs = retryDelayForStatus(status, r.headers, attempt, r.data);
             await sleep(waitMs);
             attempt++;
 

@@ -470,10 +470,7 @@ async function fetchSearchPageWithCursor(titleId, params, filter, orderBy, loadI
         orderBy
     });
     const items = scanned.slice(params.skip, params.skip + params.limit);
-    const total = Math.max(
-        scanned.length,
-        params.skip + items.length + (items.length === params.limit ? 1 : 0)
-    );
+    const total = scanned.length;
     return {params, items, total};
 }
 

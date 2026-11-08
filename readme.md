@@ -126,7 +126,8 @@ NODE_ENV=production LOG_LEVEL=info node src/index.js
 | `ENABLE_DOCS`         | `false`      | Serve Swagger UI at `/docs`               |
 | `VALIDATE_REQUESTS`   | `false`      | Enable OpenAPI request validation         |
 | `VALIDATE_RESPONSES`  | `false`      | Enable OpenAPI response validation        |
-| `UPSTREAM_TIMEOUT_MS` | `20000`      | Axios timeout for PlayFab requests        |
+| `UPSTREAM_TIMEOUT_MS` | `20000`      | Axios timeout for each PlayFab request attempt |
+| `PLAYFAB_SHARED_BUDGET_DIRECTORY` | empty | Shared writable directory for cross-process Catalog/Search, SearchItems, GetItem and GetItems budgets and Retry-After cooldowns; all API and worker processes using the same PlayFab account must use the same directory |
 | `HTTP_MAX_SOCKETS`    | `512`        | Keep-alive sockets (HTTP)                 |
 | `HTTPS_MAX_SOCKETS`   | `512`        | Keep-alive sockets (HTTPS)                |
 

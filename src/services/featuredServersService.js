@@ -36,7 +36,7 @@ const api = axios.create({
 
 const AUTH_BASE = process.env.MC_AUTH_BASE || "https://authorization.franchise.minecraft-services.net";
 const DISCOVERY_BASE = process.env.MC_DISCOVERY_BASE || "https://gatherings-secondary.franchise.minecraft-services.net";
-const CLIENT_VERSION_URL = process.env.MC_CLIENT_VERSION_URL || "https://displaycatalog.mp.microsoft.com/v7.0/products/9NBLGGH2JHXJ/?market=CA&languages=en-CA,en,neutral";
+const CLIENT_VERSION_URL = process.env.MC_CLIENT_VERSION_URL || "https://net-secondary.web.minecraft-services.net/api/v1.0/download/links";
 const CLIENT_VERSION_OVERRIDE = (process.env.MC_CLIENT_VERSION || "").trim();
 
 const CLIENT_VERSION_TTL_MS = Number(process.env.MC_CLIENT_VERSION_TTL_MS || 12 * 60 * 60 * 1000);
@@ -67,6 +67,11 @@ function normalizeDiscoveryFilter(filter) {
 }
 
 function extractClientVersion(data) {
+    if (Array.isArray(data?.result?.links)) {
+        const link = data.result.links.find(entry => entry?.downloadType === "serverBedrockWindows");
+        const match = String(link?.downloadUrl || "").match(/\/bedrock-server-(\d+\.\d+\.\d+)\.\d+\.zip(?:[?#].*)?$/);
+        return match ? match[1] : null;
+    }
     const full = data?.Product?.DisplaySkuAvailabilities?.[0]?.Sku?.Properties?.Packages?.[0]?.PackageFullName;
     const match = String(full || "").match(/(\d+\.\d+\.\d+)\.\d+/);
     if (match) return match[1];
@@ -109,11 +114,11 @@ async function fetchClientVersion() {
             }
             const found = extractClientVersion(r.data);
             if (!found) {
-                const e = new Error("Client version response missing package metadata");
+                const e = new Error("Client version response missing version metadata");
                 e.status = 502;
                 throw e;
             }
-            dataCache.set("mc-client-version:last", found, {ttl: CLIENT_VERSION_TTL_MS});
+            dataCache.set("mc-client-version:last", found, {ttl: 0});
             return found;
         }, CLIENT_VERSION_TTL_MS);
         return version;

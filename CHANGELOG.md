@@ -1,5 +1,23 @@
 # Changelog
 
+## 17.3.7 (2026-11-09)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Fix client version discovery (09271f2)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/featuredServersService.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +8 / -3
 ## 17.3.4 (2026-11-08)
 
 ### Summary
@@ -4026,6 +4044,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

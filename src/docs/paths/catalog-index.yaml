@@ -32,7 +32,7 @@
         schema: {type: string}
         example: persona_emote,persona_capes
     responses:
-      '200': {description: Items, pagination, and explicit snapshot coverage}
+      '200': {description: "Items, pagination, and explicit snapshot coverage"}
       '400': {description: Invalid query or cursor}
       '409': {description: Snapshot changed}
 /marketplace/home:
@@ -55,4 +55,4 @@
     security: []
     tags: [Marketplace]
     responses:
-      '200': {description: Snapshot age, open partitions and sync outcome}
+      '200': {description: "Snapshot age, open partitions and sync outcome"}

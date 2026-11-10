@@ -1,5 +1,46 @@
 # Changelog
 
+## 17.7.0 (2026-11-10)
+
+### Summary
+
+- Change type: Documentation
+- Main change: PlayFab - Add grouped Dressing Room categories (d91d4dc)
+- Impact: Documentation with a medium change footprint across repository files, application logic.
+- Bump reason: medium change footprint (6 files, 88 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/marketplace/featuredPersonaController.js
+- API routes: 1 file: src/routes/marketplace/featured-persona.js
+- OpenAPI documentation: 2 files: src/docs/paths/marketplace.featured-persona.yaml, src/docs/schemas/FeaturedPersona.yml
+- README: 1 file: readme.md
+- Service layer: 1 file: src/services/featuredPersonaService.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 6
+- Line changes: +78 / -10
+
+## 17.7.1 (2026-11-10)
+
+### Summary
+
+- Change type: Documentation
+- Main change: PlayFab - Fix catalog OpenAPI response descriptions (b0fd482)
+- Impact: Documentation with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- OpenAPI documentation: 1 file: src/docs/paths/catalog-index.yaml
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +2 / -2
 ## 17.4.0 (2026-11-10)
 
 ### Summary
@@ -4180,6 +4221,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

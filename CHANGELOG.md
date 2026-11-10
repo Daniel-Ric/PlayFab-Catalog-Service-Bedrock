@@ -1,5 +1,141 @@
 # Changelog
 
+## 17.4.0 (2026-11-10)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Reuse catalog scans and deduplicate detail requests (8c29e85)
+- Impact: Repository update with a medium change footprint across application logic.
+- Bump reason: medium change footprint (4 files, 240 total line changes)
+
+### Changed Areas
+
+- Runtime configuration: 1 file: src/config/cache.js
+- Service layer: 2 files: src/services/advancedSearchService.js, src/services/marketplaceService.js
+- Shared utilities: 1 file: src/utils/playfab.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 4
+- Line changes: +169 / -71
+
+## 17.4.1 (2026-11-10)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Preserve ETags for streamed catalog responses (678bb07)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Application source: 1 file: src/middleware/etag.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +25 / -2
+
+## 17.5.0 (2026-11-10)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Persist large watcher states in background (666594f)
+- Impact: Repository update with a medium change footprint across application logic.
+- Bump reason: medium change footprint (7 files, 154 total line changes)
+
+### Changed Areas
+
+- Service layer: 5 files: src/services/catalogIndexStore.js, src/services/contentUpdateWatcher.js, plus 3 more
+- Shared utilities: 2 files: src/utils/storage.js, src/utils/storageWorker.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 7
+- Line changes: +121 / -33
+
+## 17.5.1 (2026-11-10)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Pipeline watcher searches and item details (0696aaf)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/itemWatcher.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +94 / -41
+
+## 17.6.0 (2026-11-10)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Append SSE events with background compaction (94a5ca6)
+- Impact: Repository update with a medium change footprint across application logic.
+- Bump reason: medium change footprint (3 files, 182 total line changes)
+
+### Changed Areas
+
+- Service layer: 2 files: src/services/eventJournal.js, src/services/eventJournalWorker.js
+- Shared utilities: 1 file: src/utils/journalRecords.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 3
+- Line changes: +176 / -6
+
+## 17.6.1 (2026-11-10)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Document watcher pipelines and journal persistence (149d8ac)
+- Impact: Repository update with a small change footprint across repository files.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- README: 1 file: readme.md
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +3 / -1
+
+## 17.6.2 (2026-11-10)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Configure concise commit messages (91324f2)
+- Impact: Repository update with a small change footprint across repository files.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Repository files: 1 file: .idea/vcs.xml
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +4 / -0
 ## 17.3.7 (2026-11-09)
 
 ### Summary
@@ -4044,6 +4180,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

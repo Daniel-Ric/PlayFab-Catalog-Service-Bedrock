@@ -13,8 +13,13 @@
 // -----------------------------------------------------------------------------
 
 const router = require("express").Router();
+const {query} = require("express-validator");
+const validate = require("../../middleware/validate");
+const {PERSONA_CATEGORIES} = require("../../services/featuredPersonaService");
 const ctrl = require("../../controllers/marketplace/featuredPersonaController");
 
-router.get("/", ctrl.getFeaturedPersona);
+router.get("/", [
+    query("category").optional().isString().bail().isIn([...PERSONA_CATEGORIES, "all"])
+], validate, ctrl.getFeaturedPersona);
 
 module.exports = router;

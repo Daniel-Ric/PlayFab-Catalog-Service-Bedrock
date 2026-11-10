@@ -16,9 +16,23 @@
     tags:
       - Marketplace
     summary: Get featured persona items
-    description: Returns featured persona items from the Dressing Room layout page.
+    description: >-
+      Returns the existing Dressing Room persona profile layout by default.
+      Use category to select a category layout, or all to return all eight
+      layouts grouped by category. Each layout retains its original upstream
+      response, including rows, items and metadata. Category and grouped requests
+      share the same per-category cache. Featured-content SSE events continue
+      to monitor the configured persona profile page.
     security:
       - BearerAuth: [ ]
+    parameters:
+      - name: category
+        in: query
+        required: false
+        description: Case-sensitive Dressing Room category; all returns layouts grouped under categories.
+        schema:
+          type: string
+          enum: [Tops, Bottoms, Outerwears, Headwears, Gloves, Footwears, FaceItems, BackItems, all]
     responses:
       "200":
         description: OK
@@ -29,7 +43,13 @@
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/FeaturedPersona"
+              anyOf:
+                - $ref: "#/components/schemas/FeaturedPersona"
+                - $ref: "#/components/schemas/FeaturedPersonaCategories"
+      "400":
+        description: Invalid category; allowed values are listed in the category parameter.
+      "304":
+        description: The requested layout or category group matches the supplied ETag.
       "401":
         description: Unauthorized
         content:
@@ -44,6 +64,12 @@
               $ref: "#/components/schemas/Error"
       "500":
         description: Server error
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "503":
+        description: Upstream layout unavailable; grouped requests fail rather than return incomplete categories.
         content:
           application/json:
             schema:

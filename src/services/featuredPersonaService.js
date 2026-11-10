@@ -37,6 +37,9 @@ const PERSONA_PAGE = (process.env.MC_PERSONA_PAGE || "DressingRoom_PersonaProfil
 const PERSONA_LIST_VERSION = (process.env.MC_PERSONA_LIST_VERSION || "3108f120-906b-401d-af90-942cc5f73551").trim();
 const PERSONA_INVENTORY_VERSION = (process.env.MC_PERSONA_INVENTORY_VERSION || "1/NA==").trim();
 const PERSONA_LANGUAGE = process.env.MC_LANGUAGE_CODE || "en-US";
+const PERSONA_CATEGORIES = Object.freeze([
+    "Tops", "Bottoms", "Outerwears", "Headwears", "Gloves", "Footwears", "FaceItems", "BackItems"
+]);
 
 function buildPersonaProfilePayload() {
     return {
@@ -47,10 +50,15 @@ function buildPersonaProfilePayload() {
     };
 }
 
-async function fetchFeaturedPersona(titleId) {
+async function fetchFeaturedPersona(titleId, category) {
+    if (category !== undefined && !PERSONA_CATEGORIES.includes(category)) {
+        const e = new Error("Invalid Dressing Room category.");
+        e.status = 400;
+        throw e;
+    }
     const token = await fetchMCToken(titleId);
     const payload = buildPersonaProfilePayload();
-    const page = PERSONA_PAGE || "DressingRoom_PersonaProfile";
+    const page = category ? `DressingRoom_${category}` : PERSONA_PAGE || "DressingRoom_PersonaProfile";
     const url = `${STORE_BASE}/api/v1.0/layout/pages/${encodeURIComponent(page)}`;
     const r = await api.post(url, payload, {
         headers: {"authorization": token, "accept-language": PERSONA_LANGUAGE}
@@ -64,4 +72,4 @@ async function fetchFeaturedPersona(titleId) {
     return r.data;
 }
 
-module.exports = {fetchFeaturedPersona, buildPersonaProfilePayload};
+module.exports = {fetchFeaturedPersona, buildPersonaProfilePayload, PERSONA_CATEGORIES};

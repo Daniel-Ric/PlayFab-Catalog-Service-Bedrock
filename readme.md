@@ -743,6 +743,19 @@ Returns a curated list from `src/config/featuredServers.js`, each resolved to a 
 
 Returns featured persona items from the Dressing Room layout page.
 
+Optional `?category=Tops` selects a Dressing Room category. Supported values are
+`Tops`, `Bottoms`, `Outerwears`, `Headwears`, `Gloves`, `Footwears`, `FaceItems`,
+and `BackItems` (case-sensitive). Each returns the original category layout,
+including its featured items and metadata.
+
+Use `?category=all` to return all eight layouts grouped as
+`{"categories":{"Tops":{/* original layout */},"Bottoms":{/* original layout */},...}}`.
+Single-category and grouped requests share the existing cache TTL and support
+ETag revalidation. Invalid categories return 400; an upstream failure is
+propagated instead of returning incomplete groups. Without `category`, the
+existing response is preserved. Featured-content SSE events continue to monitor
+the configured persona profile page.
+
 #### `GET /marketplace/mc-token`
 
 Returns the Minecraft Services authorization token for the configured primary title.

@@ -15,7 +15,7 @@
 const withETag = require("../../middleware/etag");
 const {dataCache} = require("../../config/cache");
 const {resolveTitle} = require("../../utils/titles");
-const {fetchFeaturedPersona} = require("../../services/featuredPersonaService");
+const {fetchFeaturedPersona, PERSONA_CATEGORIES} = require("../../services/featuredPersonaService");
 
 function getPrimaryTitleId() {
     const v = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || process.env.TITLE_ID || "").trim();
@@ -28,9 +28,16 @@ function getPrimaryTitleId() {
     }
 }
 
-exports.getFeaturedPersona = withETag(async (_, res) => {
+exports.getFeaturedPersona = withETag(async (req, res) => {
     const titleId = getPrimaryTitleId();
-    const key = `featured-persona:v1:${titleId}`;
     const ttl = Number(process.env.MC_PERSONA_TTL_MS || 6 * 60 * 60 * 1000);
-    return dataCache.getOrSetAsync(key, async () => fetchFeaturedPersona(titleId), ttl);
+    const load = category => {
+        const key = `featured-persona:v1:${titleId}${category ? `:${category}` : ""}`;
+        return dataCache.getOrSetAsync(key, async () => fetchFeaturedPersona(titleId, category), ttl);
+    };
+    if (req.query.category === "all") {
+        const categories = await Promise.all(PERSONA_CATEGORIES.map(async category => [category, await load(category)]));
+        return {categories: Object.fromEntries(categories)};
+    }
+    return load(req.query.category);
 });

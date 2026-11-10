@@ -14,3 +14,12 @@
 FeaturedPersona:
   type: object
   additionalProperties: true
+FeaturedPersonaCategories:
+  type: object
+  required: [categories]
+  properties:
+    categories:
+      type: object
+      description: Original layout responses keyed by Tops, Bottoms, Outerwears, Headwears, Gloves, Footwears, FaceItems and BackItems.
+      additionalProperties:
+        $ref: "#/components/schemas/FeaturedPersona"

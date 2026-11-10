@@ -476,6 +476,7 @@ Response:
 | Method | Path                                               | Description                            |
 | ------ | -------------------------------------------------- | -------------------------------------- |
 | GET    | `/marketplace/all/:alias`                          | Entire catalog (optionally `?tag=...`) |
+| GET    | `/marketplace/creator-pages/:alias`                | All creator pages (optionally `?creatorName=...`) |
 | GET    | `/marketplace/latest/:alias`                       | Latest items (`?count<=50`)            |
 | GET    | `/marketplace/popular/:alias`                      | Popular by `rating/totalcount`         |
 | GET    | `/marketplace/free/:alias`                         | Free items                             |
@@ -580,6 +581,12 @@ Paginated list of creators with `creatorName`, `displayName`, and `imageUrl`. Im
 #### `GET /marketplace/all/:alias`
 
 All catalog items for an alias, optional `?tag=...`. Supports server-side pagination. `ResolvedReferences` are only included with `?expand=refs`.
+
+#### `GET /marketplace/creator-pages/:alias`
+
+Returns all `CreatorPageManifest_V1.0.0` catalog items for the alias, including `DisplayProperties.header`, `pageTabs`, `screenLayoutQueries`, and images. Fetches all upstream pages without a date restriction. Optional `?creatorName=Kora%20Studios` selects one creator using the registered `creatorName` or `displayName`, ignoring case and whitespace. Unknown aliases or creators return 404; creators without a page return an empty array.
+
+Uses the existing Bearer authentication, cache and ETag handling. Without pagination the response is an array; `page`/`pageSize` or `skip`/`limit` return `{items, meta}` with the total matching page count. Pagination is applied locally after fetching all matching manifests.
 
 #### `GET /marketplace/latest/:alias?count=10`
 

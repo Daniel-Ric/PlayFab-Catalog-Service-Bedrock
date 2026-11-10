@@ -1,0 +1,121 @@
+# -----------------------------------------------------------------------------
+#
+# File: src/docs/paths/marketplace.creator-pages.yaml
+# Disclaimer: "PlayFab Catalog Service Bedrock" by SpindexGFX is an independent project.
+# It is not affiliated with, endorsed by, sponsored by, or otherwise connected to Mojang AB,
+# Microsoft Corporation, or any of their subsidiaries or affiliates.
+# No partnership, approval, or official relationship with Mojang AB or Microsoft is implied.
+#
+# All names, logos, brands, trademarks, service marks, and registered trademarks are the
+# property of their respective owners and are used strictly for identification/reference only.
+# This project does not claim ownership of third-party IP and provides no license to use it.
+#
+# -----------------------------------------------------------------------------
+/marketplace/creator-pages/{alias}:
+  get:
+    tags:
+      - Marketplace
+    summary: Get creator pages
+    description: Lists all CreatorPageManifest_V1.0.0 catalog items for a title alias, including header, pageTabs, screenLayoutQueries and images. Optionally restricts the result to a registered creator by creatorName or displayName (case and whitespace insensitive). All upstream pages are fetched before optional local pagination. Returns an empty array when no pages match; unknown aliases or creators return 404. No date restriction is applied.
+    security:
+      - BearerAuth: [ ]
+    parameters:
+      - in: path
+        name: alias
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: creatorName
+        description: Registered creatorName or displayName.
+        schema:
+          type: string
+          minLength: 1
+          example: Kora Studios
+      - in: query
+        name: page
+        schema:
+          type: integer
+          minimum: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      - in: query
+        name: skip
+        schema:
+          type: integer
+          minimum: 0
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 1000
+    responses:
+      "200":
+        description: Array of creator page manifests, or items and meta when pagination is requested.
+        headers:
+          ETag:
+            schema:
+              type: string
+          X-Total-Count:
+            description: Total matching pages when pagination is requested.
+            schema:
+              type: integer
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: array
+                  items:
+                    $ref: "#/components/schemas/Item"
+                - type: object
+                  required: [items, meta]
+                  properties:
+                    items:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/Item"
+                    meta:
+                      $ref: "#/components/schemas/PaginationMeta"
+      "304":
+        description: Not modified (If-None-Match matches ETag).
+      "400":
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "401":
+        description: Unauthorized
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "403":
+        description: Forbidden
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "404":
+        description: Alias or creator not found
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "500":
+        description: Server error
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+      "502":
+        description: Incomplete or malformed upstream catalog response, including repeated continuation tokens.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"

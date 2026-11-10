@@ -277,6 +277,7 @@ function getRoutesInfo() {
         marketplace: {
             base: "/marketplace",
             all: "/marketplace/all/:alias",
+            creatorPages: "/marketplace/creator-pages/:alias",
             latest: "/marketplace/latest/:alias",
             popular: "/marketplace/popular/:alias",
             free: "/marketplace/free/:alias",

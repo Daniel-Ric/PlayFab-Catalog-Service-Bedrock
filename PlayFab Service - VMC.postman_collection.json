@@ -870,6 +870,166 @@
       "name": "Marketplace",
       "item": [
         {
+          "name": "Creator Pages",
+          "item": [
+            {
+              "name": "GET /marketplace/creator-pages/:alias",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "const pages = Array.isArray(body) ? body : body.items;",
+                      "pm.test(\"Creator pages are returned\", () => pm.expect(pages).to.be.an(\"array\"));",
+                      "pm.test(\"Only creator page manifests\", () => pages.forEach(page => pm.expect(page.ContentType).to.eql(\"CreatorPageManifest_V1.0.0\")));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/creator-pages/{{alias_prod}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "creator-pages",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}",
+                      "disabled": true,
+                      "description": "Registered creatorName or displayName (case and whitespace insensitive)."
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Pagination page."
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Pagination page size."
+                    },
+                    {
+                      "key": "skip",
+                      "value": "0",
+                      "disabled": true,
+                      "description": "Offset-based pagination start."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Offset-based pagination limit."
+                    }
+                  ]
+                },
+                "description": "Return all CreatorPageManifest_V1.0.0 manifests, including header, pageTabs, screenLayoutQueries and images. No date restriction. Optional creatorName selects a registered creator. Unknown aliases or creators return 404; no matching pages returns an empty array. Pagination returns {items, meta}."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/creator-pages/:alias?creatorName",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.expect([200]).to.include(pm.response.code));",
+                      "const contentType = pm.response.headers.get(\"Content-Type\") || \"\";",
+                      "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
+                      "let body;",
+                      "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
+                      "const pages = Array.isArray(body) ? body : body.items;",
+                      "pm.test(\"Creator pages are returned\", () => pm.expect(pages).to.be.an(\"array\"));",
+                      "pm.test(\"Only creator page manifests\", () => pages.forEach(page => pm.expect(page.ContentType).to.eql(\"CreatorPageManifest_V1.0.0\")));",
+                      "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
+                      "const etag = pm.response.headers.get(\"ETag\");",
+                      "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/creator-pages/{{alias_prod}}?creatorName={{creator1}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "creator-pages",
+                    "{{alias_prod}}"
+                  ],
+                  "query": [
+                    {
+                      "key": "creatorName",
+                      "value": "{{creator1}}",
+                      "description": "Registered creatorName or displayName (case and whitespace insensitive)."
+                    },
+                    {
+                      "key": "page",
+                      "value": "1",
+                      "disabled": true,
+                      "description": "Pagination page."
+                    },
+                    {
+                      "key": "pageSize",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Pagination page size."
+                    },
+                    {
+                      "key": "skip",
+                      "value": "0",
+                      "disabled": true,
+                      "description": "Offset-based pagination start."
+                    },
+                    {
+                      "key": "limit",
+                      "value": "24",
+                      "disabled": true,
+                      "description": "Offset-based pagination limit."
+                    }
+                  ]
+                },
+                "description": "Return all CreatorPageManifest_V1.0.0 manifests, including header, pageTabs, screenLayoutQueries and images. No date restriction. Optional creatorName selects a registered creator. Unknown aliases or creators return 404; no matching pages returns an empty array. Pagination returns {items, meta}."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
           "name": "All Items",
           "item": [
             {

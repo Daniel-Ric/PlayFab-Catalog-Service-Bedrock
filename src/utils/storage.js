@@ -14,6 +14,11 @@
 
 const fs = require("fs");
 const path = require("path");
+const {Worker} = require("node:worker_threads");
+
+let worker;
+let sequence = 0;
+const pendingWrites = new Map();
 
 function ensureDir(p) {
     const dir = path.dirname(p);
@@ -33,4 +38,44 @@ function writeJsonAtomic(p, obj) {
     fs.renameSync(tmp, p);
 }
 
-module.exports = {readJson, writeJsonAtomic};
+function writeJsonAtomicAsync(p, obj) {
+    const entries = Array.isArray(obj) ? obj.length : Object.values(obj || {}).reduce((count, value) => count + (Array.isArray(value) ? value.length : 1), 0);
+    if (entries < 256) {
+        writeJsonAtomic(p, obj);
+        return Promise.resolve();
+    }
+    if (!worker) {
+        const current = new Worker(path.join(__dirname, "storageWorker.js"));
+        worker = current;
+        current.on("message", ({id, error}) => {
+            const pending = pendingWrites.get(id);
+            if (!pending) return;
+            pendingWrites.delete(id);
+            if (error) pending.reject(Object.assign(new Error(error.message), {code: error.code}));
+            else pending.resolve();
+            if (!pendingWrites.size) current.unref();
+        });
+        const fail = error => {
+            if (worker !== current) return;
+            worker = null;
+            for (const pending of pendingWrites.values()) pending.reject(error);
+            pendingWrites.clear();
+        };
+        current.on("error", fail);
+        current.on("exit", code => fail(new Error(`Storage worker exited with code ${code}`)));
+    }
+    return new Promise((resolve, reject) => {
+        const id = ++sequence;
+        pendingWrites.set(id, {resolve, reject});
+        worker.ref();
+        try {
+            worker.postMessage({id, file: path.resolve(p), value: obj});
+        } catch (error) {
+            pendingWrites.delete(id);
+            if (!pendingWrites.size) worker.unref();
+            reject(error);
+        }
+    });
+}
+
+module.exports = {readJson, writeJsonAtomic, writeJsonAtomicAsync};

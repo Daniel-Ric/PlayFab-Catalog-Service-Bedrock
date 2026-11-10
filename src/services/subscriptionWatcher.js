@@ -20,7 +20,7 @@ const {resolveTitle} = require("../utils/titles");
 const {projectCatalogItem} = require("../utils/projectors");
 const {sanitizeCatalogItem, sensitiveEventFieldsEnabled} = require("../utils/catalogSanitizer");
 const {createNonOverlappingRunner} = require("../utils/watcherRun");
-const {readJson, writeJsonAtomic} = require("../utils/storage");
+const {readJson, writeJsonAtomicAsync} = require("../utils/storage");
 const {stableHash} = require("../utils/hash");
 const {
     SUBSCRIPTION_DEFS,
@@ -126,9 +126,9 @@ function loadPersistedState() {
     }
 }
 
-function savePersistedState(state) {
+async function savePersistedState(state) {
     try {
-        writeJsonAtomic(stateFilePath(), serializeState(state));
+        await writeJsonAtomicAsync(stateFilePath(), serializeState(state));
     } catch (err) {
         logger.warn(`[SubscriptionWatcher] failed to save state file: ${err.message}`);
         throw err;
@@ -268,7 +268,7 @@ class SubscriptionWatcher {
                     });
                 }
                 const nextState = {...this.state, [key]: currentMap};
-                savePersistedState(nextState);
+                await savePersistedState(nextState);
                 this.state = nextState;
                 successfulRefreshes += 1;
             }

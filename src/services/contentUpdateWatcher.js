@@ -19,7 +19,7 @@ const {stableHash} = require("../utils/hash");
 const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const {projectCatalogItem} = require("../utils/projectors");
 const {sanitizeCatalogItem, sensitiveEventFieldsEnabled} = require("../utils/catalogSanitizer");
-const {readJson, writeJsonAtomic} = require("../utils/storage");
+const {readJson, writeJsonAtomicAsync} = require("../utils/storage");
 const {WatcherCursor} = require("../utils/watcherCursor");
 const {_internals: itemWatcherInternals} = require("./itemWatcher");
 const {sendPlayFabRequest} = require("../utils/playfab");
@@ -356,9 +356,9 @@ function loadPersistedState() {
     }
 }
 
-function savePersistedState(state) {
+async function savePersistedState(state) {
     try {
-        writeJsonAtomic(stateFilePath(), serializeState(state));
+        await writeJsonAtomicAsync(stateFilePath(), serializeState(state));
     } catch (err) {
         logger.warn(`[ContentUpdateWatcher] failed to save state file: ${err.message}`);
         throw err;
@@ -597,25 +597,37 @@ function groupContentRelease(previous, outcome, now) {
 class ContentObservationJournal {
     constructor(file) {
         this.file = file;
+        this.records = null;
     }
 
     read() {
-        return readJson(this.file, []);
+        if (!this.records) {
+            this.records = readJson(this.file, []);
+            this.sizes = this.records.map(record => Buffer.byteLength(JSON.stringify(record)));
+            this.bytes = 2 + this.sizes.reduce((total, size) => total + size + 1, 0) - (this.records.length ? 1 : 0);
+        }
+        return this.records;
     }
 
-    append(observations) {
+    async append(observations) {
         if (!observations.length) return;
         const safe = observations.map(observation => ({
             ...sanitizeCatalogItem(observation, {exposeSensitive: false}),
             changes: summarizeChanges(observation.changes || [])
         }));
-        const next = [...this.read(), ...safe];
-        let bytes = Buffer.byteLength(JSON.stringify(next));
+        const records = this.read();
+        const addedSizes = safe.map(record => Buffer.byteLength(JSON.stringify(record)));
+        const next = [...records, ...safe];
+        const sizes = [...this.sizes, ...addedSizes];
+        let bytes = this.bytes + addedSizes.reduce((total, size) => total + size + 1, 0) - (records.length ? 0 : 1);
         let start = 0;
         while (start < next.length && (next.length - start > 100000 || bytes > 32 * 1024 * 1024)) {
-            bytes -= Buffer.byteLength(JSON.stringify(next[start++])) + 1;
+            bytes -= sizes[start++] + 1;
         }
-        writeJsonAtomic(this.file, next.slice(start));
+        await writeJsonAtomicAsync(this.file, next.slice(start));
+        this.records = next.slice(start);
+        this.sizes = sizes.slice(start);
+        this.bytes = Math.max(2, bytes);
     }
 }
 
@@ -651,11 +663,11 @@ class ContentUpdateWatcher {
                 ? await itemWatcherInternals.requestChangedItems(titleId, os, sinceIso, itemsPerRequest, maxItems, sinceIso)
                 : await itemWatcherInternals.fetchBootstrapItems(titleId, os, itemsPerRequest, maxItems, 0);
             const result = await scanContentItems(persisted.state, changed, titleId, os, {now: scanStartedAt, confirmMs, maxPendingMs,
-                publish: (updates, observations) => {
-                    observationJournal.append(observations);
+                publish: async (updates, observations) => {
+                    await observationJournal.append(observations);
                     this.emitUpdates(eventBus, updates);
                 }});
-            savePersistedState(result.state);
+            await savePersistedState(result.state);
             cursor.commit(scanStartedAt, window);
             this.state = result.state;
             this.lastRunTs = scanStartedAt;

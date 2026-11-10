@@ -13,7 +13,7 @@
 // -----------------------------------------------------------------------------
 
 const path = require("path");
-const {readJson, writeJsonAtomic} = require("../utils/storage");
+const {readJson, writeJsonAtomic, writeJsonAtomicAsync} = require("../utils/storage");
 const {sendPlayFabRequest, getStoreItems, getItemsByIds} = require("../utils/playfab");
 const {resolveTitle} = require("../utils/titles");
 const {stableHash} = require("../utils/hash");
@@ -316,7 +316,7 @@ class SalesWatcher {
         this.lastRunTs = 0;
     }
 
-    processSnapshot(snap, eventBus) {
+    processSnapshot(snap, eventBus, persist = writeJsonAtomic) {
         if (!this.initialized) {
             const saved = readJson(this.stateFile, null);
             if (saved !== null) {
@@ -331,10 +331,16 @@ class SalesWatcher {
         } else if (changes.length) {
             eventBus.emit("sale.update", buildPayload(ts, snap, changes));
         }
-        if (changes === null || changes.length) writeJsonAtomic(this.stateFile, Array.from(snap));
-        this.prev = snap;
-        this.initialized = true;
-        this.lastRunTs = ts;
+        const commit = () => {
+            this.prev = snap;
+            this.initialized = true;
+            this.lastRunTs = ts;
+        };
+        if (changes === null || changes.length) {
+            const saved = persist(this.stateFile, Array.from(snap));
+            if (saved?.then) return saved.then(commit);
+        }
+        commit();
     }
 
     start(eventBus) {
@@ -351,7 +357,7 @@ class SalesWatcher {
                 const storesWithItems = await fetchStoresWithItems(titleId, os, concurrency);
                 const itemDetails = await fetchItemDetails(titleId, os, storesWithItems, itemBatchSize, itemConcurrency);
                 const snap = snapshot(storesWithItems, itemDetails);
-                this.processSnapshot(snap, eventBus);
+                await this.processSnapshot(snap, eventBus, writeJsonAtomicAsync);
             } catch (e) {
                 logger.debug(`[SalesWatcher] error ${e.message || "err"}`);
                 this.lastRunTs = Date.now();

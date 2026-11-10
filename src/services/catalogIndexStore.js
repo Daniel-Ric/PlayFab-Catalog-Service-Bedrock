@@ -2,7 +2,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const os = require("node:os");
-const {readJson, writeJsonAtomic} = require("../utils/storage");
+const {readJson, writeJsonAtomicAsync} = require("../utils/storage");
 const {createScan, scanCatalog} = require("./catalogPartitionScanner");
 const {CatalogOfferIndex, projectOffer} = require("./catalogOfferIndex");
 
@@ -88,10 +88,10 @@ class CatalogIndexStore {
 
                 if (rows.length) {
                     const sequence = checkpoint.sequence + 1;
-                    writeJsonAtomic(path.join(pagesDir, `${sequence}.json`), rows.map(row => ({...projectOffer(row, this.registry), indexObservedAt: this.now()})));
+                    await writeJsonAtomicAsync(path.join(pagesDir, `${sequence}.json`), rows.map(row => ({...projectOffer(row, this.registry), indexObservedAt: this.now()})));
                     checkpoint.sequence = sequence;
                 }
-                writeJsonAtomic(checkpointFile, checkpoint);
+                await writeJsonAtomicAsync(checkpointFile, checkpoint);
             }});
             if (state.status !== "complete") return this.coverage();
             const offers = new Map((previous?.items || []).map(item => [item.Id, {...item,
@@ -123,11 +123,11 @@ class CatalogIndexStore {
             if (previous) {
                 const retained = path.join(snapshotsDir, `${previous.id}.json`);
                 const temporary = `${retained}.${process.pid}.tmp`;
-                fs.copyFileSync(path.join(this.directory, 'snapshot.json'), temporary);
+                await fs.promises.copyFile(path.join(this.directory, 'snapshot.json'), temporary);
                 fs.utimesSync(temporary, this.now() / 1000, this.now() / 1000);
                 fs.renameSync(temporary, retained);
             }
-            writeJsonAtomic(path.join(this.directory, "snapshot.json"), snapshot);
+            await writeJsonAtomicAsync(path.join(this.directory, "snapshot.json"), snapshot);
             this.index = new CatalogOfferIndex(snapshot, {now: this.now});
             this.snapshotModified = fs.statSync(path.join(this.directory, 'snapshot.json')).mtimeMs;
             for (const entry of fs.readdirSync(snapshotsDir)) {

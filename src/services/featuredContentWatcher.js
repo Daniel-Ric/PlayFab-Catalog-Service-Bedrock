@@ -18,7 +18,7 @@ const {stableHash} = require("../utils/hash");
 const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const {fetchFeaturedPersona} = require("./featuredPersonaService");
 const path = require('node:path');
-const {readJson, writeJsonAtomic} = require('../utils/storage');
+const {readJson, writeJsonAtomicAsync} = require('../utils/storage');
 const {sanitizeCatalogItem} = require('../utils/catalogSanitizer');
 
 function featuredItemId(item) {
@@ -387,7 +387,7 @@ class FeaturedContentWatcher {
 
         const intervalMs = Math.max(60000, parseInt(process.env.FEATURED_CONTENT_WATCH_INTERVAL_MS || "21600000", 10));
         const stateFile = process.env.FEATURED_CONTENT_WATCH_STATE_FILE || path.join(__dirname, '../data/featuredContentState.json');
-        const save = (ids, entries, signature) => writeJsonAtomic(stateFile, {
+        const save = (ids, entries, signature) => writeJsonAtomicAsync(stateFile, {
             ids, entries: sanitizeCatalogItem(entries, {exposeSensitive: false}), signature
         });
 
@@ -408,7 +408,7 @@ class FeaturedContentWatcher {
             const currentContentSignature = featuredContentSignature(payload, entries);
 
             if (!this.lastItemIds) {
-                save(currentItemIds, entries, currentContentSignature);
+                await save(currentItemIds, entries, currentContentSignature);
                 this.lastItemIds = currentItemIdsSet;
                 this.lastEntries = entries;
                 this.lastContentSignature = currentContentSignature;
@@ -433,7 +433,7 @@ class FeaturedContentWatcher {
                 if (eventPayload) {
                     emitFeaturedContentChangeEvents(eventBus, eventPayload);
                 }
-                save(currentItemIds, entries, currentContentSignature);
+                await save(currentItemIds, entries, currentContentSignature);
                 this.lastItemIds = currentItemIdsSet;
                 this.lastEntries = entries;
                 this.lastContentSignature = currentContentSignature;

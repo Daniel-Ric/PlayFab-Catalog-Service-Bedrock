@@ -146,6 +146,7 @@ async function fetchMCToken(titleId) {
                 tokentype: MC_TOKEN_TYPE
             }, device: {
                 applicationType: MC_APPLICATION_TYPE,
+                hardwareMemoryTier: 5,
                 memory: Math.floor(Math.random() * 10 ** 12) + 1,
                 id: randomUUID(),
                 gameVersion: version,

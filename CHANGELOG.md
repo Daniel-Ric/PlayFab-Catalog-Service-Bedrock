@@ -1,5 +1,29 @@
 # Changelog
 
+## 17.8.0 (2026-11-10)
+
+### Summary
+
+- Change type: Documentation
+- Main change: PlayFab - Add creator pages endpoint (5a1cdcd)
+- Impact: Documentation with a medium change footprint across repository files, application logic.
+- Bump reason: medium change footprint (8 files, 419 total line changes)
+
+### Changed Areas
+
+- API controllers: 2 files: src/controllers/healthController.js, src/controllers/marketplace/creatorPagesController.js
+- API routes: 1 file: src/routes/marketplace/creator-pages.js
+- Application source: 1 file: src/index.js
+- OpenAPI documentation: 1 file: src/docs/paths/marketplace.creator-pages.yaml
+- Postman collection: 1 file: PlayFab Service - VMC.postman_collection.json
+- README: 1 file: readme.md
+- Other areas: 1 additional group.
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 8
+- Line changes: +419 / -0
 ## 17.7.0 (2026-11-10)
 
 ### Summary
@@ -4221,6 +4245,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

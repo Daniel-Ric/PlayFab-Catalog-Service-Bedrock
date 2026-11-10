@@ -21,7 +21,7 @@ const {stableHash} = require("../utils/hash");
 const {createNonOverlappingRunner} = require("../utils/watcherRun");
 const {projectCatalogItems, projectCatalogItem} = require("../utils/projectors");
 const {sanitizeCatalogItem, sensitiveEventFieldsEnabled} = require("../utils/catalogSanitizer");
-const {readJson, writeJsonAtomic} = require("../utils/storage");
+const {readJson, writeJsonAtomicAsync} = require("../utils/storage");
 const {WatcherCursor} = require('../utils/watcherCursor');
 const SEARCH_ITEMS_MAX_COUNT = 50;
 const DEFAULT_STATE_FILE = path.join(__dirname, "../data/itemWatcherState.json");
@@ -104,33 +104,35 @@ function preserveKnownTranslations(item, previous) {
     return next;
 }
 
-async function fetchRecentItems(titleId, os, itemsPerRequest, maxItems) {
+async function fetchRecentItems(titleId, os, itemsPerRequest, maxItems, details = new Map(), pipeline = null) {
     const field = "lastModifiedDate";
     const orderBy = `${field} desc`;
     const filter = "";
 
-    return collectPaginatedItems(itemsPerRequest, maxItems, (continuationToken, count) => requestItems(titleId, os, filter, orderBy, continuationToken, count));
+    return collectPaginatedItems(itemsPerRequest, maxItems, (continuationToken, count) => requestItems(titleId, os, filter, orderBy, continuationToken, count, details, pipeline));
 }
 
 async function fetchBootstrapItems(titleId, os, itemsPerRequest, maxItems, createdLookbackMs) {
-    const itemMap = new Map();
-    const addItems = items => {
-        for (const it of items || []) {
-            const id = it.Id || it.id;
-            if (!id) continue;
-            itemMap.set(id, it);
+    return withDetailPipeline(titleId, os, async (details, pipeline) => {
+        const itemMap = new Map();
+        const addItems = items => {
+            for (const it of items || []) {
+                const id = it.Id || it.id;
+                if (!id) continue;
+                itemMap.set(id, it);
+            }
+        };
+
+        addItems(await fetchRecentItems(titleId, os, itemsPerRequest, maxItems, details, pipeline));
+
+        if (createdLookbackMs > 0) {
+            const createdSinceIso = new Date(Math.max(0, Date.now() - createdLookbackMs)).toISOString();
+            addItems(await fetchItemsSince(titleId, os, "StartDate", createdSinceIso, itemsPerRequest, maxItems, details, pipeline));
+            addItems(await fetchItemsSince(titleId, os, "CreationDate", createdSinceIso, itemsPerRequest, maxItems, details, pipeline));
         }
-    };
 
-    addItems(await fetchRecentItems(titleId, os, itemsPerRequest, maxItems));
-
-    if (createdLookbackMs > 0) {
-        const createdSinceIso = new Date(Math.max(0, Date.now() - createdLookbackMs)).toISOString();
-        addItems(await fetchItemsSince(titleId, os, "StartDate", createdSinceIso, itemsPerRequest, maxItems));
-        addItems(await fetchItemsSince(titleId, os, "CreationDate", createdSinceIso, itemsPerRequest, maxItems));
-    }
-
-    return Array.from(itemMap.values());
+        return Array.from(itemMap.values());
+    });
 }
 
 function shouldFetchNextPage(nextToken, previousToken, seenTokens) {
@@ -245,17 +247,29 @@ async function getItemsCompat(titleId, os, ids) {
     return await getItemsByIds(titleId, list, os, 100, 5);
 }
 
-async function requestItems(titleId, os, filter, orderBy, continuationToken, count) {
+async function requestItems(titleId, os, filter, orderBy, continuationToken, count, details = new Map(), pipeline = null) {
     const data = await searchItemsPage(titleId, os, filter, orderBy, continuationToken, count);
     const hits = data.Items || data.items || [];
     const nextToken = data.ContinuationToken || data.continuationToken || null;
     if (!hits.length) return {items: [], continuationToken: nextToken, hitCount: 0};
 
     const ids = hits.map(idOfSearchHit).filter(Boolean);
+    if (ids.length !== hits.length) throw new Error('Watcher search returned a hit without an item ID.');
+    if (pipeline) {
+        await pipeline.add(ids);
+        return {items: ids.map(Id => ({Id})), continuationToken: nextToken, hitCount: hits.length};
+    }
+    const items = await hydrateItems(titleId, os, ids, details);
+    return {items, continuationToken: nextToken, hitCount: hits.length};
+}
+
+async function hydrateItems(titleId, os, ids, details) {
+    const missing = ids.filter(id => !details.has(id));
     let full;
-    try { full = await getItemsCompat(titleId, os, ids); }
+    try { full = await getItemsCompat(titleId, os, missing); }
     catch { full = []; }
-    const byId = new Map(full.map(item => [item.Id || item.id, item]));
+    const byId = new Map(ids.filter(id => details.has(id)).map(id => [id, details.get(id)]));
+    for (const item of full) byId.set(item.Id || item.id, item);
     for (const id of ids) {
         if (byId.has(id)) continue;
         const data = await sendPlayFabRequest(titleId, 'Catalog/GetItem', {Id: id}, 'X-EntityToken', 3, os, {priority: 'background'});
@@ -263,12 +277,47 @@ async function requestItems(titleId, os, filter, orderBy, continuationToken, cou
         if (!item || (item.Id || item.id) !== id) throw new Error(`Incomplete watcher details for item ${id}; retaining scan cursor.`);
         byId.set(id, item);
     }
-    if (ids.length !== hits.length) throw new Error('Watcher search returned a hit without an item ID.');
-    const items = ids.map(id => ({...byId.get(id), __catalogComplete: true})).filter(isWatchableMarketplaceItem);
-    return {items, continuationToken: nextToken, hitCount: hits.length};
+    for (const id of ids) details.set(id, byId.get(id));
+    return ids.map(id => ({...byId.get(id), __catalogComplete: true})).filter(isWatchableMarketplaceItem);
 }
 
-async function fetchItemsSince(titleId, os, field, sinceIso, itemsPerRequest, maxItems) {
+async function withDetailPipeline(titleId, os, collect) {
+    const details = new Map(), queued = new Set(), jobs = new Set();
+    let tail = Promise.resolve(), failure;
+    const pipeline = {
+        async add(ids) {
+            const missing = [...new Set(ids)].filter(id => !queued.has(id));
+            if (!missing.length) {
+                if (failure) throw failure;
+                return;
+            }
+            // Bound pending detail work to eight search pages. Both endpoints
+            // still use their existing shared limiter and background priority.
+            if (jobs.size >= 8) await jobs.values().next().value;
+            if (failure) throw failure;
+            for (const id of missing) queued.add(id);
+            const job = tail.then(() => {
+                if (!failure) return hydrateItems(titleId, os, missing, details);
+            }).catch(error => { failure = error; });
+            jobs.add(job);
+            job.then(() => jobs.delete(job));
+            tail = job;
+        }
+    };
+    try {
+        const hits = await collect(details, pipeline);
+        await tail;
+        if (failure) throw failure;
+        return hits.map(hit => ({...details.get(hit.Id || hit.id), __catalogComplete: true})).filter(isWatchableMarketplaceItem);
+    } catch (error) {
+        // Drain already scheduled work before a retry can start a new scan.
+        failure = failure || error;
+        await tail;
+        throw error;
+    }
+}
+
+async function fetchItemsSince(titleId, os, field, sinceIso, itemsPerRequest, maxItems, details = new Map(), pipeline = null) {
     const {primary, fallback} = normalizeFieldSpec(field);
     const candidates = Array.from(new Set([primary, fallback].filter(Boolean)));
     let lastErr = null;
@@ -278,7 +327,7 @@ async function fetchItemsSince(titleId, os, field, sinceIso, itemsPerRequest, ma
         const orderBy = `${f} asc`;
 
         try {
-            return await collectPaginatedItems(itemsPerRequest, maxItems, (continuationToken, count) => requestItems(titleId, os, filter, orderBy, continuationToken, count), true);
+            return await collectPaginatedItems(itemsPerRequest, maxItems, (continuationToken, count) => requestItems(titleId, os, filter, orderBy, continuationToken, count, details, pipeline), true);
         } catch (e) {
             lastErr = e;
             if (Number(e.status) !== 400) throw e;
@@ -349,9 +398,9 @@ function loadPersistedState() {
     }
 }
 
-function savePersistedState(state) {
+async function savePersistedState(state) {
     try {
-        writeJsonAtomic(stateFilePath(), serializeState(state));
+        await writeJsonAtomicAsync(stateFilePath(), serializeState(state));
     } catch (err) {
         logger.warn(`[ItemWatcher] failed to save state file: ${err.message}`);
         throw err;
@@ -382,19 +431,23 @@ function classifyBootstrapItemChange(it, prev, createdSinceTs, updatedSinceTs) {
 }
 
 async function requestChangedItems(titleId, os, instantSinceIso, itemsPerRequest, maxItems, createdSinceIso = instantSinceIso) {
-    const itemMap = new Map();
-    const requests = buildChangedItemRequests(instantSinceIso, createdSinceIso);
+    return withDetailPipeline(titleId, os, async (details, pipeline) => {
+        const itemMap = new Map();
+        // The three date queries overlap. Reuse full details only within this scan;
+        // the next scan must still observe upstream edits to already known IDs.
+        const requests = buildChangedItemRequests(instantSinceIso, createdSinceIso);
 
-    for (const request of requests) {
-        const list = await fetchItemsSince(titleId, os, request.field, request.sinceIso, itemsPerRequest, maxItems);
-        for (const it of list) {
-            const id = it.Id || it.id;
-            if (!id) continue;
-            itemMap.set(id, it);
+        for (const request of requests) {
+            const list = await fetchItemsSince(titleId, os, request.field, request.sinceIso, itemsPerRequest, maxItems, details, pipeline);
+            for (const it of list) {
+                const id = it.Id || it.id;
+                if (!id) continue;
+                itemMap.set(id, it);
+            }
         }
-    }
 
-    return Array.from(itemMap.values());
+        return Array.from(itemMap.values());
+    });
 }
 
 function classifyItemChange(it, prev, updatedSinceTs, createdSinceTs = updatedSinceTs) {
@@ -510,7 +563,7 @@ class ItemWatcher {
                         }))
                     });
                 }
-                savePersistedState(bootstrapMap);
+                await savePersistedState(bootstrapMap);
                 cursor.commit(scanStartedAt, window);
                 this.state = bootstrapMap;
                 this.lastRunTs = scanStartedAt;
@@ -573,7 +626,7 @@ class ItemWatcher {
                 });
             }
 
-            savePersistedState(nextState);
+            await savePersistedState(nextState);
             cursor.commit(scanStartedAt, window);
             this.state = nextState;
             this.lastRunTs = scanStartedAt;

@@ -249,6 +249,10 @@ function sortItemsByOrder(items, orderBy) {
 }
 
 async function fetchStores(titleId) {
+    return dataCache.getOrSetDerivedAsync(`stores:${titleId}:${OS}`, () => fetchStoresInternal(titleId));
+}
+
+async function fetchStoresInternal(titleId) {
     const data = await sendPlayFabRequest(titleId, "Catalog/SearchStores", {}, "X-EntityToken", 2, OS);
     const raw = data?.Stores || data?.data?.Stores || [];
     const stores = (raw || []).map(x => x?.Store || x).filter(Boolean);
@@ -263,8 +267,12 @@ async function fetchStores(titleId) {
     return stores;
 }
 
-async function fetchStoresWithItems(titleId) {
-    const stores = await fetchStores(titleId);
+async function fetchStoresWithItems(titleId, maxStores = Infinity) {
+    return dataCache.getOrSetDerivedAsync(`stores-with-items:${titleId}:${OS}:${maxStores}`, () => fetchStoresWithItemsInternal(titleId, maxStores));
+}
+
+async function fetchStoresWithItemsInternal(titleId, maxStores) {
+    const stores = (await fetchStores(titleId)).slice(0, maxStores);
     logger.debug(`[Sales] fetchStoresWithItems: stores=${Array.isArray(stores) ? stores.length : 0}`);
     if (!stores.length) return [];
     const tasks = [];
@@ -300,6 +308,24 @@ async function fetchItemsByIds(titleId, ids) {
     const details = {};
     for (const it of raw) details[it.Id] = it;
     return details;
+}
+
+async function fetchFriendlyItems(titleId, friendlyId) {
+    try {
+        const data = await sendPlayFabRequest(titleId, "Catalog/GetItems", {
+            AlternateIds: [{Type: "FriendlyId", Value: String(friendlyId)}], Expand: "Images"
+        }, "X-EntityToken", 3, OS);
+        const items = data?.Items || data?.items || [];
+        if (items.length) return {items, found: true};
+    } catch (error) {
+        if (![400, 404].includes(Number(error?.status || error?.response?.status))) throw error;
+    }
+    const filter = `alternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${String(friendlyId).replace(/'/g, "''")}')`;
+    const payload = buildSearchPayload({filter, search: "", top: 1, skip: 0});
+    const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
+    const items = data.Items || [];
+    if (!items.length) return {items: [], found: false};
+    return {items: await getItemsByIds(titleId, [items[0].Id], OS, ENRICH_BATCH, ENRICH_CONCURRENCY), found: true};
 }
 
 function toSaleHeader(entry) {
@@ -410,15 +436,15 @@ async function enrichItemsWithResolvedReferences(titleId, items) {
 async function enrichItemWithStorePrices(titleId, itemId) {
     const cacheKey = `store-prices:${titleId}:${OS}:${STORE_MAX_FOR_PRICE_ENRICH}:${itemId}`;
     return dataCache.getOrSetAsync(cacheKey, async () => {
-        const stores = await fetchStores(titleId);
+        const stores = await fetchStoresWithItems(titleId, STORE_MAX_FOR_PRICE_ENRICH);
         if (!stores.length) return [];
         const limited = stores.slice(0, STORE_MAX_FOR_PRICE_ENRICH);
         const prices = [];
         for (let i = 0; i < limited.length; i += STORE_CONCURRENCY) {
             const chunk = limited.slice(i, i + STORE_CONCURRENCY);
-            const res = await Promise.all(chunk.map(async s => {
-                const r = await getStoreItems(titleId, s.Id || s.id, OS);
-                const items = r.Items || r.items || [];
+            const res = await Promise.all(chunk.map(async entry => {
+                const s = entry.Store;
+                const items = entry.Items;
                 const hit = items.find(si => si?.Item?.Id === itemId || si?.ItemId === itemId);
                 if (!hit) return null;
                 const amounts = (hit?.Price?.Prices || []).flatMap(p => (p.Amounts || []).map(a => ({
@@ -903,17 +929,12 @@ module.exports = {
 
     async resolveByFriendly(alias, friendlyId) {
         const titleId = resolveTitle(alias);
-        const filter = `alternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${String(friendlyId).replace(/'/g, "''")}')`;
-        const payload = buildSearchPayload({filter, search: "", top: 1, skip: 0});
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        const items = data.Items || [];
-        if (!items.length) {
+        const {items: full, found} = await fetchFriendlyItems(titleId, friendlyId);
+        if (!found) {
             const e = new Error(`Kein Item mit FriendlyId ${friendlyId} gefunden.`);
             e.status = 404;
             throw e;
         }
-        const id = items[0].Id;
-        const full = await getItemsByIds(titleId, [id], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
         const t = full.filter(isValidItem).map(transformItem)[0];
         if (!t) {
             const e = new Error(`No item with the FriendlyId ${friendlyId} has been found`);
@@ -926,17 +947,12 @@ module.exports = {
 
     async fetchByFriendly(alias, friendlyId) {
         const titleId = resolveTitle(alias);
-        const filter = `alternateIds/any(a:a/Type eq 'FriendlyId' and a/Value eq '${String(friendlyId).replace(/'/g, "''")}')`;
-        const payload = buildSearchPayload({filter, search: "", top: 1, skip: 0});
-        const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-        const items = data.Items || [];
-        if (!items.length) {
+        const {items: full, found} = await fetchFriendlyItems(titleId, friendlyId);
+        if (!found) {
             const e = new Error(`No item with the FriendlyId ${friendlyId} has been found`);
             e.status = 404;
             throw e;
         }
-        const id = items[0].Id;
-        const full = await getItemsByIds(titleId, [id], OS, ENRICH_BATCH, ENRICH_CONCURRENCY);
         const t = full.filter(isValidItem).map(transformItem)[0];
         if (!t) {
             const e = new Error(`No item with the FriendlyId ${friendlyId} has been found`);

@@ -48,6 +48,7 @@ const DEFAULT_DEVICE_ID_FILE = path.join(__dirname, "../data/playfabDeviceId.jso
 const UPSTREAM_RESPONSE_CACHE_TTL_MS = Math.max(1000, Number(process.env.UPSTREAM_RESPONSE_CACHE_TTL_MS || 45000));
 const UPSTREAM_CACHEABLE_ENDPOINTS = new Set(["Catalog/Search", "Catalog/SearchItems", "Catalog/GetItems", "Catalog/SearchStores", "Catalog/GetStoreItems"]);
 const ITEM_BY_ID_CACHE_TTL_MS = Math.max(1000, Number(process.env.ITEM_BY_ID_CACHE_TTL_MS || 5 * 60 * 1000));
+const itemRequests = new Map();
 const GET_ITEMS_MAX_IDS = 50;
 const CATALOG_SEARCH_MAX_SKIP = 10000;
 const CATALOG_SEARCH_UNKNOWN_TOTAL_MAX_BATCHES = Math.max(
@@ -483,7 +484,24 @@ function catalogSearchHitId(hit) {
     return catalogItemId(hit) || catalogItemId(item) || hit?.ItemId || hit?.itemId || null;
 }
 
-async function fetchCatalogSearchItemsV2(titleId, {
+async function fetchCatalogSearchItemsV2(titleId, options = {}) {
+    const key = `pf:scan:v2:${titleId}:${stringify({...options, maxBatches: undefined})}`;
+    const maxItems = catalogV2ScanLimit(options);
+    const scan = await dataCache.getOrSetDerivedAsync(key,
+        previous => fetchCatalogSearchItemsV2Internal(titleId, options, previous),
+        result => result.complete || result.scannedHits >= maxItems);
+    return sortCatalogItems(uniqueCatalogItems(transformCatalogItems(scan.rawItems.slice(0, maxItems))), options.orderBy || "StartDate desc");
+}
+
+function catalogV2ScanLimit({batchSize = 300, maxBatches = 0}) {
+    const configuredLimit = Number(maxBatches);
+    const safeBatchSize = Math.max(1, Number(batchSize) || 300);
+    return Number.isFinite(configuredLimit) && configuredLimit > 0
+        ? Math.floor(configuredLimit) * safeBatchSize
+        : CATALOG_SEARCH_UNKNOWN_TOTAL_MAX_BATCHES * safeBatchSize;
+}
+
+async function fetchCatalogSearchItemsV2Internal(titleId, {
     filter = "",
     search = "",
     os,
@@ -491,16 +509,13 @@ async function fetchCatalogSearchItemsV2(titleId, {
     concurrency = 5,
     maxBatches = 0,
     orderBy = "StartDate desc"
-}) {
-    const configuredLimit = Number(maxBatches);
-    const safeBatchSize = Math.max(1, Number(batchSize) || 300);
-    const maxItems = Number.isFinite(configuredLimit) && configuredLimit > 0
-        ? Math.floor(configuredLimit) * safeBatchSize
-        : CATALOG_SEARCH_UNKNOWN_TOTAL_MAX_BATCHES * safeBatchSize;
-    const items = [];
-    const seenTokens = new Set();
-    let continuationToken = "";
-    let scannedHits = 0;
+}, previous) {
+    const maxItems = catalogV2ScanLimit({batchSize, maxBatches});
+    const items = previous ? previous.rawItems.slice() : [];
+    const seenTokens = new Set(previous?.seenTokens || []);
+    let continuationToken = previous?.continuationToken || "";
+    let scannedHits = previous?.scannedHits || 0;
+    let complete = false;
 
     while (scannedHits < maxItems) {
         const payload = {
@@ -515,22 +530,28 @@ async function fetchCatalogSearchItemsV2(titleId, {
 
         const data = await sendPlayFabRequest(titleId, "Catalog/SearchItems", payload, "X-EntityToken", 3, os);
         const hits = data?.Items || data?.items || [];
-        if (!hits.length) break;
+        if (!hits.length) {
+            complete = true;
+            break;
+        }
         scannedHits += hits.length;
 
         const hitEntries = hits.map(hit => ({id: catalogSearchHitId(hit), item: catalogSearchHitItem(hit)})).filter(entry => entry.item);
         const ids = hitEntries.map(entry => entry.id).filter(Boolean);
         const fullItems = await getItemsByIds(titleId, ids, os, GET_ITEMS_MAX_IDS, Math.min(4, Math.max(1, concurrency)));
         const fullById = new Map(fullItems.map(item => [catalogItemId(item), item]));
-        items.push(...hitEntries.map(entry => fullById.get(entry.id) || entry.item));
+        items.push(...hits.map(hit => fullById.get(catalogSearchHitId(hit)) || catalogSearchHitItem(hit)));
 
         const nextToken = data?.ContinuationToken || data?.continuationToken || "";
-        if (!nextToken || nextToken === continuationToken || seenTokens.has(nextToken)) break;
+        if (!nextToken || nextToken === continuationToken || seenTokens.has(nextToken)) {
+            complete = true;
+            break;
+        }
         seenTokens.add(nextToken);
         continuationToken = nextToken;
     }
 
-    return sortCatalogItems(uniqueCatalogItems(transformCatalogItems(items)), orderBy);
+    return {rawItems: items, seenTokens: [...seenTokens], continuationToken, scannedHits, complete};
 }
 
 function isTransientCatalogSearchError(error) {
@@ -539,13 +560,15 @@ function isTransientCatalogSearchError(error) {
 }
 
 async function fetchCatalogSearchItems(titleId, options = {}) {
-    try {
-        return await fetchCatalogSearchItemsLegacy(titleId, options);
-    } catch (error) {
-        if (!isTransientCatalogSearchError(error)) throw error;
-        logger.warn(`[PF] Catalog/Search failed with ${error.status || error.code || "a transient error"}; continuing with Catalog/SearchItems cursor pagination`);
-        return fetchCatalogSearchItemsV2(titleId, options);
-    }
+    return dataCache.getOrSetDerivedAsync(`pf:scan:${titleId}:${stringify(options)}`, async () => {
+        try {
+            return await fetchCatalogSearchItemsLegacy(titleId, options);
+        } catch (error) {
+            if (!isTransientCatalogSearchError(error)) throw error;
+            logger.warn(`[PF] Catalog/Search failed with ${error.status || error.code || "a transient error"}; continuing with Catalog/SearchItems cursor pagination`);
+            return fetchCatalogSearchItemsV2(titleId, options);
+        }
+    });
 }
 
 async function fetchCatalogSearchItemsLegacy(titleId, {
@@ -689,25 +712,37 @@ async function getItemsByIds(titleId, ids, os, batchSize = 100, concurrency = 5)
 
     for (let i = 0; i < missing.length; i += safeBatchSize * safeConcurrency) {
         const window = missing.slice(i, i + safeBatchSize * safeConcurrency);
-        const groups = [];
-        for (let j = 0; j < window.length; j += safeBatchSize) {
-            groups.push(window.slice(j, j + safeBatchSize));
-        }
-        const res = await Promise.all(groups.map(async g => {
-            const r = await sendPlayFabRequest(titleId, "Catalog/GetItems", {
-                Ids: g,
+        const pendingIds = window.filter(id => {
+            const key = `pf:item:${titleId}:${os || "default"}:${id}`;
+            const cached = dataCache.get(key);
+            if (cached) byId.set(id, cached);
+            return !cached && !itemRequests.has(key);
+        });
+        for (let j = 0; j < pendingIds.length; j += safeBatchSize) {
+            const group = pendingIds.slice(j, j + safeBatchSize);
+            const keys = group.map(id => `pf:item:${titleId}:${os || "default"}:${id}`);
+            const pending = sendPlayFabRequest(titleId, "Catalog/GetItems", {
+                Ids: group,
                 Expand: "Images"
-            }, "X-EntityToken", 3, os);
-            return r.Items || r.items || [];
-        }));
-        for (const arr of res) {
-            for (const item of arr) {
-                const id = item?.Id || item?.id;
-                if (!id) continue;
-                byId.set(id, item);
-                dataCache.set(`pf:item:${titleId}:${os || "default"}:${id}`, item, {ttl: ITEM_BY_ID_CACHE_TTL_MS});
-            }
+            }, "X-EntityToken", 3, os).then(response => {
+                const items = new Map();
+                for (const item of response.Items || response.items || []) {
+                    const id = catalogItemId(item);
+                    if (!id) continue;
+                    items.set(id, item);
+                    dataCache.set(`pf:item:${titleId}:${os || "default"}:${id}`, item, {ttl: ITEM_BY_ID_CACHE_TTL_MS});
+                }
+                return items;
+            }).finally(() => keys.forEach(key => itemRequests.delete(key)));
+            for (const key of keys) itemRequests.set(key, pending);
         }
+        await Promise.all(window.map(async id => {
+            if (byId.has(id)) return;
+            const key = `pf:item:${titleId}:${os || "default"}:${id}`;
+            const result = await itemRequests.get(key);
+            const item = dataCache.get(key) || result?.get(id);
+            if (item) byId.set(id, item);
+        }));
     }
 
     return list.map(id => byId.get(id)).filter(Boolean);

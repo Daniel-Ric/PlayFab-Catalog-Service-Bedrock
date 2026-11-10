@@ -16,6 +16,8 @@ const {resolveTitle} = require("../utils/titles");
 const {fetchCatalogSearchItems, sendPlayFabRequest, transformItem} = require("../utils/playfab");
 const {buildContentTypeFilter} = require("../utils/filter");
 const { _internals: searchInternals } = require("./marketplaceSearchService");
+const {dataCache} = require("../config/cache");
+const stringify = require("fast-json-stable-stringify");
 
 const PAGE_BATCH = Math.max(100, parseInt(process.env.ADV_SEARCH_BATCH || "300", 10));
 const MAX_BATCHES = Math.max(0, parseInt(process.env.ADV_SEARCH_MAX_BATCHES || "0", 10));
@@ -720,12 +722,13 @@ exports.advancedSearch = async (alias, body, {page, pageSize}) => {
         };
     }
 
-    let allFromPlayFab = await searchLoop(titleId, filter, q, orderBy);
-    let filtered = applyApiLayerFilters(allFromPlayFab, normalized.filters);
-
-    const sorted = applyLocalSort(filtered, localSort);
-
-    const facets = buildFacets(sorted);
+    const key = `advanced-search:${titleId}:${OS}:${stringify({filter, q, orderBy, filters: normalized.filters, sort: normalized.sort})}`;
+    const {sorted, facets} = await dataCache.getOrSetDerivedAsync(key, async () => {
+        const allFromPlayFab = await searchLoop(titleId, filter, q, orderBy);
+        const filtered = applyApiLayerFilters(allFromPlayFab, normalized.filters);
+        const sorted = applyLocalSort(filtered, localSort);
+        return {sorted, facets: buildFacets(sorted)};
+    });
     const {items, meta} = paginate(sorted, page, pageSize);
     return {items, meta, facets};
 };

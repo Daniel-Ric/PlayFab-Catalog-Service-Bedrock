@@ -25,7 +25,7 @@ function buildEtagPayload(result) {
         return {body, tag: `W/"${body.length.toString(16)}-${hash.slice(0, 16)}"`};
     }
     const cached = etagMemo.get(result);
-    if (cached) return cached;
+    if (cached && typeof cached.body === "string") return cached;
     const body = JSON.stringify(result);
     const hash = crypto.createHash("sha1").update(body).digest("hex");
     const payload = {body, tag: `W/"${body.length.toString(16)}-${hash.slice(0, 16)}"`};
@@ -37,6 +37,23 @@ function shouldStreamJsonArray(result) {
     return Array.isArray(result) && result.length >= STREAM_ARRAY_MIN_ITEMS;
 }
 
+async function buildStreamingEtag(items) {
+    const cached = etagMemo.get(items);
+    if (cached) return cached.tag;
+    const hash = crypto.createHash("sha1").update("[");
+    let length = 2;
+    for (let i = 0; i < items.length; i += 1) {
+        const chunk = JSON.stringify(items[i]) ?? "null";
+        if (i > 0) hash.update(",");
+        hash.update(chunk);
+        length += chunk.length + (i > 0 ? 1 : 0);
+        if (i % 256 === 255) await new Promise(resolve => setImmediate(resolve));
+    }
+    const tag = `W/"${length.toString(16)}-${hash.update("]").digest("hex").slice(0, 16)}"`;
+    etagMemo.set(items, {tag});
+    return tag;
+}
+
 async function writeChunk(res, chunk) {
     if (!res.write(chunk)) await once(res, "drain");
 }
@@ -46,7 +63,7 @@ async function streamJsonArray(res, items) {
     await writeChunk(res, "[");
     for (let i = 0; i < items.length; i += 1) {
         if (i > 0) await writeChunk(res, ",");
-        await writeChunk(res, JSON.stringify(items[i]));
+        await writeChunk(res, JSON.stringify(items[i]) ?? "null");
     }
     res.end("]");
 }
@@ -61,6 +78,12 @@ function withETag(handler) {
                 return;
             }
             if (shouldStreamJsonArray(result)) {
+                const tag = await buildStreamingEtag(result);
+                res.setHeader("ETag", tag);
+                if (req.headers["if-none-match"] === tag) {
+                    res.status(304).end();
+                    return;
+                }
                 await streamJsonArray(res, result);
                 return;
             }

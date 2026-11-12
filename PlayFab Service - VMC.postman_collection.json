@@ -4318,7 +4318,10 @@
                       "pm.test(\"JSON response\", () => pm.expect(contentType.toLowerCase()).to.include(\"application/json\"));",
                       "let body;",
                       "pm.test(\"Body parses as JSON\", () => { body = pm.response.json(); pm.expect(body).to.not.equal(undefined); });",
-                      "pm.test(\"Body is an array\", () => pm.expect(Array.isArray(body)).to.be.true);",
+                      "pm.test(\"Server objects are returned\", () => pm.expect(body.data.Items).to.be.an(\"array\"));",
+                      "pm.test(\"Enrichment status is explicit\", () => pm.expect([\"complete\", \"partial\", \"unavailable\"]).to.include(body.enrichment.status));",
+                      "const server = body.data.Items.find(item => item.experience && item.experience.detailsUrl);",
+                      "if (server) pm.collectionVariables.set(\"featuredServerExperienceId\", server.experience.id);",
                       "pm.test(\"Response time is acceptable\", () => pm.expect(pm.response.responseTime).to.be.below(Number(pm.collectionVariables.get(\"maxResponseMs\") || 8000)));",
                       "const etag = pm.response.headers.get(\"ETag\");",
                       "if (etag) pm.collectionVariables.set(\"lastEtag\", etag);"
@@ -4345,7 +4348,47 @@
                     "featured-servers"
                   ]
                 },
-                "description": "Return curated featured servers with title, tags, and metadata."
+                "description": "Live discovery server objects enriched with extracted homepage metadata, image variants, MOTDs, section membership, and links to structured details. No raw layouts."
+              },
+              "response": []
+            },
+            {
+              "name": "GET /marketplace/featured-servers/:experienceId",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                      "const body = pm.response.json();",
+                      "pm.test(\"Correct experience\", () => pm.expect(body.id).to.equal(pm.collectionVariables.get(\"featuredServerExperienceId\")));",
+                      "pm.test(\"Structured activities\", () => pm.expect(body.activities).to.be.an(\"array\"));",
+                      "pm.test(\"No raw layout\", () => pm.expect(body).not.to.have.property(\"result\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/marketplace/featured-servers/{{featuredServerExperienceId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "marketplace",
+                    "featured-servers",
+                    "{{featuredServerExperienceId}}"
+                  ]
+                },
+                "description": "Structured details for an experience selected dynamically by the preceding featured-server list request."
               },
               "response": []
             },
@@ -4958,6 +5001,11 @@
     {
       "key": "nextSearchContinuationToken",
       "value": ""
+    },
+    {
+      "key": "featuredServerExperienceId",
+      "value": "",
+      "type": "string"
     }
   ],
   "auth": {

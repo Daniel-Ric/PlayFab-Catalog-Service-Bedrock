@@ -744,7 +744,25 @@ Compare one creator across **all configured titles** in `titles.json`. Returns `
 
 #### `GET /marketplace/featured-servers`
 
-Returns a curated list from `src/config/featuredServers.js`, each resolved to a live item (if present).
+Returns discovery servers with ID-matched homepage metadata in `data.Items[].experience`:
+creator, images and resolution variants, MOTDs, section positions, and `detailsUrl`.
+Descriptions, logos, backgrounds and banners are included without a separate detail request.
+New homepage servers are included automatically; `enrichment.status` reports availability.
+
+#### `GET /marketplace/featured-servers/:experienceId`
+
+Returns structured description, creator logo, backgrounds, banners, activities, MOTDs,
+and news. Use `experience.id` or `detailsUrl` from the list. Both endpoints extract
+their data dynamically without exposing raw layouts, support ETags, and refresh
+expired source data on request (`FEATURED_SERVERS_TTL_MS`, default 5 minutes).
+Both endpoints share cached metadata; missing data is loaded in parallel.
+Layout requests run with up to six concurrent calls, without a fixed delay between
+healthy requests. Direct detail requests take priority over queued list metadata.
+`FEATURED_SERVERS_LAYOUT_CONCURRENCY` controls concurrency (1–6, default 6);
+`FEATURED_SERVERS_LAYOUT_MIN_TIME_MS` optionally sets a minimum start interval
+(0–60000 ms, default 0). Upstream `Retry-After` cooldowns remain shared.
+Authentication is resolved only for missing source data; an expired token does not
+block cached metadata. Cold authentication loads the session and client version in parallel.
 
 #### `GET /marketplace/featured-content`
 

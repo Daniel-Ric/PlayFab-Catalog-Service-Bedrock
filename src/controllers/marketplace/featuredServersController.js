@@ -15,7 +15,7 @@
 const withETag = require("../../middleware/etag");
 const {dataCache} = require("../../config/cache");
 const {resolveTitle} = require("../../utils/titles");
-const {fetchFeaturedServers} = require("../../services/featuredServersService");
+const {fetchFeaturedServers, fetchFeaturedServerDetails} = require("../../services/featuredServersService");
 
 function getPrimaryTitleId() {
     const v = (process.env.FEATURED_PRIMARY_ALIAS || process.env.DEFAULT_ALIAS || process.env.TITLE_ID || "").trim();
@@ -30,7 +30,13 @@ function getPrimaryTitleId() {
 
 exports.getFeaturedServers = withETag(async (_, res) => {
     const titleId = getPrimaryTitleId();
-    const key = `featured-servers:v2:${titleId}`;
-    const ttl = Number(process.env.FEATURED_SERVERS_TTL_MS || 5 * 60 * 1000);
-    return dataCache.getOrSetAsync(key, async () => fetchFeaturedServers(titleId), ttl);
+    const key = `featured-servers:v4:${titleId}`;
+    return dataCache.getOrSetDerivedAsync(key, () => fetchFeaturedServers(titleId));
+});
+
+exports.getFeaturedServerDetails = withETag(async req => {
+    const titleId = getPrimaryTitleId();
+    const experienceId = req.params.experienceId.toLowerCase();
+    const key = `featured-server-details:v2:${titleId}:${experienceId}`;
+    return dataCache.getOrSetDerivedAsync(key, () => fetchFeaturedServerDetails(titleId, experienceId));
 });

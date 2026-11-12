@@ -13,12 +13,186 @@
 # -----------------------------------------------------------------------------
 FeaturedServer:
   type: object
+  required: [data, enrichment]
   properties:
-    count:
+    code:
       type: integer
-    items:
+    status:
+      type: string
+    data:
+      type: object
+      required: [Items]
+      properties:
+        Count:
+          type: integer
+          description: Discovery count plus any additional homepage-only servers.
+        Items:
+          type: array
+          items:
+            $ref: '#/components/schemas/FeaturedServerDiscoveryItem'
+      additionalProperties: true
+    enrichment:
+      type: object
+      required: [status, matchedServers, addedServers]
+      properties:
+        status:
+          type: string
+          enum: [complete, partial, unavailable]
+          description: Complete enrichment, individual metadata failures, or unavailable homepage. Unpublished fields may still be null.
+        matchedServers:
+          type: integer
+          minimum: 0
+        addedServers:
+          type: integer
+          minimum: 0
+        failedServers:
+          type: integer
+          minimum: 0
+          description: Number of experiences whose additional metadata could not be loaded or validated.
+  additionalProperties: true
+
+FeaturedServerDiscoveryItem:
+  type: object
+  properties:
+    Id:
+      type: string
+      description: Original catalog ID, or the experience ID for a homepage-only server.
+    Title:
+      type: object
+      additionalProperties:
+        type: string
+    source:
+      type: string
+      enum: [server-screen]
+      description: Present on entries published in the homepage but absent from discovery.
+    experience:
+      $ref: '#/components/schemas/FeaturedServerExperience'
+  additionalProperties: true
+
+FeaturedServerExperience:
+  type: object
+  nullable: true
+  required: [id, title, description, creator, images, motds, sections, detailsUrl]
+  properties:
+    id:
+      type: string
+      format: uuid
+    title:
+      type: string
+      nullable: true
+    description:
+      type: string
+      nullable: true
+    creator:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          nullable: true
+        name:
+          type: string
+          nullable: true
+        image:
+          $ref: '#/components/schemas/FeaturedServerImage'
+    images:
+      type: object
+      required: [listing, logo, background]
+      properties:
+        listing:
+          $ref: '#/components/schemas/FeaturedServerImage'
+        logo:
+          $ref: '#/components/schemas/FeaturedServerImage'
+        background:
+          $ref: '#/components/schemas/FeaturedServerImage'
+        banner:
+          $ref: '#/components/schemas/FeaturedServerImage'
+    motds:
       type: array
       items:
+        type: string
+    sections:
+      type: array
+      description: Homepage membership and ordering, assigned to this specific experience.
+      items:
         type: object
-        additionalProperties: true
-  additionalProperties: true
+        required: [type, title, order, position]
+        properties:
+          type:
+            type: string
+            enum: [hero, featured, trending, all, row, list]
+          title:
+            type: string
+            nullable: true
+          order:
+            type: integer
+            minimum: 0
+            description: Zero-based section order on the homepage.
+          position:
+            type: integer
+            minimum: 0
+            description: Zero-based server position within that section.
+    detailsUrl:
+      type: string
+      nullable: true
+      description: Relative detail endpoint URL, or null when no detail page is published.
+
+FeaturedServerImage:
+  type: object
+  nullable: true
+  required: [url, variants]
+  properties:
+    url:
+      type: string
+      format: uri
+      description: Best available image URL, preferring full, half, then quarter resolution.
+    variants:
+      type: object
+      properties:
+        full:
+          type: string
+          format: uri
+        half:
+          type: string
+          format: uri
+        quarter:
+          type: string
+          format: uri
+      additionalProperties: false
+  additionalProperties: false
+
+FeaturedServerDetails:
+  type: object
+  allOf:
+    - $ref: '#/components/schemas/FeaturedServerExperience'
+    - type: object
+      required: [activities, news]
+      properties:
+        activities:
+          type: array
+          items:
+            type: object
+            required: [title, subtitle, description, image]
+            properties:
+              title:
+                type: string
+                nullable: true
+              subtitle:
+                type: string
+                nullable: true
+              description:
+                type: string
+                nullable: true
+              image:
+                $ref: '#/components/schemas/FeaturedServerImage'
+        news:
+          type: object
+          nullable: true
+          required: [title, description]
+          properties:
+            title:
+              type: string
+              nullable: true
+            description:
+              type: string
+              nullable: true

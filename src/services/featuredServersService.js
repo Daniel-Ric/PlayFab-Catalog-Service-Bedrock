@@ -19,6 +19,7 @@ const {randomUUID} = require("crypto");
 const {dataCache} = require("../config/cache");
 const logger = require("../config/logger");
 const {getSession} = require("../utils/playfab");
+const {enrichFeaturedServers, fetchServerDetails} = require("./serverScreenService");
 
 const httpAgent = new http.Agent({
     keepAlive: true, maxSockets: Number(process.env.HTTP_MAX_SOCKETS || 512), keepAliveMsecs: 60000, scheduling: "lifo"
@@ -41,6 +42,7 @@ const CLIENT_VERSION_OVERRIDE = (process.env.MC_CLIENT_VERSION || "").trim();
 
 const CLIENT_VERSION_TTL_MS = Number(process.env.MC_CLIENT_VERSION_TTL_MS || 12 * 60 * 60 * 1000);
 const TOKEN_TTL_MS = Number(process.env.MC_TOKEN_TTL_MS || 15 * 60 * 1000);
+const FEATURED_SERVERS_TTL_MS = Math.max(1, Number(process.env.FEATURED_SERVERS_TTL_MS || 5 * 60 * 1000));
 
 const MC_LANGUAGE = process.env.MC_LANGUAGE || "en";
 const MC_LANGUAGE_CODE = process.env.MC_LANGUAGE_CODE || "en-US";
@@ -135,8 +137,7 @@ async function fetchMCToken(titleId) {
     const cacheKey = `mc-token:${titleId}`;
     return dataCache.getOrSetAsync(cacheKey, async () => {
         const os = process.env.OS || "iOS";
-        const session = await getSession(titleId, os);
-        const version = await fetchClientVersion();
+        const [session, version] = await Promise.all([getSession(titleId, os), fetchClientVersion()]);
         const payload = {
             user: {
                 language: MC_LANGUAGE,
@@ -187,27 +188,39 @@ function buildDiscoveryPayload() {
 }
 
 async function fetchFeaturedServers(titleId) {
-    const token = await fetchMCToken(titleId);
+    // Resolve authentication only on source cache misses. Token expiry must not
+    // invalidate otherwise fresh discovery, homepage or detail metadata.
+    const token = () => fetchMCToken(titleId);
     const payload = buildDiscoveryPayload();
-    const r = await api.post(`${DISCOVERY_BASE}/api/v2.0/discovery/blob/client`, payload, {
-        headers: {
-            "accept-language": MC_LANGUAGE_CODE,
-            "authorization": token,
-            "cache-control": "public",
-            "accept-encoding": "gzip"
+    const cacheKey = `featured-servers:discovery:v1:${titleId}:${MC_LANGUAGE_CODE}:${JSON.stringify(payload)}`;
+    const discovery = dataCache.getOrSetAsync(cacheKey, async () => {
+        const authorization = await token();
+        const r = await api.post(`${DISCOVERY_BASE}/api/v2.0/discovery/blob/client`, payload, {
+            headers: {
+                "accept-language": MC_LANGUAGE_CODE,
+                "authorization": authorization,
+                "cache-control": "public",
+                "accept-encoding": "gzip"
+            }
+        });
+        if (r.status < 200 || r.status >= 300) {
+            const e = new Error(`Discovery request failed with status ${r.status}`);
+            e.status = r.status;
+            logger.warn(`Discovery request failed status=${r.status}`);
+            throw e;
         }
-    });
-    if (r.status < 200 || r.status >= 300) {
-        const e = new Error(`Discovery request failed with status ${r.status}`);
-        e.status = r.status;
-        logger.warn(`Discovery request failed status=${r.status}`);
-        throw e;
-    }
-    return r.data;
+        return r.data;
+    }, FEATURED_SERVERS_TTL_MS);
+    return enrichFeaturedServers(discovery, titleId, token);
+}
+
+async function fetchFeaturedServerDetails(titleId, experienceId) {
+    return fetchServerDetails(titleId, experienceId, () => fetchMCToken(titleId));
 }
 
 module.exports = {
     fetchFeaturedServers,
+    fetchFeaturedServerDetails,
     fetchMCToken,
     _internals: {
         buildDiscoveryPayload,

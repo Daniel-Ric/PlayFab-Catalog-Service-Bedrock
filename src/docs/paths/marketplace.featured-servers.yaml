@@ -16,7 +16,24 @@
     tags:
       - Marketplace
     summary: Get featured servers
-    description: Returns featured server discovery data from the Minecraft services API.
+    description: >-
+      Returns discovery server objects enriched with extracted homepage metadata in
+      data.Items[].experience. Includes descriptions, creator identity, image URLs
+      and resolution variants, MOTDs, homepage section membership and ordering,
+      and a relative detailsUrl. Association uses experience IDs, never names.
+      Legacy discovery fields are preserved. Homepage-only servers are appended
+      with source=server-screen. If the homepage service fails, discovery remains
+      available with enrichment.status=unavailable and null experience fields.
+      Descriptions, logos, creator images, backgrounds and banners are already
+      included, so callers need no separate detail request for those fields.
+      Missing upstream metadata is loaded with bounded parallelism and shared
+      with the detail endpoint through a per-experience cache. Individual metadata
+      failures produce enrichment.status=partial without discarding other servers.
+      No raw layout structures are returned.
+      Source metadata refreshes on demand after FEATURED_SERVERS_TTL_MS (default 5 minutes).
+      Layout calls use up to six concurrent requests with no fixed start delay by default;
+      upstream Retry-After cooldowns are respected. Concurrency and start spacing can be
+      configured with FEATURED_SERVERS_LAYOUT_CONCURRENCY and FEATURED_SERVERS_LAYOUT_MIN_TIME_MS.
     security:
       - BearerAuth: [ ]
     responses:
@@ -48,3 +65,52 @@
           application/json:
             schema:
               $ref: "#/components/schemas/Error"
+      "304":
+        description: Unchanged response for the supplied If-None-Match ETag.
+
+/marketplace/featured-servers/{experienceId}:
+  get:
+    tags: [Marketplace]
+    summary: Get structured server experience details
+    description: >-
+      Returns extracted detail-page data for an experience published on the current
+      server homepage. The homepage's current detail reference is resolved
+      automatically. Includes title, description, creator and creator image,
+      listing/logo/background/banner image variants, MOTDs, activities and optional
+      news. Strings are flattened; raw layouts, Fabs and internal layout references
+      are not returned. Cached results expire with their homepage dependencies.
+      Direct detail requests take priority over queued list enrichment calls.
+      Cached source data does not require authentication renewal.
+    security:
+      - BearerAuth: []
+    parameters:
+      - in: path
+        name: experienceId
+        required: true
+        description: Experience UUID from data.Items[].experience.id, which can differ from the original catalog Id.
+        schema:
+          type: string
+          format: uuid
+    responses:
+      "200":
+        description: Structured server details.
+        headers:
+          ETag:
+            schema:
+              type: string
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeaturedServerDetails'
+      "304":
+        description: Unchanged response for the supplied If-None-Match ETag.
+      "400":
+        description: Invalid experience UUID.
+      "401":
+        description: Unauthorized.
+      "403":
+        description: Forbidden.
+      "404":
+        description: Experience or its detail page is not published on the current homepage.
+      "502":
+        description: Layout service failure, invalid response or mismatched experience ID.

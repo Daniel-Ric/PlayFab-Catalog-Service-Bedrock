@@ -14,7 +14,10 @@
 
 const router = require("express").Router();
 const ctrl = require("../../controllers/marketplace/featuredServersController");
+const {param} = require("express-validator");
+const validate = require("../../middleware/validate");
 
 router.get("/", ctrl.getFeaturedServers);
+router.get("/:experienceId", [param("experienceId").isUUID().withMessage("A valid experience UUID is required.")], validate, ctrl.getFeaturedServerDetails);
 
 module.exports = router;

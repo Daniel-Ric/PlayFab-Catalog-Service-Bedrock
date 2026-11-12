@@ -1,5 +1,47 @@
 # Changelog
 
+## 17.9.0 (2026-11-12)
+
+### Summary
+
+- Change type: Documentation
+- Main change: PlayFab - Add enriched featured servers and optimized server details (44c9d4f)
+- Impact: Documentation with a medium change footprint across repository files, application logic.
+- Bump reason: medium change footprint (8 files, 606 total line changes)
+
+### Changed Areas
+
+- API controllers: 1 file: src/controllers/marketplace/featuredServersController.js
+- API routes: 1 file: src/routes/marketplace/featured-servers.js
+- OpenAPI documentation: 2 files: src/docs/paths/marketplace.featured-servers.yaml, src/docs/schemas/FeaturedServer.yml
+- Postman collection: 1 file: PlayFab Service - VMC.postman_collection.json
+- README: 1 file: readme.md
+- Service layer: 2 files: src/services/featuredServersService.js, src/services/serverScreenService.js
+
+### Release Metrics
+
+- Version bump: minor
+- Files changed: 8
+- Line changes: +577 / -29
+
+## 17.9.1 (2026-11-12)
+
+### Summary
+
+- Change type: Repository update
+- Main change: Merge remote-tracking branch 'origin/main' (5711a19)
+- Impact: Repository update with a small change footprint across repository files.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Changelog: 1 file: CHANGELOG.md
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +38 / -0
 ## 17.8.1 (2026-11-10)
 
 ### Summary
@@ -4282,6 +4324,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

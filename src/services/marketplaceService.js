@@ -485,16 +485,16 @@ async function fetchAllSearchPage(titleId, query = {}, orderBy = "startDate desc
 async function fetchSearchPageWithCursor(titleId, params, filter, orderBy, loadItems = fetchCatalogSearchItemsV2) {
     const requiredItems = params.skip + params.limit + 1;
     const batchSize = 50;
-    const maxBatches = Math.max(1, Math.ceil(requiredItems / batchSize));
-    const scanned = await loadItems(titleId, {
-        filter,
-        search: "",
-        os: OS,
-        batchSize,
-        concurrency: FETCH_CONCURRENCY,
-        maxBatches,
-        orderBy
-    });
+    let maxBatches = Math.max(1, Math.ceil(requiredItems / batchSize));
+    let scanned;
+    do {
+        scanned = await loadItems(titleId, {
+            filter, search: "", os: OS, batchSize,
+            concurrency: FETCH_CONCURRENCY, maxBatches, orderBy
+        });
+        if (scanned.length >= requiredItems || !scanned.catalogScan || scanned.catalogScan.complete) break;
+        maxBatches *= 2;
+    } while (true);
     const items = scanned.slice(params.skip, params.skip + params.limit);
     const total = scanned.length;
     return {params, items, total};
@@ -507,37 +507,17 @@ async function maybeEnrichItemsWithResolvedReferences(titleId, items, query = {}
 async function fetchSearchPageByFilter(titleId, query = {}, filter = "", orderBy = "startDate desc") {
     const {params} = resolveCatalogPagination(query, PAGE_SIZE, PAGE_SIZE);
     if (params.skip > 10000) return fetchSearchPageWithCursor(titleId, params, filter, orderBy);
-    const items = [];
-    let total = null;
-    let rawTotal = null;
-    let skip = params.skip;
-    let remaining = params.limit;
-
     try {
-        while (remaining > 0) {
-            const top = Math.min(300, remaining);
+        return await require("../utils/visibleCatalogPage").visibleCatalogPage(params, async (skip, top) => {
             const payload = buildSearchPayload({filter, search: "", top, skip, orderBy});
             const data = await sendPlayFabRequest(titleId, "Catalog/Search", payload, "X-EntityToken", 3, OS);
-            const raw = data.Items || data.items || [];
-
-            const upstreamTotal = readCatalogTotal(data);
-            if (upstreamTotal !== null) rawTotal = upstreamTotal;
-            if (upstreamTotal !== null) total = upstreamTotal;
-            else total = skip + raw.length + (raw.length === top ? 1 : 0);
-
-            items.push(...raw.filter(isValidItem).map(transformItem));
-            if (!raw.length || raw.length < top || (upstreamTotal !== null && skip + raw.length >= upstreamTotal)) break;
-
-            skip += top;
-            remaining -= top;
-        }
+            return {items: data.Items || data.items || [], total: readCatalogTotal(data)};
+        }, isValidItem, transformItem);
     } catch (error) {
-        if (!isTransientCatalogSearchError(error)) throw error;
-        logger.warn(`[Marketplace] Catalog/Search page failed with ${error.status || error.code || "a transient error"}; using Catalog V2 cursor fallback`);
+        if (error.code !== "CATALOG_VISIBLE_CURSOR_REQUIRED" && !isTransientCatalogSearchError(error)) throw error;
+        logger.warn(`[Marketplace] Catalog/Search page requires Catalog V2 cursor fallback (${error.status || error.code})`);
         return fetchSearchPageWithCursor(titleId, params, filter, orderBy);
     }
-
-    return {params, items, total: total ?? params.skip + items.length, rawTotal};
 }
 
 function canUseServerSearchPage(query = {}) {

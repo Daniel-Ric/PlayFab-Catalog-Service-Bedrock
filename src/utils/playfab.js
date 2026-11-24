@@ -490,7 +490,12 @@ async function fetchCatalogSearchItemsV2(titleId, options = {}) {
     const scan = await dataCache.getOrSetDerivedAsync(key,
         previous => fetchCatalogSearchItemsV2Internal(titleId, options, previous),
         result => result.complete || result.scannedHits >= maxItems);
-    return sortCatalogItems(uniqueCatalogItems(transformCatalogItems(scan.rawItems.slice(0, maxItems))), options.orderBy || "StartDate desc");
+    const result = sortCatalogItems(uniqueCatalogItems(transformCatalogItems(scan.rawItems.slice(0, maxItems))), options.orderBy || "StartDate desc");
+    Object.defineProperty(result, "catalogScan", {value: {
+        complete: scan.complete && scan.rawItems.length <= maxItems,
+        scannedHits: Math.min(scan.scannedHits, maxItems)
+    }});
+    return result;
 }
 
 function catalogV2ScanLimit({batchSize = 300, maxBatches = 0}) {

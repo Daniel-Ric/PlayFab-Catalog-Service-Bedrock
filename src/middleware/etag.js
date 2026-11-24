@@ -13,7 +13,6 @@
 // -----------------------------------------------------------------------------
 
 const crypto = require("crypto");
-const {once} = require("events");
 
 const etagMemo = new WeakMap();
 const STREAM_ARRAY_MIN_ITEMS = Math.max(1, parseInt(process.env.ETAG_STREAM_ARRAY_MIN_ITEMS || "5000", 10));
@@ -55,15 +54,34 @@ async function buildStreamingEtag(items) {
 }
 
 async function writeChunk(res, chunk) {
-    if (!res.write(chunk)) await once(res, "drain");
+    if (res.destroyed) throw new Error("Response closed while streaming");
+    if (res.write(chunk)) return;
+    await new Promise((resolve, reject) => {
+        // compression forwards .on('drain') to its own stream. Remove the
+        // listener from that emitter, not from the original ServerResponse.
+        let emitter;
+        const cleanup = () => {
+            emitter?.removeListener("drain", drained);
+            res.removeListener("close", closed);
+            res.removeListener("error", failed);
+        };
+        function drained() { cleanup(); resolve(); }
+        function closed() { cleanup(); reject(new Error("Response closed while streaming")); }
+        function failed(error) { cleanup(); reject(error); }
+        emitter = res.on("drain", drained);
+        res.on("close", closed);
+        res.on("error", failed);
+        if (res.destroyed) closed();
+    });
 }
 
 async function streamJsonArray(res, items) {
     res.setHeader("Content-Type", "application/json; charset=utf-8");
     await writeChunk(res, "[");
-    for (let i = 0; i < items.length; i += 1) {
-        if (i > 0) await writeChunk(res, ",");
-        await writeChunk(res, JSON.stringify(items[i]) ?? "null");
+    for (let i = 0; i < items.length; i += 128) {
+        const chunk = items.slice(i, i + 128).map(item => JSON.stringify(item) ?? "null").join(",");
+        await writeChunk(res, (i ? "," : "") + chunk);
+        await new Promise(resolve => setImmediate(resolve));
     }
     res.end("]");
 }

@@ -34,7 +34,6 @@ const authLimiter = rateLimit({
     legacyHeaders: false,
 });
 const mpAll = require("./routes/marketplace/all");
-const mpCreatorPages = require("./routes/marketplace/creator-pages");
 const mpLatest = require("./routes/marketplace/latest");
 const mpSearch = require("./routes/marketplace/search");
 const mpPopular = require("./routes/marketplace/popular");
@@ -454,7 +453,6 @@ app.use("/creators", enforceAuth, adminLimiter, creatorsRoutes);
 app.use("/marketplace", enforceAuth, authLimiter, marketplaceLimiter);
 
 app.use("/marketplace/all", cacheHeaders(60, 300), mpAll);
-app.use("/marketplace/creator-pages", cacheHeaders(60, 300), mpCreatorPages);
 app.use("/marketplace/latest", cacheHeaders(30, 180), mpLatest);
 app.use("/marketplace/search", cacheHeaders(30, 180), mpSearch);
 app.use("/marketplace/popular", cacheHeaders(45, 240), mpPopular);

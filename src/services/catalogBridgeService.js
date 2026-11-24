@@ -123,7 +123,7 @@ function buildProxyRequest(payload, cfg, options = {}) {
     const method = normalizeMethod(payload?.method);
     const target = new URL(relativeUrl, "http://catalog-bridge.local");
     const fullScan = method === "GET"
-        && /^\/catalog\/marketplace\/(?:all\/[^/]+|free\/[^/]+|tag\/[^/]+\/[^/]+)\/?$/i.test(target.pathname)
+        && /^\/catalog\/marketplace\/(?:all\/[^/]+|popular\/[^/]+|free\/[^/]+|tag\/[^/]+\/[^/]+)\/?$/i.test(target.pathname)
         && !["page", "pageSize", "skip", "limit"].some(key => target.searchParams.has(key));
     const timeout = fullScan
         ? Math.max(cfg.requestTimeoutMs, cfg.fullScanTimeoutMs || cfg.requestTimeoutMs)

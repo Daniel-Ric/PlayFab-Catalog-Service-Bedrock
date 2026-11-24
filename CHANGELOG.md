@@ -1,5 +1,101 @@
 # Changelog
 
+## 17.9.2 (2026-11-24)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Fix pagination for visible catalog items (6675a53)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/marketplaceService.js
+- Shared utilities: 2 files: src/utils/playfab.js, src/utils/visibleCatalogPage.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 3
+- Line changes: +48 / -36
+
+## 17.9.3 (2026-11-24)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Handle unavailable items in active sales (0357486)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 2 files: src/services/marketplaceService.js, src/services/salesWatcher.js
+- Shared utilities: 2 files: src/utils/availableCatalogItems.js, src/utils/playfab.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 4
+- Line changes: +33 / -4
+
+## 17.9.4 (2026-11-24)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Fix backpressure in streamed catalog responses (a5a0990)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Application source: 1 file: src/middleware/etag.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +23 / -5
+
+## 17.9.5 (2026-11-24)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Extend timeout for full popular catalog scans (6ce1b27)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Service layer: 1 file: src/services/catalogBridgeService.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +1 / -1
+
+## 17.9.6 (2026-11-24)
+
+### Summary
+
+- Change type: Repository update
+- Main change: PlayFab - Unmount creator pages endpoint (ab9f228)
+- Impact: Repository update with a small change footprint across application logic.
+- Bump reason: patch-level repository update
+
+### Changed Areas
+
+- Application source: 1 file: src/index.js
+
+### Release Metrics
+
+- Version bump: patch
+- Files changed: 1
+- Line changes: +0 / -2
 ## 17.9.0 (2026-11-12)
 
 ### Summary
@@ -4324,6 +4420,7 @@
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([1550f5c](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/1550f5c94eb9dd62c5746ff09130239c1e5cdc16))
 * parallelize detail enrichment API calls ([ed2aeb8](https://github.com/Daniel-Ric/PlayFab-Catalog-Service-Bedrock/commit/ed2aeb8dba2b1582d13bfb3c11b9d464a0b376e8))
+
 
 
 

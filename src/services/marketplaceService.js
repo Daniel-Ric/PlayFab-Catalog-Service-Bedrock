@@ -284,6 +284,7 @@ async function fetchStoresWithItemsInternal(titleId, maxStores) {
             const refs = Array.isArray(s?.ItemReferences) ? s.ItemReferences.length : 0;
             const dp = s?.DisplayProperties || {};
             logger.debug(`[Sales] store meta id=${sid} title="${stitle}" refs=${refs} discount=${typeof dp.discount === "number" ? dp.discount : "n/a"}`);
+            if (Array.isArray(s.ItemReferences) && s.ItemReferences.length) return {Store: s, Items: []};
             const r = await getStoreItems(titleId, sid, OS);
             const items = r?.Items || r?.items || [];
             logger.debug(`[PF] GetStoreItems result storeId=${sid} items=${items.length}`);
@@ -362,6 +363,7 @@ function buildSalesResponse(headers, itemDetails, creatorDisplayNameFilter) {
             const d = itemDetails[ref.id] || {};
             return {
                 id: ref.id,
+                availability: itemDetails[ref.id] ? "available" : "unavailable",
                 prices: ref.prices,
                 catalogVersion: d.CatalogVersion || null,
                 customData: d.CustomData || null,
@@ -972,7 +974,8 @@ module.exports = {
                 })).filter(r => r.Id);
             }
             return toSaleHeader({Store: s});
-        }).filter(h => h.id);
+        }).filter(h => h.id && (!h.starts || Date.parse(h.starts) <= Date.now())
+            && (!h.expires || Date.parse(h.expires) > Date.now()));
 
         logger.debug(`[Sales] headers=${headers.length}`);
         for (const h of headers) {
@@ -1014,6 +1017,8 @@ module.exports = {
                 }
             }
         }
+        result.unavailableItemIds = [...new Set(Object.values(result.sales).flatMap(sale =>
+            sale.items.filter(item => item.availability === "unavailable").map(item => item.id)))];
         const saleKeys = Object.keys(result.sales || {});
         logger.debug(`[Sales] sales.buckets=${saleKeys.length} totalItems=${result.totalItems}`);
         for (const k of saleKeys) {
@@ -1322,6 +1327,7 @@ module.exports = {
     },
 
     _internals: {
+        buildSalesResponse,
         buildBasicSearchText,
         resolveOrderBy,
         readCatalogTotal,

@@ -45,6 +45,7 @@ async function fetchStoresWithItems(titleId, os, concurrency) {
     for (let i = 0; i < stores.length; i += concurrency) {
         const chunk = stores.slice(i, i + concurrency);
         const res = await Promise.all(chunk.map(async s => {
+            if (Array.isArray(s.ItemReferences) && s.ItemReferences.length) return {Store: s, Items: []};
             try {
                 const r = await getStoreItems(titleId, s.Id || s.id, os, {priority: "background"});
                 const items = r?.Items || r?.items || [];
@@ -134,6 +135,7 @@ function buildSaleEntry(store, items, itemDetails) {
             return {
                 ...projectCatalogItem(detail || {Id: ref.id}),
                 id: ref.id,
+                availability: detail ? "available" : "unavailable",
                 prices: ref.prices,
                 sale: null
             };

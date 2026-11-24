@@ -726,10 +726,10 @@ async function getItemsByIds(titleId, ids, os, batchSize = 100, concurrency = 5)
         for (let j = 0; j < pendingIds.length; j += safeBatchSize) {
             const group = pendingIds.slice(j, j + safeBatchSize);
             const keys = group.map(id => `pf:item:${titleId}:${os || "default"}:${id}`);
-            const pending = sendPlayFabRequest(titleId, "Catalog/GetItems", {
-                Ids: group,
+            const pending = require("./availableCatalogItems").fetchAvailableCatalogItems(group, availableIds => sendPlayFabRequest(titleId, "Catalog/GetItems", {
+                Ids: availableIds,
                 Expand: "Images"
-            }, "X-EntityToken", 3, os).then(response => {
+            }, "X-EntityToken", 3, os)).then(response => {
                 const items = new Map();
                 for (const item of response.Items || response.items || []) {
                     const id = catalogItemId(item);
